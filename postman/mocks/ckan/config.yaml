@@ -1,0 +1,10 @@
+version: 1
+name: KIDSic CKAN
+slug: ckan
+protocol: http
+port: 45470
+interceptRequests: true
+scenarios:
+  - name: default
+    path: ./default.js
+    default: true
