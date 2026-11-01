@@ -12,6 +12,8 @@ dependencies = [
 
 [project.scripts]
 kidsic-search = "KIDSic.commands.search:main"
+kidsic-register-sources = "KIDSic.commands.register_sources:main"
+kidsic-sync-kindergartens = "KIDSic.commands.sync_kindergartens:main"
 
 [build-system]
 requires = ["hatchling"]
