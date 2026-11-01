@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+-- statement
 CREATE EXTENSION IF NOT EXISTS postgis;
 -- statement
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
@@ -123,3 +125,27 @@ CREATE TABLE enrolment (
 CREATE INDEX ix_enrolment_owner ON enrolment(kindergarten_id);
 -- statement
 CREATE INDEX ix_enrolment_source ON enrolment(source_record_id);
+-- statement
+CREATE TABLE knowledge_chunk (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ kindergarten_id uuid NOT NULL REFERENCES kindergarten(id),
+ location_id uuid,
+ program_id uuid,
+ source_record_id uuid NOT NULL REFERENCES source_record(id),
+ ordinal integer NOT NULL CHECK(ordinal>=0),
+ content text NOT NULL CHECK(btrim(content)<>''),
+ source_url text NOT NULL,
+ content_sha256 text NOT NULL CHECK(content_sha256 ~ '^[0-9a-f]{64}$'),
+ embedding vector(384),
+ embedding_model text,
+ search_text tsvector GENERATED ALWAYS AS (to_tsvector('simple',content)) STORED,
+ FOREIGN KEY(location_id,kindergarten_id) REFERENCES location(id,kindergarten_id),
+ FOREIGN KEY(program_id,kindergarten_id) REFERENCES program(id,kindergarten_id),
+ UNIQUE(source_record_id,ordinal),
+ CHECK((embedding IS NULL)=(embedding_model IS NULL)),
+ CHECK(embedding IS NULL OR vector_norm(embedding)>0)
+);
+-- statement
+CREATE INDEX ix_chunk_scope ON knowledge_chunk(kindergarten_id,location_id);
+-- statement
+CREATE INDEX ix_chunk_lexical ON knowledge_chunk USING gin(search_text);
