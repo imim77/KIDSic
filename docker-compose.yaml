@@ -1,0 +1,22 @@
+services:
+  database:
+    build:
+      context: .
+      dockerfile: database/Dockerfile
+    image: kidsic-db:rag
+    environment:
+      POSTGRES_USER: kidsic
+      POSTGRES_PASSWORD: kidsic_local
+      POSTGRES_DB: kidsic
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - kidsic_database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kidsic -d kidsic"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  kidsic_database:
