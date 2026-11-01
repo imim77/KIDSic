@@ -1,0 +1,1 @@
+"""KIDSic integrations interfaces package."""

@@ -1,0 +1,1 @@
+"""KIDSic commands package."""

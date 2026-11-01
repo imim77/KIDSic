@@ -1,0 +1,1 @@
+"""KIDSic config package."""
