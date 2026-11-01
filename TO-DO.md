@@ -2,9 +2,9 @@
 
 ## Uvoz i povezivanje otvorenih podataka
 
-- [ ] Uvoziti nacionalni imenik dječjih vrtića MZOM-a s Portala otvorenih podataka RH.
-- [ ] Uvoziti gradski skup lokacija i kontakata gradskih vrtića Zagreba.
-- [ ] Uvoziti zaseban gradski skup privatnih i vjerskih vrtića te obrta za čuvanje djece.
+- [x] Uvoziti nacionalni imenik dječjih vrtića MZOM-a s Portala otvorenih podataka RH.
+- [x] Uvoziti gradski skup lokacija i kontakata gradskih vrtića Zagreba.
+- [x] Uvoziti zaseban gradski skup privatnih i vjerskih vrtića te obrta za čuvanje djece.
 - [ ] Obogatiti povezane objekte dostupnim atributima iz skupa Geoportal Dječji vrtići, uz potvrđene uvjete korištenja.
 - [ ] Obrađivati JSON i CSV izvore s različitim zaglavljima, kodiranjima i zapisima adresa i koordinata.
 - [ ] Povezivati nacionalne zapise ustanova s gradskim objektima prema normaliziranom nazivu, adresi i dostupnim identifikatorima.
