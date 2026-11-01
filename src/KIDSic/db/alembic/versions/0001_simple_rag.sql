@@ -92,3 +92,34 @@ CREATE TABLE program (
 CREATE INDEX ix_program_owner ON program(kindergarten_id,location_id);
 -- statement
 CREATE INDEX ix_program_source ON program(source_record_id);
+-- statement
+CREATE TABLE availability (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ kindergarten_id uuid NOT NULL REFERENCES kindergarten(id),
+ location_id uuid,
+ source_record_id uuid NOT NULL REFERENCES source_record(id),
+ age_label text, program_label text,
+ free_places integer CHECK(free_places>=0),
+ observed_on date,
+ FOREIGN KEY(location_id,kindergarten_id) REFERENCES location(id,kindergarten_id)
+);
+-- statement
+CREATE INDEX ix_availability_owner ON availability(kindergarten_id,location_id);
+-- statement
+CREATE INDEX ix_availability_source ON availability(source_record_id);
+-- statement
+CREATE TABLE enrolment (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ kindergarten_id uuid NOT NULL REFERENCES kindergarten(id),
+ source_record_id uuid NOT NULL REFERENCES source_record(id),
+ academic_year text NOT NULL,
+ application_url text NOT NULL,
+ opens_at timestamptz, closes_at timestamptz,
+ steps jsonb NOT NULL DEFAULT '[]' CHECK(jsonb_typeof(steps)='array'),
+ documents jsonb NOT NULL DEFAULT '[]' CHECK(jsonb_typeof(documents)='array'),
+ CHECK (closes_at IS NULL OR opens_at IS NULL OR closes_at>=opens_at)
+);
+-- statement
+CREATE INDEX ix_enrolment_owner ON enrolment(kindergarten_id);
+-- statement
+CREATE INDEX ix_enrolment_source ON enrolment(source_record_id);

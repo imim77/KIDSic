@@ -21,6 +21,6 @@ def upgrade():
 
 
 def downgrade():
-    for table in ('program', 'source_record', 'location', 'kindergarten', 'data_source'):
+    for table in ('enrolment', 'availability', 'program', 'source_record', 'location', 'kindergarten', 'data_source'):
         op.execute(f"DROP TABLE {table}")
     # Shared extensions remain installed.
