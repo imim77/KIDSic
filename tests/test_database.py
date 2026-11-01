@@ -118,3 +118,13 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
                 await self.c.execute('INSERT INTO program(kindergarten_id,location_id,source_record_id,name,verified_on) VALUES ($1,$2,$3,\'bad\',CURRENT_DATE)',self.other[0],self.eligible[1],self.eligible[2])
         with self.assertRaises(ValueError):
             await self.repo.find_options(city='varazdin',age_months=-1)
+
+    async def test_unit_of_work_releases_connection_after_error(self):
+        before=self.pool.get_size()-self.pool.get_idle_size()
+        with self.assertRaisesRegex(RuntimeError,'synthetic failure'):
+            async with AsyncpgUnitOfWork(self.pool) as uow:
+                await uow.search.list_cities()
+                raise RuntimeError('synthetic failure')
+        self.assertEqual(self.pool.get_size()-self.pool.get_idle_size(),before)
+        async with AsyncpgUnitOfWork(self.pool) as uow:
+            self.assertIsInstance(await uow.search.list_cities(),list)
