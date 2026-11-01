@@ -16,6 +16,7 @@ src/KIDSic/
   db/
     alembic/                # konfiguracija i verzionirane migracije
     database.py             # asyncpg pool i JSON kodeci
+    Dockerfile              # PostgreSQL slika s PostGIS-om i pgvectorom
     models/                 # rezervirano; nema ORM-a u trenutačnoj izvedbi
     uow/                    # transakcije i životni vijek konekcije
   dto/                      # podatkovni ugovori i normalizacija teksta
@@ -31,7 +32,7 @@ frontend/src/
   views/                    # HTML ulazi i React prikazi
 scripts/                    # pomoćni razvojni alati
 tests/                      # provjere servisa, infrastrukture i upita
-database/                   # ERA model, generirani rječnik i Dockerfile
+database/                   # lokalni ERA model i generirani rječnik (ignorirano)
 ```
 
 Tok ovisnosti: naredba/API → DependencyService/factory → service → Unit of Work → DAO interface → asyncpg DAO. SQL i vektorski operatori pripadaju konkretnom DAO-u; servis odlučuje koje kandidate i dokaze vratiti. Transakcije pripadaju Unit of Worku. Struktura prati referentni projekt uz traženi izravni asyncpg pristup; SQLAlchemy se koristi samo za Alembic.
@@ -66,4 +67,4 @@ uv run python -m unittest discover -s tests -v
 
 Integracijske provjere trebaju zasebnu, migriranu bazu `kidsic_test_*` i `KIDSIC_TEST_DATABASE_URL`. Bez te varijable integracijski testovi se preskaču. Detalji: [baza i RAG](database/README.md), [ERA model](database/ERA.md), [funkcionalnosti](TO-DO.md).
 
-Lokalno istraživanje ostaje u ignoriranom `docs/`. Razvojni rezultati, `.env`, `.venv` i `node_modules` ne ulaze u Git. Commits slijede Conventional Commits (`chore`, `feat`, `test`, `docs` s odgovarajućim scopeom).
+Lokalno istraživanje u `docs/`, dokumentacija baze u `database/` i pomoćne skripte u `scripts/` ne ulaze u Git. Razvojni rezultati, `.env`, `.venv` i `node_modules` također su ignorirani. Commits slijede Conventional Commits (`chore`, `feat`, `test`, `docs` s odgovarajućim scopeom).

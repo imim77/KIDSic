@@ -166,3 +166,5 @@ tags
 
 # Local research documentation
 /docs/
+/database/
+/scripts/

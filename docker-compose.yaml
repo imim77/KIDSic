@@ -2,7 +2,7 @@ services:
   database:
     build:
       context: .
-      dockerfile: database/Dockerfile
+      dockerfile: src/KIDSic/db/Dockerfile
     image: kidsic-db:rag
     environment:
       POSTGRES_USER: kidsic
