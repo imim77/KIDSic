@@ -1,0 +1,44 @@
+{
+  "success": true,
+  "result": {
+    "id": "0b951eaa-d9e7-4c68-adcf-5090f452abf4",
+    "name": "djecji-vrtici",
+    "title": "Dječji vrtići",
+    "license_id": "open-license",
+    "license_title": "Otvorena dozvola (OD)",
+    "license_url": "https://data.gov.hr/id/licence/otvorena-dozvola-rh",
+    "metadata_modified": "2026-04-15T18:55:35.087725",
+    "organization": {
+      "title": "Ministarstvo znanosti, obrazovanja i mladih"
+    },
+    "resources": [
+      {
+        "id": "djecji-vrtici",
+        "url": "https://data.gov.hr/ckan/dataset/0b951eaa-d9e7-4c68-adcf-5090f452abf4/resource/djecji-vrtici/download/data.json",
+        "name": "Dječji vrtići",
+        "description": "Dječji vrtići",
+        "format": "JSON",
+        "state": "active",
+        "last_modified": "2025-05-19T14:53:23.344186"
+      },
+      {
+        "id": "c2baf042-c5a8-4f62-bffc-e968085ba5ed",
+        "url": "https://data.gov.hr/ckan/dataset/0b951eaa-d9e7-4c68-adcf-5090f452abf4/resource/c2baf042-c5a8-4f62-bffc-e968085ba5ed/download/data.xml",
+        "name": "Dječji vrtići",
+        "description": "Dječji vrtići",
+        "format": "XML",
+        "state": "active",
+        "last_modified": "2025-05-19T14:53:23.762207"
+      },
+      {
+        "id": "7e7c26cd-6ad4-4cdd-b0cb-42b0ad2a933c",
+        "url": "https://data.gov.hr/ckan/dataset/0b951eaa-d9e7-4c68-adcf-5090f452abf4/resource/7e7c26cd-6ad4-4cdd-b0cb-42b0ad2a933c/download/data.csv",
+        "name": "Dječji vrtići",
+        "description": "Dječji vrtići",
+        "format": "CSV",
+        "state": "active",
+        "last_modified": "2025-05-19T14:53:24.139814"
+      }
+    ]
+  }
+}

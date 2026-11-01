@@ -1,0 +1,44 @@
+{
+  "success": true,
+  "result": {
+    "id": "10f10ce2-44a0-4a2c-96f5-249f218b3d21",
+    "name": "gradski_vrtici_grada_zagreba",
+    "title": "Gradski vrtići Grada Zagreba - kontakt podaci",
+    "license_id": "open-license",
+    "license_title": "Otvorena dozvola (OD)",
+    "license_url": "http://data.gov.hr/otvorena-dozvola",
+    "metadata_modified": "2026-10-28T14:58:44.988780",
+    "organization": {
+      "title": "Grad Zagreb"
+    },
+    "resources": [
+      {
+        "id": "ef3f6fc2-d648-4dba-a7b2-f7e8990d8cd0",
+        "url": "https://data.zagreb.hr/dataset/10f10ce2-44a0-4a2c-96f5-249f218b3d21/resource/ef3f6fc2-d648-4dba-a7b2-f7e8990d8cd0/download/data.json",
+        "name": "Gradski vrtići Grada Zagreba - kontakt podaci",
+        "description": "Sadrži podatke o nazivu vrtića, adresi, gradskoj četvrti, kontakt podacima te tipu objekta (matični, područni).",
+        "format": "JSON",
+        "state": "active",
+        "last_modified": "2026-10-28T14:58:43.974423"
+      },
+      {
+        "id": "ddfce8a9-80d8-4322-99f6-64aca6c55f27",
+        "url": "https://data.zagreb.hr/dataset/10f10ce2-44a0-4a2c-96f5-249f218b3d21/resource/ddfce8a9-80d8-4322-99f6-64aca6c55f27/download/data.xml",
+        "name": "Gradski vrtići Grada Zagreba - kontakt podaci",
+        "description": "Sadrži podatke o nazivu vrtića, adresi, gradskoj četvrti, kontakt podacima te tipu objekta (matični, područni).",
+        "format": "XML",
+        "state": "active",
+        "last_modified": "2026-10-28T14:58:44.498893"
+      },
+      {
+        "id": "2773b849-6783-491d-a4d2-3a63c5d2bfe5",
+        "url": "https://data.zagreb.hr/dataset/10f10ce2-44a0-4a2c-96f5-249f218b3d21/resource/2773b849-6783-491d-a4d2-3a63c5d2bfe5/download/data.csv",
+        "name": "Gradski vrtići Grada Zagreba - kontakt podaci",
+        "description": "Sadrži podatke o nazivu vrtića, adresi, gradskoj četvrti, kontakt podacima te tipu objekta (matični, područni).",
+        "format": "CSV",
+        "state": "active",
+        "last_modified": "2026-10-28T14:58:44.982347"
+      }
+    ]
+  }
+}

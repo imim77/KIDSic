@@ -1,0 +1,44 @@
+{
+  "success": true,
+  "result": {
+    "id": "25a37ebd-13af-4979-8b50-4c081a6b9386",
+    "name": "privatni-vjerski-obrti-gz-kontakt-podaci",
+    "title": "Privatni i vjerski vrtići te obrti za čuvanje djece Grada Zagreba - kontakt podaci",
+    "license_id": "open-license",
+    "license_title": "Otvorena dozvola (OD)",
+    "license_url": "http://data.gov.hr/otvorena-dozvola",
+    "metadata_modified": "2026-10-27T10:23:06.642126",
+    "organization": {
+      "title": "Grad Zagreb"
+    },
+    "resources": [
+      {
+        "id": "8fa8e3b5-7a3b-4b75-98a4-0743b29f79bc",
+        "url": "https://data.zagreb.hr/dataset/25a37ebd-13af-4979-8b50-4c081a6b9386/resource/8fa8e3b5-7a3b-4b75-98a4-0743b29f79bc/download/data.json",
+        "name": "Privatni i vjerski vrtići te obrti za čuvanje djece Grada Zagreba - kontakt podaci",
+        "description": "Podaci o nazivu vrtića, adresi, gradskoj četvrti, kontakt podaci te tipu objekta (obrt za čuvanje djece, privatni, vjerski).",
+        "format": "JSON",
+        "state": "active",
+        "last_modified": "2026-10-27T10:23:05.950886"
+      },
+      {
+        "id": "9652f513-9bb8-4cce-88ba-b9edaf4d10a2",
+        "url": "https://data.zagreb.hr/dataset/25a37ebd-13af-4979-8b50-4c081a6b9386/resource/9652f513-9bb8-4cce-88ba-b9edaf4d10a2/download/data.xml",
+        "name": "Privatni i vjerski vrtići te obrti za čuvanje djece Grada Zagreba - kontakt podaci",
+        "description": "Podaci o nazivu vrtića, adresi, gradskoj četvrti, kontakt podaci te tipu objekta (obrt za čuvanje djece, privatni, vjerski).",
+        "format": "XML",
+        "state": "active",
+        "last_modified": "2026-10-27T10:23:06.258988"
+      },
+      {
+        "id": "39b1df32-4997-4c95-9416-9225a5420813",
+        "url": "https://data.zagreb.hr/dataset/25a37ebd-13af-4979-8b50-4c081a6b9386/resource/39b1df32-4997-4c95-9416-9225a5420813/download/data.csv",
+        "name": "Privatni i vjerski vrtići te obrti za čuvanje djece Grada Zagreba - kontakt podaci",
+        "description": "Podaci o nazivu vrtića, adresi, gradskoj četvrti, kontakt podaci te tipu objekta (obrt za čuvanje djece, privatni, vjerski).",
+        "format": "CSV",
+        "state": "active",
+        "last_modified": "2026-10-27T10:23:06.634981"
+      }
+    ]
+  }
+}
