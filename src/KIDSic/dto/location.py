@@ -52,7 +52,7 @@ class LocationProperties(BaseModel):
     district: str | None
     location_role: Literal['facility', 'seat']
     sources: list[LocationSource]
-    # This endpoint has no verified per-object age evidence; absence is unknown.
+    # Age suitability is not evaluated by this endpoint.
     age_groups: None = None
 
 

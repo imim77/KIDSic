@@ -6,6 +6,7 @@ from KIDSic.config.settings import Settings
 from KIDSic.db.database import database_pool
 from KIDSic.db.uow.asyncpg import AsyncpgUnitOfWork
 from KIDSic.factories.kindergarten_search import KindergartenSearchServiceFactory
+from KIDSic.factories.location import LocationServiceFactory
 from KIDSic.factories.source import SourceServiceFactory
 from KIDSic.db.uow.source import AsyncpgSourceUnitOfWork
 
@@ -36,3 +37,12 @@ class DependencyService:
             max_size=self._settings.pool_max_size,
         ) as pool:
             yield KindergartenSearchServiceFactory().create(lambda: AsyncpgUnitOfWork(pool))
+
+    @asynccontextmanager
+    async def location_service(self):
+        async with database_pool(
+            self._settings.database_url,
+            min_size=self._settings.pool_min_size,
+            max_size=self._settings.pool_max_size,
+        ) as pool:
+            yield LocationServiceFactory().create(lambda: AsyncpgUnitOfWork(pool))

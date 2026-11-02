@@ -62,3 +62,16 @@ Illustrative response (identities and values below are synthetic):
 The Python contract lives in `src/KIDSic/dto/location.py` and is independent of
 HTTP. All database reads for a request share the existing repeatable-read,
 read-only Unit of Work. Source activation remains the import pipeline's job.
+
+Run after setting `DATABASE_URL` and applying existing migrations:
+
+```sh
+uv sync --locked
+uv run uvicorn KIDSic.api.locations:create_app --factory --host 127.0.0.1 --port 8000
+curl 'http://127.0.0.1:8000/api/locations?city=Zagreb&provider_kind=municipal'
+```
+
+A missing/invalid database setting or unreachable database during pool startup
+fails server startup clearly. Once started, database query/connection failures
+return the sanitized HTTP 503 above. The server never runs migrations. Development
+frontend traffic uses the Vite `/api` proxy; no permissive CORS policy is needed.
