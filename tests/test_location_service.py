@@ -1,0 +1,48 @@
+"""LocationService keeps unidentified coordinates visible without fabricating points."""
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from types import SimpleNamespace
+import unittest
+from unittest.mock import AsyncMock
+from uuid import uuid4
+
+from KIDSic.dto.location import LocationQuery
+from KIDSic.factories.location import LocationServiceFactory
+
+
+class LocationServiceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_snapshot_counts_identity_sources_and_null_geometry(self):
+        institution = uuid4()
+        location = uuid4()
+        source = {'name': 'Synthetic', 'url': 'https://example.invalid',
+                  'reference_date': None, 'retrieved_at': datetime(2026, 11, 2, tzinfo=timezone.utc)}
+        row = dict(kindergarten_id=institution, name='Synthetic', location_name='Branch',
+                   address=None, city='Zagreb', provider_kind='unknown', district=None,
+                   longitude=15.98, latitude=45.81, sources=[source])
+        repository = SimpleNamespace(list_locations=AsyncMock(return_value=[
+            dict(row, location_id=location, location_role='facility'),
+            dict(row, location_id=uuid4(), location_role='facility', longitude=None, latitude=None),
+            dict(row, location_id=None, location_role='seat'),
+        ]))
+        events = []
+        @asynccontextmanager
+        async def uow():
+            events.append('enter')
+            yield SimpleNamespace(locations=repository)
+            events.append('exit')
+        query = LocationQuery()
+        result = await LocationServiceFactory().create(uow).list_locations(query)
+        repository.list_locations.assert_awaited_once_with(query)
+        self.assertEqual(events, ['enter', 'exit'])
+        self.assertEqual(result.metadata.model_dump(), {
+            'total': 3, 'mapped': 1, 'unmapped': 2, 'scope': 'city', 'complete': True,
+        })
+        payload = result.model_dump(mode='json')
+        self.assertEqual(payload['features'][0]['id'], str(location))
+        self.assertEqual(payload['features'][0]['geometry']['coordinates'], [15.98, 45.81])
+        self.assertEqual(payload['features'][0]['properties']['sources'][0]['retrieved_at'],
+                         '2026-11-02T00:00:00Z')
+        self.assertIsNone(payload['features'][1]['geometry'])
+        self.assertEqual(payload['features'][2]['id'], f'seat:{institution}')
+        self.assertIsNone(payload['features'][2]['geometry'])
+        self.assertIsNone(payload['features'][0]['properties']['age_groups'])
