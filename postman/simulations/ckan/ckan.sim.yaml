@@ -1,6 +1,0 @@
-simulation: kidsic-ckan
-routing: path
-mocks:
-  - name: CKAN catalogues and JSON resources
-    routeKey: ckan
-    path: postman/mocks/ckan

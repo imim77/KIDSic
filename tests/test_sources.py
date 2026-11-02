@@ -39,6 +39,21 @@ class NormalizationTests(unittest.TestCase):
         self.assertEqual(first.postal_code, '42000')
         self.assertEqual(name_key(first.name), name_key('DV Primjer'))
 
+    def test_national_rows_are_institution_seats_with_confirmed_municipality(self):
+        row = normalize_records([NATIONAL], 'national')[0]
+        self.assertEqual((row.scope, row.settlement, row.municipality), ('institution', 'Varaždin', 'varazdin'))
+        sesvete = normalize_records([{**NATIONAL, 'Mjesto': 'Sesvete', 'Zupanija': 'Grad Zagreb'}], 'national')[0]
+        self.assertEqual(sesvete.municipality, 'zagreb')
+        # A curated name in another county is not assumed to be the same municipality.
+        self.assertIsNone(normalize_records([{**NATIONAL, 'Zupanija': 'Druga županija'}], 'national')[0].municipality)
+
+    def test_zagreb_address_suffix_becomes_settlement(self):
+        row = normalize_records([{**MUNICIPAL, 'Adresa': 'Augusta Šenoe 26A, Đurđekovec'}], 'municipal')[0]
+        self.assertEqual((row.address, row.settlement, row.municipality, row.scope),
+                         ('Augusta Šenoe 26A', 'Đurđekovec', 'zagreb', 'location'))
+        plain = normalize_records([{**MUNICIPAL, 'Adresa': 'Remetski kamenjak 1 C,'}], 'municipal')[0]
+        self.assertEqual((plain.address, plain.settlement), ('Remetski kamenjak 1 C,', 'Zagreb'))
+
     def test_zagreb_objects_keep_parent_name_and_decimal_comma_coordinates(self):
         rows = normalize_records([MUNICIPAL, {**MUNICIPAL, 'Id': 2, 'Naziv': 'DV Primjer-PO Druga',
                                               'TipVrtica': 'Područni'}], 'municipal')

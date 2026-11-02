@@ -13,7 +13,8 @@ class ServiceWiringTests(unittest.IsolatedAsyncioTestCase):
         repository = SimpleNamespace(
             list_cities=AsyncMock(return_value=[{'city_key':'varazdin','city_aliases':['varazdina']}]),
             find_options=AsyncMock(return_value=[
-                {'location_id':'location-1','age_status':'confirmed','age_evidence':[{'program_id':'program-1'}]},
+                {'location_id':'location-1','kindergarten_id':'k-1','age_status':'confirmed','age_evidence':[{'program_id':'program-1'}]},
+                {'location_id':None,'kindergarten_id':'seat-only','age_status':'confirmed','age_evidence':[{'program_id':'program-2'}]},
                 {'location_id':'unknown','age_status':'unknown','age_evidence':[]},
             ]),
             retrieve_context=AsyncMock(return_value=[{'source_url':'https://example.invalid'}]),
@@ -32,7 +33,8 @@ class ServiceWiringTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result['criteria'],{'city':'varazdin','age_months':24})
         repository.find_options.assert_awaited_once_with(city='varazdin',age_months=24,as_of=None,include_unknown=True)
         self.assertEqual(repository.retrieve_context.await_args.kwargs['location_ids'],['location-1'])
-        self.assertEqual(repository.retrieve_context.await_args.kwargs['program_ids'],['program-1'])
+        self.assertEqual(repository.retrieve_context.await_args.kwargs['kindergarten_ids'],['seat-only'])
+        self.assertEqual(repository.retrieve_context.await_args.kwargs['program_ids'],['program-1','program-2'])
         self.assertEqual(len(result['age_unknown']),1)
 
     def test_settings_reject_invalid_pool_and_non_postgres_urls(self):

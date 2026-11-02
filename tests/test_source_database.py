@@ -76,36 +76,76 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_repeated_import_preserves_ids_raw_evidence_and_unknown_age(self):
         first = await self.repo.import_snapshot(self.snapshot())
-        identities = await self.c.fetchrow('SELECT id,kindergarten_id FROM location')
+        identity = await self.c.fetchval('SELECT id FROM kindergarten')
         second = await self.repo.import_snapshot(self.snapshot([{**NATIONAL, 'Telefon': '123'}]))
-        self.assertEqual(first['locations_added'], 1)
-        self.assertEqual(second['locations_added'], 0)
+        # The national directory describes institutions: its address is a seat, not an object.
+        self.assertEqual((first['locations_added'], second['locations_added']), (0, 0))
         self.assertEqual(second['kindergartens_added'], 0)
-        self.assertEqual(await self.c.fetchrow('SELECT id,kindergarten_id FROM location'), identities)
+        self.assertEqual(await self.c.fetchval('SELECT id FROM kindergarten'), identity)
+        seat = await self.c.fetchrow('SELECT seat_address,seat_settlement,seat_postal_code,m.key '
+                                     'FROM kindergarten k JOIN municipality m ON m.id=k.seat_municipality_id')
+        self.assertEqual(tuple(seat), ('Primjer 1', 'Varaždin', '42000', 'varazdin'))
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM location'), 0)
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 2)
+        self.assertEqual([r['match_method'] for r in await self.c.fetch(
+            'SELECT match_method FROM source_record ORDER BY fetched_at')], ['new', 'source_identity'])
         self.assertEqual(await self.c.fetchval('SELECT phone FROM kindergarten'), '123')
         raw = await self.c.fetchval('SELECT raw_data FROM source_record WHERE batch_id=$1::text::uuid',
                                      second['batch_id'])
         self.assertEqual(raw['Telefon'], '123')
         search = AsyncpgKindergartenRepository(self.c)
         result = await search.find_options(city='varazdina', age_months=24, include_unknown=True)
-        self.assertEqual(result[0]['age_status'], 'unknown')
+        self.assertEqual((result[0]['age_status'], result[0]['scope']), ('unknown', 'seat'))
         self.assertEqual(await search.find_options(city='varazdin', age_months=24), [])
         self.assertIsNone(await self.c.fetchval('SELECT observed_on FROM data_source'))
 
-    async def test_city_objects_share_owner_and_link_to_national_record(self):
-        await self.repo.import_snapshot(self.snapshot([{**NATIONAL, 'Mjesto': 'Zagreb'}]))
+    def municipal_source(self):
         client = source_client('municipal')
-        source = PlannedSource(SourceDefinition('zagreb-municipal', 'https://data.zagreb.hr',
-                               'gradski_vrtici_grada_zagreba', 'municipal'),
-                               client.get_package.return_value, client.get_package.return_value.resources[0])
+        return PlannedSource(SourceDefinition('zagreb-municipal', 'https://data.zagreb.hr',
+                             'gradski_vrtici_grada_zagreba', 'municipal'),
+                             client.get_package.return_value, client.get_package.return_value.resources[0])
+
+    async def test_city_objects_share_owner_and_link_to_national_record(self):
+        await self.repo.import_snapshot(self.snapshot([{**NATIONAL, 'Mjesto': 'Zagreb',
+                                                         'Zupanija': 'Grad Zagreb'}]))
         branch = {**MUNICIPAL, 'Id': 2, 'Naziv': 'DV Primjer-PO Druga',
                   'Adresa': 'Druga 2', 'TipVrtica': 'Područni'}
-        await self.repo.import_snapshot(self.snapshot([MUNICIPAL, branch], source, 'municipal'))
+        await self.repo.import_snapshot(self.snapshot([MUNICIPAL, branch], self.municipal_source(), 'municipal'))
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM kindergarten'), 1)
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM location'), 2)
         self.assertEqual(await self.c.fetchval('SELECT count(DISTINCT source_id) FROM source_record'), 2)
         self.assertEqual(await self.c.fetchval("SELECT count(*) FROM location WHERE kind='branch'"), 1)
+        self.assertEqual([r['match_method'] for r in await self.c.fetch(
+            "SELECT match_method FROM source_record WHERE location_id IS NOT NULL ORDER BY source_key")],
+            ['name', 'name'])
+        rows = await AsyncpgKindergartenRepository(self.c).find_options(
+            city='zagreb', age_months=24, include_unknown=True)
+        self.assertEqual({r['scope'] for r in rows}, {'location'})
+
+    async def test_zagreb_settlement_suffix_links_to_national_settlement(self):
+        await self.repo.import_snapshot(self.snapshot([{**NATIONAL, 'Mjesto': 'Sesvete',
+                                                         'Adresa': 'Sjedište 3', 'Zupanija': 'Grad Zagreb'}]))
+        main = {**MUNICIPAL, 'Adresa': 'Ive Tijardovića 9, Sesvete'}
+        await self.repo.import_snapshot(self.snapshot([main], self.municipal_source(), 'municipal'))
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM kindergarten'), 1)
+        location = await self.c.fetchrow('SELECT settlement,address,m.key FROM location l '
+                                         'JOIN municipality m ON m.id=l.municipality_id')
+        self.assertEqual(tuple(location), ('Sesvete', 'Ive Tijardovića 9', 'zagreb'))
+        search = AsyncpgKindergartenRepository(self.c)
+        for city in ('zagreba', 'sesvete'):
+            self.assertEqual(len(await search.find_options(city=city, age_months=24, include_unknown=True)), 1)
+
+    async def test_oib_links_institution_despite_different_name(self):
+        from dataclasses import replace
+        rows = normalize_records([NATIONAL], 'national')
+        await self.repo.import_snapshot(SourceSnapshot(self.source, (replace(rows[0], oib='12345678901'),),
+                                                       datetime.now(timezone.utc)))
+        renamed = replace(normalize_records([{**NATIONAL, 'Naziv': 'Drugi naziv'}], 'national')[0],
+                          oib='12345678901')
+        await self.repo.import_snapshot(SourceSnapshot(self.source, (renamed,), datetime.now(timezone.utc)))
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM kindergarten'), 1)
+        self.assertEqual(await self.c.fetchval(
+            'SELECT match_method FROM source_record ORDER BY fetched_at DESC LIMIT 1'), 'oib')
 
     async def test_new_snapshot_hides_removed_location_and_keeps_history(self):
         other = {**NATIONAL, 'Naziv': 'Dječji vrtić Drugi', 'Adresa': 'Druga 2'}
@@ -119,7 +159,7 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
     async def test_ambiguous_match_is_retained_for_review(self):
         for name in ('DV Primjer', 'Dječji vrtić "Primjer"'):
             owner = await self.c.fetchval('INSERT INTO kindergarten(name) VALUES ($1) RETURNING id', name)
-            await self.c.execute("INSERT INTO location(kindergarten_id,name,city,city_key,address) "
+            await self.c.execute("INSERT INTO location(kindergarten_id,name,settlement,settlement_key,address) "
                                  "VALUES ($1,$2,'Varaždin','varazdin','Primjer 1')", owner, name)
         second = {**NATIONAL, 'Naziv': 'DV Drugi', 'Adresa': 'Druga 2'}
         result = await self.repo.import_snapshot(self.snapshot([NATIONAL, second]))

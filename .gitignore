@@ -163,6 +163,7 @@ tags
 # Local development artifacts
 .devcontainer/bash_history
 *.bak
+/postman/
 
 # Local research documentation
 /docs/

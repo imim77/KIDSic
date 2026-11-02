@@ -16,7 +16,8 @@ class KindergartenSearchService(KindergartenSearchServiceInterface):
             confirmed = [dict(row) for row in options if row['age_status'] == 'confirmed']
             unknown = [dict(row) for row in options if row['age_status'] == 'unknown']
             context = await uow.search.retrieve_context(
-                location_ids=[row['location_id'] for row in confirmed],
+                location_ids=[row['location_id'] for row in confirmed if row['location_id']],
+                kindergarten_ids=[row['kindergarten_id'] for row in confirmed if not row['location_id']],
                 text=question, embedding=embedding, embedding_model=embedding_model,
                 program_ids=[e["program_id"] for row in confirmed for e in row["age_evidence"]],
             ) if confirmed else []

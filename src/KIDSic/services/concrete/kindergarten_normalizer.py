@@ -3,9 +3,13 @@ import hashlib
 import math
 import re
 
+from KIDSic.dto.municipality import resolve_municipality
 from KIDSic.dto.source import KindergartenRow, name_key
 from KIDSic.dto.text import normalize
 from KIDSic.exceptions import SourceImportError
+
+# Zagreb resources append a settlement inside the city to some addresses: "Sopnička ulica 69, Sesvete".
+_ZAGREB_SETTLEMENT = re.compile(r'^(.*\d\w*)\s*,\s*([^\d,]+)$')
 
 
 def _text(row: dict, field: str, *, required: bool = False) -> str | None:
@@ -40,14 +44,17 @@ def normalize_records(records: list[dict], parser: str) -> tuple[KindergartenRow
             name = _text(record, 'Naziv', required=True)
             address = _text(record, 'Adresa', required=True)
             if parser == 'national':
-                city = _text(record, 'Mjesto', required=True)
-                identity = '|'.join((name_key(name), normalize(city), name_key(address)))
+                settlement = _text(record, 'Mjesto', required=True)
+                county = _text(record, 'Zupanija')
+                identity = '|'.join((name_key(name), normalize(settlement), name_key(address)))
                 key = hashlib.sha256(identity.encode()).hexdigest()
+                # The MZOM directory lists legal entities; its address is the seat, not an object.
                 row = KindergartenRow(
                     source_key=key, raw_data=record, name=name, location_name=name,
-                    city=city, address=address, email=_text(record, 'ePosta'),
-                    phone=_text(record, 'Telefon'), county=_text(record, 'Zupanija'),
-                    postal_code=_text(record, 'PostanskiBroj'),
+                    settlement=settlement, address=address, scope='institution',
+                    municipality=resolve_municipality(settlement, county),
+                    email=_text(record, 'ePosta'), phone=_text(record, 'Telefon'),
+                    county=county, postal_code=_text(record, 'PostanskiBroj'),
                 )
             elif parser in {'municipal', 'other'}:
                 identifier = record.get('Id')
@@ -70,9 +77,13 @@ def normalize_records(records: list[dict], parser: str) -> tuple[KindergartenRow
                 # coordinates instead of silently placing Zagreb objects elsewhere.
                 if longitude is not None and not (15 < longitude < 17 and 45 < latitude < 47):
                     raise SourceImportError('Coordinates do not describe the Zagreb area.')
+                settlement = 'Zagreb'
+                if match := _ZAGREB_SETTLEMENT.match(address):
+                    address, settlement = match[1].strip(), match[2].strip()
                 row = KindergartenRow(
                     source_key=str(identifier).strip(), raw_data=record, name=institution,
-                    location_name=name, city='Zagreb', address=address, provider_kind=provider,
+                    location_name=name, settlement=settlement, address=address,
+                    municipality='zagreb', provider_kind=provider,
                     kind=kind, district=_text(record, 'GradskaCetvrt'),
                     email=_text(record, 'Email'), phone=_text(record, 'Telefon'),
                     website_url=_text(record, 'Web'), longitude=longitude, latitude=latitude,

@@ -9,6 +9,7 @@ services:
       POSTGRES_PASSWORD: kidsic_local
       POSTGRES_DB: kidsic
     ports:
+      # Connect via localhost:55432; Docker requires a numeric loopback bind address.
       - "127.0.0.1:55432:5432"
     volumes:
       - kidsic_database:/var/lib/postgresql/data

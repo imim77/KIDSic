@@ -72,7 +72,7 @@ class SourceService(SourceServiceInterface):
         snapshots = await self._snapshots()
         return {'dry_run': True, 'sources': [
             {'source': s.source.definition.key, 'records': len(s.rows),
-             'cities': len({r.city for r in s.rows}),
+             'settlements': len({r.settlement for r in s.rows}),
              'resource_url': str(s.source.resource.url)} for s in snapshots]}
 
     async def import_data(self):

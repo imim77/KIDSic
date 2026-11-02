@@ -59,6 +59,18 @@
 - [ ] Omogućiti nastavak na službeni sustav upisa uz jasno označen prijelaz na vanjsku uslugu.
 - [ ] Razlikovati pripremu upisa i otvaranje službenog portala od stvarno predanog zahtjeva i potvrđenog upisa.
 
+## Dostupnost vrtićkih usluga i planiranje novih lokacija
+
+Detaljna razrada: [PLAN.md — Gdje gradu najviše nedostaje dostupnih vrtićkih usluga?](PLAN.md#gdje-gradu-najviše-nedostaje-dostupnih-vrtićkih-usluga).
+
+- [ ] Povezati provjerene lokacije vrtićkih objekata, granice zagrebačkih četvrti i DZS-ove podatke o stanovništvu prema dobi, uz vidljive referentne godine.
+- [ ] Prikazivati područja s mnogo male djece i slabijom dostupnošću objekata, uz objašnjivu metodu i prostornu preciznost usklađenu s izvorima.
+- [ ] Omogućiti postavljanje hipotetske nove lokacije vrtića na kartu i usporedbu dostupnosti prije i poslije pod istim parametrima.
+- [ ] Proširiti analizu na hodanje i javni prijevoz uz odgovarajuću mrežu puteva i ZET-ove vozne redove; početnu zračnu udaljenost jasno označiti ako se koristi.
+- [ ] Analizirati odnos kapaciteta i broja djece tek kada postoje potvrđeni, usporedivi podaci; razlikovati kapacitet od objavljenih slobodnih mjesta.
+- [ ] Uz rezultate i scenarije prikazivati izvore, datume, pretpostavke i ograničenja, bez zaključivanja o današnjem broju neupisane djece iz Popisa 2021.
+- [ ] Pripremiti reproducibilnu demonstraciju promjene dostupnosti dodavanjem nove lokacije na stvarnoj snimci povezanih podataka.
+
 ## Izvori, svježina i dostupnost
 
 - [ ] Za svaki korišteni skup prikazivati izdavača, poveznicu, licencu, pokrivenost i datum dohvata.

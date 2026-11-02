@@ -55,8 +55,12 @@ class KindergartenRow:
     raw_data: dict
     name: str
     location_name: str
-    city: str
+    settlement: str
     address: str
+    # 'institution' rows describe a legal entity and its seat; 'location' rows describe one object.
+    scope: str = 'location'
+    municipality: str | None = None
+    oib: str | None = None
     provider_kind: str = 'unknown'
     kind: str = 'unknown'
     postal_code: str | None = None

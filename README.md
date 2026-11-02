@@ -42,14 +42,14 @@ Tok ovisnosti: naredba/API → DependencyService/factory → service → Unit of
 ```sh
 uv sync --locked
 docker compose up -d --build --wait database
-export DATABASE_URL=postgresql://kidsic:kidsic_local@127.0.0.1:55432/kidsic
+export DATABASE_URL=postgresql://kidsic:kidsic_local@localhost:55432/kidsic
 uv run alembic -c src/KIDSic/db/alembic/alembic.ini upgrade head
 uv run kidsic-register-sources
 uv run kidsic-sync-kindergartens
 uv run kidsic-search 'Imam dijete od 2 godine i iz varazdina sam koji su mi vrtici opcija'
 ```
 
-Naredba pretražuje prethodno uvezene podatke. Bez imenika traži pojašnjenje jer grad nije poznat. Uvoz dodaje normalizirane gradske ključeve i poznate aliase za Zagreb, Varaždin, Rijeku, Split i Osijek. `.env.example` je predložak, a `.env` se ne učitava automatski. Postavke `DATABASE_POOL_MIN_SIZE` i `DATABASE_POOL_MAX_SIZE` upravljaju poolom. CLI trenutačno koristi leksički RAG dohvat; servis podržava i predani embedding s oznakom modela.
+Naredba pretražuje prethodno uvezene podatke. Bez imenika traži pojašnjenje jer grad nije poznat. Uvoz razlikuje mjesto (npr. Sesvete) od grada/općine (Zagreb) i dodaje kurirane padežne aliase za Zagreb, Varaždin, Rijeku, Split i Osijek. Upit za grad uključuje i njegova mjesta. `.env.example` je predložak, a `.env` se ne učitava automatski. Postavke `DATABASE_POOL_MIN_SIZE` i `DATABASE_POOL_MAX_SIZE` upravljaju poolom. CLI trenutačno koristi leksički RAG dohvat; servis podržava i predani embedding s oznakom modela.
 
 ## CKAN registracija i uvoz
 
@@ -73,7 +73,7 @@ uv run kidsic-sync-kindergartens --source zagreb-municipal --source zagreb-other
 
 Registracija poziva `package_show`, traži točno jedan aktivan JSON resurs i provjerava `open-license` (Otvorena dozvola). Metapodatke sprema u `data_source`; ponovljena registracija čuva `import_allowed`, aktivnu snimku i povijest. Ne uvozi sadržaj. Sync registrira izvore po potrebi i zasebno preuzima njihove JSON datoteke; ne pretpostavlja uključen DataStore. Nazivi portala, ID-jevi skupova, timeout i ograničenje veličine odgovora konfiguriraju se `CKAN_*` varijablama iz `.env.example`. Mapiranja su namijenjena ovim trima shemama.
 
-Sync provjerava sve odabrane resurse prije transakcije. Sprema izvorne retke u `source_record`, normalizirane ustanove i objekte te podrijetlo polja. Spajanje koristi prethodni identitet izvora i normalizirane nazive, grad i adresu; ne koristi neprovjerene približne podudarnosti. Višeznačni zapisi ostaju `candidate` za pregled. Sve odabrane snimke aktiviraju se atomarno, a neuspjeh čuva prethodnu aktivnu snimku. Stari retci ostaju u povijesti. Ponovljeni uvoz istih identiteta čuva ID-jeve ustanova i lokacija; pisci se serijaliziraju transakcijskim advisory lockom.
+Sync provjerava sve odabrane resurse prije transakcije. Sprema izvorne retke u `source_record`, normalizirane ustanove i objekte te podrijetlo polja. MZOM-ov redak opisuje pravnu osobu: njegova adresa sprema se kao sjedište ustanove, a ne kao objekt. Objekte daju zagrebački skupovi; ustanova bez poznatog objekta u pretrazi se prikazuje sa sjedištem (`scope=seat`). Spajanje koristi prethodni identitet izvora, OIB kada postoji te normalizirane nazive, grad/mjesto i adresu; ne koristi neprovjerene približne podudarnosti. Način odluke sprema se u `source_record.match_method`. Višeznačni zapisi ostaju `candidate` za pregled. Sve odabrane snimke aktiviraju se atomarno, a neuspjeh čuva prethodnu aktivnu snimku. Stari retci ostaju u povijesti. Ponovljeni uvoz istih identiteta čuva ID-jeve ustanova i lokacija; pisci se serijaliziraju transakcijskim advisory lockom.
 
 Ovi skupovi nemaju potvrđene dobne uvjete, slobodna mjesta ni upisne upute. Uvoz ih ne izmišlja i ne stvara programe ni RAG dokumente iz kontaktnih podataka. Rezultati zato imaju dobni status `unknown`. Datum preuzimanja i izmjene resursa spremaju se odvojeno; ne proglašavaju se datumom stvarnog stanja podataka.
 
