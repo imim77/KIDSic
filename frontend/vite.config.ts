@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 // https://vite.dev/config/
 export default defineConfig({
   root: 'src/views',
+  envDir: fileURLToPath(new URL('.', import.meta.url)),
   publicDir: '../../public',
   build: { outDir: fileURLToPath(new URL('./dist', import.meta.url)), emptyOutDir: true },
   plugins: [
