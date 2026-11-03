@@ -58,11 +58,15 @@ pročitati rezultat, ali ne može prikazati interaktivnu kartu.
 
 ## Ugovor UI-ja i provjera
 
-Resurs `ui://kidsic/map-v4.html` ima MIME `text/html;profile=mcp-app`. Moderni
+Resurs `ui://kidsic/map-v5.html` ima MIME `text/html;profile=mcp-app`. Moderni
 `_meta.ui.resourceUri` i kompatibilni `openai/outputTemplate` povezuju ga s alatom.
 Uspješan rezultat ima sažetak `structuredContent: {city, metadata}`, uz deklarirani
-`outputSchema`. Potpuni GeoJSON je u `_meta.locations`, koji host prosljeđuje UI-ju
-bez unošenja svih izvora u kontekst modela. Prazan skup i dalje
+`outputSchema`. Potpuni GeoJSON prenosi se bez gubitka u `_meta.locations` kao
+`{encoding: "gzip+base64", data: "…"}`. UI ga dekodira preko pregledničkog
+`DecompressionStream` API-ja prije validacije. Time veliki gradski skupovi s
+ponovljenim izvorima ostaju unutar hostovih ograničenja veličine odgovora;
+vrtići, koordinate i podrijetlo polja ne izostavljaju se. Host prosljeđuje te
+metapodatke UI-ju bez unošenja svih izvora u kontekst modela. Prazan skup i dalje
 vraća kartu s porukom, a zapisi bez koordinata ostaju u karticama. Trenutni
 izvori imaju potvrđene koordinate uglavnom za Zagreb; drugi gradovi mogu imati
 samo sjedišta na popisu. Kvar baze vraća sanitiziranu pogrešku, nikad lažni prazan
@@ -71,10 +75,34 @@ uspješan rezultat.
 UI koristi službeni `App` bridge, `ui/notifications/tool-input` i `tool-result`,
 čisti stare kartice pri novom gradu te traži `ui/request-display-mode` od hosta
 koji podržava fullscreen. Bez te mogućnosti ostaje postojeći browser fallback.
+Inline prikaz ima vlastitu visinu 520 px (480 px na uskim ekranima), koju SDK
+prijavljuje hostu kroz automatski `size-changed`. Ne preuzima malu početnu
+visinu iframea kroz `100dvh`. MCP kartice visoke su 92 px; fullscreen koristi
+visinu dodijeljenog prozora. Nakon nadogradnje ponovno povezati konektor kako
+bi host preuzeo URI resursa v5 te pokrenuti novi poziv alata.
 Resurs deklarira CSP za Mapbox API, događaje, tiles i blob/data resurse. Host mora
 dopustiti Mapbox blob worker i WebGL; u suprotnom ostaju dostupne kartice. UI je
 jedan HTML bez relativnih JS/CSS zahtjeva. Kod budućih breaking promjena resursa
 promijeniti verziju URI-ja zbog host cachea.
+
+### MCP Inspector: kartice su vidljive, karta je prazna
+
+U MCP Inspectoru 2.13.0 kartica **Apps** učitava ovaj UI, ali njegov sandbox
+postavlja `worker-src 'none'`. Mapbox GL JS zahtijeva Web Workere za obradu
+pločica i GeoJSON-a pa karta ostaje prazna iako se kartice i kontrole učitaju.
+To ograničenje hosta ne uklanja dodavanje `blob:` u `resourceDomains`: ta lista
+ne upravlja direktivom `worker-src`. Ni CSP meta tag u našem HTML-u ne može
+ublažiti politiku koju je host već primijenio.
+
+Za dijagnostiku u pregledničkim razvojnim alatima odabrati unutarnji iframe
+aplikacije i pregledati njegov `meta[http-equiv="Content-Security-Policy"]`.
+Ako sadrži `worker-src 'none'`, prikaz podloge treba provjeriti u MCP Apps hostu
+koji dopušta blob workere ili u samostalnom Vite pregledu opisanom u README-u.
+Samostalni pregled potvrđuje kartu, ali ne potvrđuje MCP bridge. Zasebno
+provjeriti da Apps prikaz prima grad i stvarne kartice iz rezultata alata.
+
+Vidi [prijedlog podrške za workere u MCP Apps CSP-u](https://github.com/modelcontextprotocol/ext-apps/issues/566)
+i [Mapboxove CSP zahtjeve](https://docs.mapbox.com/mapbox-gl-js/guides/security-and-testing/).
 
 ```sh
 uv run python -m unittest discover -s tests -v
