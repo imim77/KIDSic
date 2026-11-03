@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { KindergartenExplorer } from '../../shared/explorer/KindergartenExplorer'
 import { LocationToolResult } from '../../shared/mcp/LocationToolResult'
 import type { LocationCollection } from '../../shared/locations/types'
+import './mcp.css'
 
 type Snapshot = { city: string | null; data: LocationCollection | null; status: 'loading' | 'ready' | 'error'; notice?: string }
 const initial: Snapshot = { city: null, data: null, status: 'loading', notice: 'U kojem gradu želiš prikaz vrtića?' }
@@ -76,7 +77,7 @@ export function McpLocationApp() {
     }
   }
 
-  return <main className="w-full h-dvh overflow-hidden p-2" aria-label={snapshot.city ? `Vrtići: ${snapshot.city}` : 'Karta vrtićkih objekata'}>
+  return <main className="mcp-location-app w-full overflow-hidden p-2" data-display-mode={display.expanded ? 'fullscreen' : 'inline'} aria-label={snapshot.city ? `Vrtići: ${snapshot.city}` : 'Karta vrtićkih objekata'}>
     <KindergartenExplorer data={snapshot.data} status={snapshot.status} selectedId={selection} onSelect={setSelection}
       notice={snapshot.notice} retry={() => { void retry() }}
       hostFullscreen={display.available ? { expanded: display.expanded, request: async (mode) => {
