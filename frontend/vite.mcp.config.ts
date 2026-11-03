@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 // The MCP host reads one HTML resource without a separate asset server.
 export default defineConfig({
   root: fileURLToPath(new URL('./src/views/mcp', import.meta.url)),
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   envDir: fileURLToPath(new URL('.', import.meta.url)),
   publicDir: false,
   plugins: [tailwindcss(), react(), viteSingleFile()],

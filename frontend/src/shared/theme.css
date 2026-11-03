@@ -4,10 +4,23 @@
 
 @theme inline {
   --color-ink: var(--ink);
-  --color-muted: var(--muted);
-  --color-accent: var(--accent);
+  --color-muted: var(--secondary);
+  --color-accent: var(--secondary);
   --color-border: var(--border);
   --color-surface: var(--surface);
+  --color-background: var(--surface);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--surface);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--ink);
+  --color-muted-foreground: var(--muted);
+  --color-accent-foreground: var(--ink);
+  --color-input: var(--border);
+  --color-ring: var(--accent);
+  --color-destructive: var(--accent);
 }
 
 :root {
@@ -22,10 +35,18 @@
   --accent: #bf0e23;
   --border: #dfe3dd;
   --surface: #fff;
+  --secondary: #f0f1ed;
+  --primary: var(--accent);
+  --radius: .75rem;
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
-button, input, select { font: inherit; }
+@layer base {
+  * { border-color: var(--border); }
+  button, input, select { font: inherit; }
+  /* shadcn buttons supply their own borders and backgrounds without Preflight. */
+  button { border: 0; background: transparent; }
+}
 button, a, input, select { touch-action: manipulation; }
 button { cursor: pointer; }
 a { color: var(--accent); }

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 // https://vite.dev/config/
 export default defineConfig({
   root: 'src/views',
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   envDir: fileURLToPath(new URL('.', import.meta.url)),
   publicDir: '../../public',
   server: { proxy: { '/api': process.env.KIDSIC_API_TARGET ?? 'http://127.0.0.1:8000' } },
