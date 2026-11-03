@@ -3,8 +3,13 @@ import './fullscreen.css'
 
 type DisplayMode = 'inline' | 'native' | 'fallback'
 
+export interface HostFullscreen {
+  expanded: boolean
+  request: (mode: 'inline' | 'fullscreen') => Promise<void>
+}
+
 // FullscreenFrame expands the existing explorer without replacing its map.
-export function FullscreenFrame({ children, className = '' }: { children: ReactNode; className?: string }) {
+export function FullscreenFrame({ children, className = '', hostFullscreen }: { children: ReactNode; className?: string; hostFullscreen?: HostFullscreen }) {
   const frameRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const previousFocus = useRef<HTMLElement | null>(null)
@@ -13,7 +18,7 @@ export function FullscreenFrame({ children, className = '' }: { children: ReactN
   const pendingRef = useRef(false)
   const [mode, setMode] = useState<DisplayMode>('inline')
   const [pending, setPending] = useState(false)
-  const expanded = mode !== 'inline'
+  const expanded = hostFullscreen?.expanded ?? mode !== 'inline'
 
   const changeMode = (next: DisplayMode) => {
     modeRef.current = next
@@ -124,6 +129,18 @@ export function FullscreenFrame({ children, className = '' }: { children: ReactN
   const toggle = async () => {
     const frame = frameRef.current
     if (!frame || pendingRef.current) return
+    if (hostFullscreen) {
+      pendingRef.current = true
+      setPending(true)
+      try {
+        await hostFullscreen.request(hostFullscreen.expanded ? 'inline' : 'fullscreen')
+      } catch {
+        // Host state remains authoritative when it refuses a display change.
+      } finally {
+        finishRequest()
+      }
+      return
+    }
     if (document.fullscreenElement === frame) {
       await exitNative()
       return

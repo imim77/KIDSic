@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
-import { FullscreenFrame } from './FullscreenFrame'
+import { FullscreenFrame, type HostFullscreen } from './FullscreenFrame'
 import { KindergartenMap } from '../map/KindergartenMap'
 import { LocationCarousel } from '../locations/LocationCarousel'
 import { LocationDetails } from '../locations/LocationDetails'
@@ -12,10 +12,12 @@ interface KindergartenExplorerProps {
   selectedId: string | null
   onSelect: (id: string | null) => void
   retry: () => void
+  hostFullscreen?: HostFullscreen
+  notice?: string
 }
 
 // KindergartenExplorer keeps every map overlay in the same fullscreen frame.
-export function KindergartenExplorer({ data, status, selectedId, onSelect, retry }: KindergartenExplorerProps) {
+export function KindergartenExplorer({ data, status, selectedId, onSelect, retry, hostFullscreen, notice }: KindergartenExplorerProps) {
   const [detailsId, setDetailsId] = useState<string | null>(null)
   const [reveal, setReveal] = useState<{ id: string; revision: number } | null>(null)
   const detailsPanel = useRef<HTMLDivElement>(null)
@@ -42,9 +44,9 @@ export function KindergartenExplorer({ data, status, selectedId, onSelect, retry
     const feature = data?.features.find((feature) => feature.id === id)
     if (feature?.properties.location_role === 'seat' && document.activeElement instanceof HTMLElement) showDetails(feature, document.activeElement)
   }
-  return <FullscreenFrame className="kindergarten-explorer">
+  return <FullscreenFrame className="kindergarten-explorer" hostFullscreen={hostFullscreen}>
     <KindergartenMap collection={data} selectedId={selectedId} onSelect={(id) => { setDetailsId(null); onSelect(id); setReveal((previous) => ({ id, revision: (previous?.revision ?? 0) + 1 })) }} />
-    {status === 'loading' && <p className="explorer-notice" role="status">Učitavanje objekata…</p>}
+    {status === 'loading' && <p className="explorer-notice" role="status">{notice ?? 'Učitavanje objekata…'}</p>}
     {data && <p className="sr-only" role="status">{data.metadata.total} rezultata · {data.metadata.mapped} na karti · {data.metadata.unmapped} bez koordinata</p>}
     {status === 'error' && <div className="explorer-notice" role="alert"><p>Podatke nije moguće učitati. Provjerite vezu i pokušajte ponovno.</p><button className="text-button" onClick={() => { setDetailsId(null); setReveal(null); retry() }}>Pokušaj ponovno</button></div>}
     {data?.features.length === 0 && <p className="explorer-notice" role="status">Nema dostupnih vrtićkih objekata.</p>}
