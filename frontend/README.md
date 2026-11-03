@@ -2,6 +2,14 @@
 
 React/TypeScript UI za MCP app prikazuje Mapbox kartu s vodoravnim karticama, detaljima i fullscreen kontrolom nad stvarnim podacima iz `GET /api/locations`. Prikaz zauzima prostor hosta; nema zasebnu navigaciju, legendu ili filtre.
 
+Tailwind CSS v4 uključen je preko službenog `@tailwindcss/vite` plugina u oba
+Vite builda. Klase se pišu izravno u TSX-u (npr. `w-full h-dvh p-2` ili
+`min-w-0 flex-1`). Zajednički `src/shared/theme.css` izlaže postojeće boje kao
+`text-ink`, `text-muted`, `text-accent`, `border-border` i `bg-surface` tokene.
+Skeniranje klasa obuhvaća cijeli `src`, uključujući MCP ulaz. Tema i utilities
+učitavaju se bez Preflight reseta kako bi se očuvali postojeći Mapbox i osnovni
+stilovi. Specifični responsive stilovi karte, kartica i fullscreena ostaju u CSS-u.
+
 - `src/views/index.html`: HTML ulaz.
 - `src/views/welcome/`: React prikaz, njegov stil i ulazna skripta.
 - `src/shared/locations/`: ugovor podataka, dohvat, kartice, carousel i izvori.

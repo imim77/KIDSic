@@ -384,3 +384,38 @@ onemogućeno je postavkom aplikacije. Postojeći standalone UI je ranije vizualn
 provjeren; handshake i host fullscreen sada su provjereni testnim hostom. Stvarni
 ChatGPT prikaz i njegove odluke o pozivu alata ostaju provjera nakon povezivanja
 servera prema `MCP.md`; server nije automatski objavljen ni dodan u korisnikov račun.
+
+## Tailwind CSS u oba frontend prikaza (3. studenoga 2026.)
+
+Postoje dva Vite builda s različitim rootovima: razvojni/standalone
+`vite.config.ts` i samostalni MCP HTML `vite.mcp.config.ts`. Oba ulaza uvoze
+`src/shared/theme.css`; layout i kartice trenutačno koriste custom CSS.
+
+Uspoređeni su službeni `@tailwindcss/vite` i PostCSS integracija. Odabran je Vite
+plugin za oba builda jer ne zahtijeva dodatnu PostCSS konfiguraciju. Tailwind v4
+ima CSS konfiguraciju teme. Koristit će se službeni odvojeni importi teme i
+utility klasa bez Preflight reseta kako se ne bi promijenile postojeće Mapbox
+kontrole, tipografija i stilovi. Eksplicitni `source('../')` u shared CSS-u
+obuhvaća cijeli `src`, neovisno o dubini pojedinog Vite roota.
+
+- [x] TW-a: Instalirati `tailwindcss` i `@tailwindcss/vite` te uključiti plugin u
+  oba Vite builda.
+- [x] TW-b: Izložiti postojeće boje kao Tailwind tokene i primijeniti utility
+  klase na oba glavna prikaza i kartice. Ukloniti zamijenjene CSS deklaracije;
+  specifični Mapbox i fullscreen stilovi ostaju postojeći.
+- [x] TW-c: Pokrenuti postojeće testove, lint i oba builda. Provjeriti generirane
+  utility klase u standalone CSS-u i MCP HTML-u bez vanjskih CSS zahtjeva.
+- [x] TW-d: Dokumentirati način korištenja i spremiti male commitove.
+
+Izgled ostaje isti; nisu zatraženi novi UI elementi ni shadcn/ui komponente.
+Referenca: https://tailwindcss.com/docs/installation/using-vite i
+https://tailwindcss.com/docs/preflight#disabling-preflight.
+
+
+Tailwind 4.3.4: prolazi 41 frontend test, lint, standalone build i MCP single-file
+build. Iz generiranih artefakata potvrđene su korištene layout/card/sr-only klase
+te MCP HTML bez vanjskih skripti ili stylesheet zahtjeva. Lokalni MCP server na
+8001 ponovno je pokrenut i kroz `resources/read` potvrđeno je da služi Tailwind
+build. Nova vizualna provjera nije odrađena jer je upravljanje preglednikom
+onemogućeno postavkom aplikacije; promijenjena pravila imaju iste vrijednosti
+kao prethodni CSS.
