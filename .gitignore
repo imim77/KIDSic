@@ -169,3 +169,6 @@ tags
 /docs/
 /database/
 /scripts/
+
+# Local geocoding snapshots can include source contacts and tax identifiers.
+/data-enrichment/*.json

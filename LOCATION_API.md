@@ -25,8 +25,12 @@ with `{"error":"locations_unavailable"}`; internal exception text is never sent.
 Each active facility appears once by canonical location ID even when multiple
 sources attest it. An institution seat appears only when the institution has no
 active facility, even if that facility is outside the requested city or box.
-Seat IDs use `seat:<kindergarten_id>`, `location_id` is null, and geometry is null:
-a legal seat is not treated as a confirmed service location. An unlocated active
+Seat IDs use `seat:<kindergarten_id>` and `location_id` is null. A seat has
+point geometry only when its address has reviewed geocoding with an accepted,
+active source record belonging to the same institution. Its role remains `seat`:
+a legal seat is not treated as a confirmed service location. The card labels it
+“Sjedište”. Geography is hidden if the current seat address differs from the
+geocoded address or its geographic source is disabled/replaced. An unlocated active
 facility also has null geometry but retains its facility ID and role. Sources
 include the active records' reference date (null when unknown), fetch timestamp,
 source URL/title and license (null when unrecorded). No missing coordinates,

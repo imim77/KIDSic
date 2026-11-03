@@ -1,6 +1,6 @@
 # KIDSic
 
-MCP app za pronalazak dječjih vrtića povezivanjem više otvorenih skupova. Implementirani su PostgreSQL model, CKAN registracija izvora i uvoz triju JSON skupova, SQL pretraga prema gradu i dobi te RAG dohvat s izvorima. MCP alat `prikazi_vrtice` povezuje obavezan grad s Mapbox kartom i vodoravnim karticama naziva i adresa. Embedding pružatelj još nije implementiran.
+MCP app za pronalazak dječjih vrtića povezivanjem više otvorenih skupova. Implementirani su PostgreSQL model, CKAN registracija izvora i uvoz triju JSON skupova i CSV popisa varaždinskih obrta dadilja, SQL pretraga prema gradu i dobi te RAG dohvat s izvorima. MCP alat `prikazi_vrtice` povezuje obavezan grad s Mapbox kartom i vodoravnim karticama naziva i adresa. Embedding pružatelj još nije implementiran.
 
 ## Struktura
 
@@ -23,7 +23,7 @@ src/KIDSic/
   dto/                      # podatkovni ugovori i normalizacija teksta
   factories/                # sastavljanje servisa iz ovisnosti
   integrations/interfaces/  # CKAN ugovor
-  integrations/concrete/    # async httpx CKAN klijent i JSON dohvat
+  integrations/concrete/    # async httpx CKAN klijent i JSON/CSV dohvat
   services/interfaces/      # ugovori poslovnih operacija
   services/concrete/        # tumačenje upita i povezivanje pretrage s RAG-om
   services/dependency.py    # životni vijek infrastrukture
@@ -61,22 +61,35 @@ Početni izvori:
 - `national`: [MZOM — Dječji vrtići](https://data.gov.hr/ckan/dataset/djecji-vrtici), osnovni nacionalni imenik.
 - `zagreb-municipal`: [Gradski vrtići — kontakt podaci](https://data.zagreb.hr/dataset/gradski_vrtici_grada_zagreba), matični i područni objekti.
 - `zagreb-other`: [Privatni/vjerski vrtići i obrti](https://data.zagreb.hr/dataset/privatni-vjerski-obrti-gz-kontakt-podaci), uz zasebno označene obrte dadilja.
+- `varazdin-childminders`: [Grad Varaždin — dadilje](https://data.gov.hr/ckan/dataset/grad-varazdin-dadilje/resource/2bde0eae-1d20-41c5-aec4-711f2a485439), CSV popis obrta za dadilje.
 
 ```sh
 # Bez DATABASE_URL i bez pristupa bazi:
 uv run kidsic-register-sources --dry-run
 uv run kidsic-sync-kindergartens --dry-run
 
-# Odabir jednog ili više izvora; bez --source koriste se sva tri:
+# Odabir jednog ili više izvora; bez --source koriste se sva četiri:
 uv run kidsic-sync-kindergartens --source national
 uv run kidsic-sync-kindergartens --source zagreb-municipal --source zagreb-other
+uv run kidsic-sync-kindergartens --source varazdin-childminders --dry-run
+uv run kidsic-sync-kindergartens --source varazdin-childminders
 ```
 
-Registracija poziva `package_show`, traži točno jedan aktivan JSON resurs i provjerava `open-license` (Otvorena dozvola). Metapodatke sprema u `data_source`; ponovljena registracija čuva `import_allowed`, aktivnu snimku i povijest. Ne uvozi sadržaj. Sync registrira izvore po potrebi i zasebno preuzima njihove JSON datoteke; ne pretpostavlja uključen DataStore. Nazivi portala, ID-jevi skupova, timeout i ograničenje veličine odgovora konfiguriraju se `CKAN_*` varijablama iz `.env.example`. Mapiranja su namijenjena ovim trima shemama.
+Registracija poziva `package_show`, traži aktivan resurs zadanog formata (JSON ili CSV) i provjerava `open-license` (Otvorena dozvola). Metapodatke sprema u `data_source`; ponovljena registracija čuva `import_allowed`, aktivnu snimku i povijest. Ne uvozi sadržaj. Sync registrira izvore po potrebi i zasebno preuzima njihove JSON/CSV datoteke; ne pretpostavlja uključen DataStore. Nazivi portala, ID-jevi skupova, timeout i ograničenje veličine odgovora konfiguriraju se `CKAN_*` varijablama iz `.env.example`. Mapiranja su namijenjena ovim četirima shemama. Za varaždinske dadilje dodatno se provjerava točan ID korisnikova CSV resursa; drugi CSV nije automatska zamjena.
 
 Sync provjerava sve odabrane resurse prije transakcije. Sprema izvorne retke u `source_record`, normalizirane ustanove i objekte te podrijetlo polja. MZOM-ov redak opisuje pravnu osobu: njegova adresa sprema se kao sjedište ustanove, a ne kao objekt. Objekte daju zagrebački skupovi; ustanova bez poznatog objekta u pretrazi se prikazuje sa sjedištem (`scope=seat`). Spajanje koristi prethodni identitet izvora, OIB kada postoji te normalizirane nazive, grad/mjesto i adresu; ne koristi neprovjerene približne podudarnosti. Način odluke sprema se u `source_record.match_method`. Višeznačni zapisi ostaju `candidate` za pregled. Sve odabrane snimke aktiviraju se atomarno, a neuspjeh čuva prethodnu aktivnu snimku. Stari retci ostaju u povijesti. Ponovljeni uvoz istih identiteta čuva ID-jeve ustanova i lokacija; pisci se serijaliziraju transakcijskim advisory lockom.
 
 Ovi skupovi nemaju potvrđene dobne uvjete, slobodna mjesta ni upisne upute. Uvoz ih ne izmišlja i ne stvara programe ni RAG dokumente iz kontaktnih podataka. Rezultati zato imaju dobni status `unknown`. Datum preuzimanja i izmjene resursa spremaju se odvojeno; ne proglašavaju se datumom stvarnog stanja podataka.
+
+### Varaždinski obrti za dadilje
+
+Skup iz CKAN API-ja (`package_show`) vodi do CSV datoteke: DataStore nije uključen. CSV se čita kao UTF-8 s mogućim BOM-om, razdjelnikom `;` i navodnicima. Prazni retci se preskaču, a neispravan broj stupaca, kodiranje ili obvezna polja prekidaju uvoz prije upisa. Vrijede isto ograničenje veličine odgovora i obrada HTTP pogrešaka kao za JSON izvore.
+
+Spremaju se naziv, adresa sjedišta, mjesto i poštanski broj, vrsta `childminder`, kontaktni telefon, e-mail, web/Facebook poveznica i jednoznačan OIB. `Matični broj` obrta je stabilan `source_record.source_key`, pa promjena adrese ili kontakta ne stvara novi obrt. Cijeli izvorni redak ostaje u `source_record.raw_data`, zajedno s vezom na izvor, licencijom i datumom preuzimanja. Imena odgovornih osoba ne dodaju se kao zasebna polja ustanove. Ako redak navodi više OIB-a, svi ostaju u izvornom retku, a jedinstveni `kindergarten.oib` ostaje prazan.
+
+Stupci su označeni kao adrese sjedišta; ne proglašavaju se fizičkim objektima za čuvanje djece. Skup nema koordinate, kvartove, dobne uvjete ni podatke o slobodnim mjestima. Uvoz ne stvara takve podatke ni RAG dokumente iz kontakata. Obrti su dostupni u imeniku i pretrazi kao `childminder`, sa sjedištem i nepoznatom dobnom prikladnošću. API lokacija podržava `provider_kind=childminder`; bez koordinata nema oznake na karti.
+
+Dodatno geokodiranje sjedišta nalazi se u `data-enrichment/varazdin-childminders-nominatim.json` i uvozi naredbom `uv run python data-enrichment/import_childminder_geography.py --apply`. Revizija `0003_seat_geography` dodaje `seat_longitude`, `seat_latitude` i `seat_attributes` postojećoj tablici `kindergarten`. Provjera izvora i podudaranja trenutačne adrese objedinjena je u pogledu `kindergarten_seat_geography`. Poznati kvartovi, predjeli, susjedstva i naselja koriste se za filtriranje pretrage prije RAG dohvaćanja; geografski dokumenti ostaju odvojeni od dokaza dobne prikladnosti.
 
 ## Lokalni pregled MCP sučelja
 
@@ -103,7 +116,7 @@ Vite služi `src/views/index.html`, učitava env iz mape `frontend/` i prosljeđ
 
 Ako je port 8000 zauzet, API pokrenuti s `--port 18000`, a frontend naredbom `KIDSIC_API_TARGET=http://127.0.0.1:18000 npm run dev`. `KIDSIC_API_TARGET` je varijabla procesa koji pokreće Vite, ne javna varijabla aplikacije iz `.env.local`.
 
-UI prikazuje kartu s vodoravno pomičnim karticama, odabirom objekta i kontrolom za fullscreen. Navigacija, legenda i filtri uklonjeni su iz samog prikaza; razvojni dohvat koristi Zagreb kao početni kontekst, a API i dalje prihvaća dokumentirane strukturirane kriterije. Sjedišta bez potvrđenog objekta i objekti bez koordinata ostaju među karticama, a ne postaju točke na karti. Kartice nemaju oznaku pružatelja, napomenu o sjedištu niti akciju za otvaranje detalja. Dobna prikladnost, slobodna mjesta i kapacitet ne zaključuju se iz lokacije. Bez Mapbox tokena ili podržanog WebGL-a dostupne su kartice stvarnih rezultata. Prazna baza daje prazan rezultat, a nedostupan API poruku za ponovni pokušaj; aplikacija ne prikazuje zamjenske izmišljene objekte.
+UI prikazuje kartu s vodoravno pomičnim karticama, odabirom objekta i kontrolom za fullscreen. Navigacija, legenda i filtri uklonjeni su iz samog prikaza; razvojni dohvat koristi Zagreb kao početni kontekst, a API i dalje prihvaća dokumentirane strukturirane kriterije. Sjedišta i objekti bez koordinata ostaju među karticama. Sjedišta s provjerenim geokodiranjem imaju oznaku na karti, zadržavaju `location_role=seat` i na kartici nose oznaku „Sjedište”. Kartice nemaju oznaku pružatelja niti akciju za otvaranje detalja. Dobna prikladnost, slobodna mjesta i kapacitet ne zaključuju se iz lokacije. Bez Mapbox tokena ili podržanog WebGL-a dostupne su kartice stvarnih rezultata. Prazna baza daje prazan rezultat, a nedostupan API poruku za ponovni pokušaj; aplikacija ne prikazuje zamjenske izmišljene objekte.
 
 ## Provjere i dokumentacija
 
