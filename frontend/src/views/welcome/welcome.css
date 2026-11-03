@@ -32,3 +32,14 @@ h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 37px; line-heigh
 .location-item small { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
 .provider-label { color: var(--accent); font-size: 11px; font-weight: 700; }
 .text-button { border: 0; background: #edf3fb; color: var(--accent); border-radius: 5px; padding: 9px 12px; margin-top: 12px; font-weight: 650; }
+
+@media (min-width: 761px) {
+  .directory-layout { height: calc(100svh - 76px); min-height: 0; }
+  .directory-panel { display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+  .directory-panel > :not(.location-results) { flex-shrink: 0; }
+  .location-results { min-height: 0; overflow-y: auto; flex: 1; padding-right: 6px; }
+}
+@media (max-width: 760px) {
+  .map-panel { order: -1; height: 46svh; min-height: 320px; }
+  .location-results { max-height: 60svh; overflow-y: auto; }
+}

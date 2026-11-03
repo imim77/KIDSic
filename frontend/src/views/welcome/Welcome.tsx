@@ -40,7 +40,7 @@ function App() {
           </div>
         </section>
         <section className="map-panel" aria-label="Karta vrtića u Zagrebu">
-          <KindergartenMap />
+          <KindergartenMap collection={data} />
         </section>
       </div>
     </main>
