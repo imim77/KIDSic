@@ -221,3 +221,93 @@ Potvrđeno 3. studenoga 2026.: 24 frontend testa, 52 backend testa nad zasebnom 
 - [Službeni primjer grupiranja GeoJSON točaka](https://docs.mapbox.com/mapbox-gl-js/example/cluster/) — podloga za prikaz objekata u koraku e.
 - [Službeni primjer pomicanja točke](https://docs.mapbox.com/mapbox-gl-js/example/drag-a-point/) — referenca za interakciju kandidata u koraku k.
 - [Upravljanje Mapbox tokenima](https://docs.mapbox.com/accounts/guides/tokens/) — javni tokeni i ograničenja URL-ova.
+
+## Prerada prikaza vrtića prema vizualnoj referenci
+
+Status: planirano. Ovo je zasebna dorada korisničkog sučelja nakon dovršenih a–f; ne mijenja redoslijed analitičkih koraka g–o.
+
+### Zahtjev i nalazi
+
+Referenca je korisnikova slika `Screenshot 2026-11-03 at 10.56.27.png`: zaobljeni okvir karte, naglašene točke, bijele kartice preko donjeg dijela karte, djelomično vidljiva sljedeća kartica i kružni gumb s ikonom proširenja u gornjem desnom kutu. Kartice trebaju biti vodoravno pomične, a klik na ikonu treba otvoriti prikaz preko cijelog ekrana.
+
+Postojeći `frontend/src/views/welcome/Welcome.tsx` već drži filtre i zajednički odabir te povezuje `useLocations`, `LocationResults` i `KindergartenMap`. `LocationResults.tsx` trenutačno prikazuje okomitu listu i otvorene detalje unutar retka. `KindergartenMap.tsx` upravlja jednom instancom karte i promjenama veličine preko `ResizeObserver`, a `LocationLayer.ts` rješava točke, grupe i odabir prema stabilnom `properties.location_id`. Te funkcije treba prilagoditi novom rasporedu, uz očuvanje postojeće logike dohvata i zaštite od zastarjelih odgovora.
+
+Ugovor `frontend/src/shared/locations/types.ts` nema fotografije vrtića. Kartica zato u početnoj izvedbi koristi neutralnu sličicu/ikonu; stvarnu fotografiju može dobiti tek iz potvrđenog izvora s dopuštenim korištenjem. Glavni sadržaj kartice bit će naziv objekta, adresa, vrsta pružatelja i četvrt kada je poznata. Fotografije kuća, cijene i oznake iz primjera nisu podaci o vrtićima.
+
+### Razmotreni pristupi i odabir
+
+1. **Zajednički okvir karte i kartica, uz izvorno vodoravno pomicanje — odabrano.** CSS `overflow-x` i scroll snap daju pomicanje dodirom i trackpadom; gumbi omogućuju pomicanje mišem i tipkovnicom. Ne treba nova carousel biblioteka. Odvojena komponenta okvira upravlja proširenjem cijelog sadržaja. Glavni rizici su preklapanje kontrola i sukob gesti karte i kartica; rješavaju se jasnim zonama interakcije i provjerom u pregledniku.
+2. **Carousel biblioteka i zasebna kopija karte u proširenom prikazu.** Biblioteka može olakšati složene animacije, ali dodaje ovisnost, dok druga karta traži usklađivanje kamere, odabira i lifecyclea. Za ovaj prikaz to donosi dodatne točke kvara bez potrebne korisničke koristi.
+
+Za proširenje koristiti vlastiti gumb na zajedničkom okviru i Fullscreen API. Time kartice, filtri i detalji ostaju u istom fullscreen elementu. U pregledniku koji ga ne podržava ili odbije zahtjev koristiti prošireni prikaz preko cijelog prozora, uz jasan izlaz. Standardni Mapbox FullscreenControl razmotren je kao alternativa, ali vlastiti gumb jednostavnije pokriva traženi izgled i zamjensko ponašanje.
+
+### UI-a) Postaviti kartu kao glavni prikaz
+
+- [ ] U `Welcome.tsx` zamijeniti raspored bočne liste i karte zajedničkom komponentom, primjerice `KindergartenExplorer`, koja sadrži kartu i sve njene preklopne elemente. Filtre zadržati dostupnima kroz kompaktni gumb/panel unutar tog okvira.
+- [ ] U `welcome.css` i `map.css` definirati zaobljen okvir, jasno određenu visinu i slojeve prikaza. Smjer preuzeti iz reference: bijele površine, tamni tekst, crveni markeri s bijelim rubom i naglašen odabrani objekt. Vrstu pružatelja zadržati kao tekst na kartici; broj na grupi označava broj objekata.
+
+**Gotovo kada:** karta zauzima glavni prostor, a kontrole i budući red kartica imaju svoja mjesta na desktopu i mobitelu. Promjena rasporeda ne stvara novu Mapbox instancu.
+
+### UI-b) Izdvojiti karticu vrtića
+
+- [ ] Dodati `LocationCard.tsx` s malom sličicom lijevo i sažetkom desno: naziv, adresa, vrsta pružatelja i dostupna četvrt. Koristiti podatke iz postojećeg API-ja, uz oznake za sjedišta i objekte bez koordinata.
+- [ ] Kartici dati bijelu podlogu, veće zaobljenje i suptilnu sjenu prema referenci. Naziv omogućuje odabir, a zaseban jasno označen gumb otvara detalje; izbjegavati ugniježđene gumbe.
+
+**Gotovo kada:** kartica radi s dugim nazivima i nedostajućim podacima, bez izmišljenih fotografija, kapaciteta ili slobodnih mjesta.
+
+### UI-c) Omogućiti vodoravno pomicanje kartica
+
+- [ ] Dodati `LocationCarousel.tsx` kao red preko donjeg dijela karte: `overflow-x: auto`, kartice koje se ne skupljaju i scroll snap. Na manjim ekranima ostaviti vidljiv dio sljedeće kartice kao u referenci.
+- [ ] Omogućiti swipe na dodirnom zaslonu, pomicanje trackpadom te gumbe „Prethodni vrtić” i „Sljedeći vrtić”. Gumbi pomiču red do prethodne/sljedeće kartice i imaju ispravna stanja na početku i kraju; Tab i Enter omogućuju pristup svakoj kartici. Poštovati postavku smanjenog kretanja.
+
+**Gotovo kada:** sve rezultate možemo pregledati pomicanjem udesno i vratiti se ulijevo; pomiče se samo red kartica, a stranica nema vodoravni overflow. Geste nad karticama ne pomiču kartu ispod njih.
+
+### UI-d) Povezati kartice, markere i detalje
+
+- [ ] Zadržati zajednički `selectedId` u postojećem vlasniku stanja. Klik na karticu ističe objekt i približava kartu; klik na marker dovodi odgovarajuću karticu u vidljivi dio reda. Programsko pomicanje ograničiti na carousel, bez pomicanja cijele stranice.
+- [ ] Samo pregledavanje kartica pomicanjem ne mijenja odabir ni kameru. `LocationDetails.tsx` prikazivati u zasebnom panelu unutar zajedničkog okvira, kako dugi izvori ne bi povećavali visinu kartica. Sjedište otvara detalje bez stvaranja markera. Primjena filtara poništava odabir i vraća red na početak.
+
+**Gotovo kada:** odabir radi u oba smjera, zatvaranje detalja vraća fokus na pripadajuću kontrolu, a postojeća zaštita od zastarjelih zahtjeva i kasnih odgovora grupiranja ostaje ispravna.
+
+### UI-e) Dodati prikaz preko cijelog ekrana
+
+- [ ] Dodati kružni gumb u gornjem desnom kutu sa smislenim nazivom „Prikaži preko cijelog ekrana” / „Vrati prikaz”. Fullscreen zahtjev pokrenuti izravno klikom nad cijelim zajedničkim okvirom, a stanje uskladiti s `fullscreenchange` i stvarnim `document.fullscreenElement`.
+- [ ] Podržati izlazak gumbom i tipkom Escape. Kada izvorni fullscreen nije dostupan, prikaz proširiti preko prozora pomoću `position: fixed`; tada privremeno onemogućiti pomicanje pozadine, ograničiti fokus na prošireni prikaz i pri izlasku vratiti prethodno stanje i fokus. Postojeći `ResizeObserver` mora prilagoditi kartu pri ulasku i izlasku.
+
+**Gotovo kada:** karta, kartice, filtri i otvoreni detalji ostaju dostupni u proširenom prikazu. Odabir, položaj reda i kamera ostaju očuvani; nema druge karte ni ponovnog dohvata samo zbog proširenja. Nakon odbijenog zahtjeva gumb ne ostaje u lažnom fullscreen stanju.
+
+### UI-f) Uskladiti kontrole i mobilni prikaz
+
+- [ ] Premjestiti postojeće zoom kontrole tako da se ne sudaraju s ikonom proširenja. Legendu po potrebi sažeti iza gumba. Sačuvati vidljivu Mapbox/OSM atribuciju, uz prostor ispod kartica i sigurne rubove mobilnog uređaja.
+- [ ] Prilagoditi širinu kartica i visinu okvira manjim ekranima, landscape prikazu i promjeni veličine prozora. Interaktivni slojevi zauzimaju samo potrebnu površinu, tako da ostatak karte prima geste. Detalji i filtri imaju dostupan gumb za zatvaranje i pravilno upravljanje fokusom.
+
+**Gotovo kada:** kartice ne prekrivaju ključne kontrole i atribuciju, fullscreen ikona je uvijek dostupna, a kartu i kartice možemo koristiti na uskom ekranu bez povećavanja stranice.
+
+### UI-g) Prilagoditi prazna stanja i pogreške
+
+- [ ] Premjestiti postojeće poruke za učitavanje, prazne rezultate, ponovni pokušaj i nepoznate koordinate u novi raspored. Ako podloga nije dostupna, kartice i detalji i dalje prikazuju stvarne rezultate API-ja.
+- [ ] Zadržati vidljiv broj rezultata i primijenjene filtre. Kod nula rezultata ne ostaviti stare markere ili kartice; kod jednog rezultata onemogućiti nepotrebne gumbe pomicanja.
+
+**Gotovo kada:** promjena izgleda čuva razliku između praznog rezultata, nedostupnog API-ja i nedostupne podloge, uz razumljiv sljedeći korak za korisnika.
+
+### UI-h) Provjeriti i spremati u male commitove
+
+- [ ] Prilagoditi postojeće `LocationApp.test.tsx` i `KindergartenMap.test.tsx`; dodati ciljane provjere carousela i fullscreen ponašanja: klikovi u oba smjera, marker–kartica odabir, reset nakon filtriranja, odbijeni fullscreen zahtjev, Escape, vraćanje fokusa i uklanjanje listenera.
+- [ ] Pokrenuti frontend testove, build i lint. U stvarnom pregledniku potvrditi pomicanje, fullscreen ulaz/izlaz, očuvanje kamere i ispravne dimenzije na desktopu, mobitelu i u landscapeu. Usporediti snimke s referencom, posebno položaj kartica, vidljivost sljedeće kartice i ikonu gore desno.
+
+**Gotovo kada:** cijeli tijek radi na stvarnim podacima i nema regresija postojećih filtara, izvora ili Mapbox lifecyclea. Svaki korak spremati kao zaseban pregledan Conventional Commit; usko povezane prilagodbe testova uključiti uz odgovarajuću promjenu.
+
+### Pretpostavke i otvorena pitanja ove dorade
+
+- „Preko cijelog ekrana” obuhvaća cijeli prikaz karte s karticama i kontrolama. Izvorni fullscreen koristiti gdje ga preglednik dopušta; prikaz preko prozora je zamjenska mogućnost.
+- Pomicanje kartica znači pregledavanje rezultata u oba smjera; odabir se mijenja klikom ili aktivacijom kartice, a ne svakim pomakom reda.
+- Fotografije trenutačno nisu raspoložive u API-ju. Njihovo pribavljanje ostaje zasebna nadogradnja; ovaj plan ne zahtijeva novu backend rutu ni promjenu baze.
+- Ponašanje Fullscreen API-ja i gesta treba provjeriti u ciljnom pregledniku, osobito na mobitelu i kasnije u MCP hostu. Kontrole, detalji i filtri moraju biti potomci fullscreen okvira; panel izvan njega može nestati iz proširenog prikaza.
+
+### Reference za ovu doradu
+
+- Korisnikova priložena snimka zaslona — raspored karte, kartica i gumba proširenja.
+- [Lokalni Mapbox skill](.agents/skills/mapbox-web-integration-patterns/SKILL.md) — očuvanje jedne instance, lifecycle i promjena veličine.
+- [MDN: requestFullscreen](https://developer.mozilla.org/en-US/docs/Web/API/Element/requestFullscreen) i [fullscreenchange](https://developer.mozilla.org/en-US/docs/Web/API/Document/fullscreenchange_event) — zahtjev, pogreške i usklađivanje stanja.
+- [MDN: scroll-snap-type](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/scroll-snap-type) — vodoravno zaustavljanje na karticama.
+- [Mapbox: FullscreenControl](https://docs.mapbox.com/mapbox-gl-js/api/markers/#fullscreencontrol) — uspoređeni ugrađeni pristup.
