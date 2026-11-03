@@ -14,16 +14,15 @@ export function LocationCard({ feature, selected, onSelect }: LocationCardProps)
   const location = feature.properties
   const address = location.address ?? 'Adresa nije poznata'
 
-  return <Card className="location-card flex-row items-center gap-3 rounded-2xl p-3" data-selected={selected} role="article">
-    <div className="location-thumbnail bg-muted text-muted-foreground" aria-hidden="true">
+  return <Card className="location-card relative flex-row items-center gap-3 rounded-2xl p-3" data-selected={selected} role="article">
+    <Button type="button" variant="ghost" className="absolute inset-0 h-full w-full rounded-2xl p-0" aria-label={`${location.location_name} ${address}`} title={`${location.location_name}\n${address}`} aria-pressed={selected} onClick={() => onSelect(feature.id)} />
+    <div className="location-thumbnail pointer-events-none relative bg-muted text-muted-foreground" aria-hidden="true">
       <Building2 />
     </div>
-    <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 self-stretch">
+    <div className="pointer-events-none relative flex min-w-0 flex-1 flex-col justify-center gap-2 self-stretch">
       <CardHeader className="gap-0 p-0">
         <CardTitle className="min-w-0">
-          <Button type="button" variant="ghost" size="sm" className="h-6 w-full min-w-0 justify-start px-0" aria-label={`${location.location_name} ${address}`} aria-pressed={selected} onClick={() => onSelect(feature.id)}>
-            <span className="truncate" title={location.location_name}>{location.location_name}</span>
-          </Button>
+          <span className="block truncate text-sm font-medium" title={location.location_name}>{location.location_name}</span>
         </CardTitle>
         <CardDescription className="truncate" title={address}>{address}</CardDescription>
       </CardHeader>

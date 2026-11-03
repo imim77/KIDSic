@@ -52,3 +52,7 @@ Detaljne [upute za bazu i API](../README.md#lokalni-pregled-mcp-sučelja), [ugov
 Kartice prikazuju naziv, adresu i dostupnu gradsku četvrt. Oznaka pružatelja,
 napomena o sjedištu/koordinatama i zaseban pogled detalja uklonjeni su iz UI-ja.
 Odabir kartice i oznake na karti ostaje zajednički.
+
+Cijelu površinu kartice pokriva jedan nativni shadcn gumb: sličica, naziv,
+adresa i prazni prostor biraju isti objekt, uz Enter/Space podršku i jedan
+tabulatorni korak po kartici.

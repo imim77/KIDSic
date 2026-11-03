@@ -485,3 +485,14 @@ Provjereno: 39 frontend testova, lint, standalone i MCP build te 7 MCP testova
 prolaze. Testovi potvrđuju da ni odabir sjedišta ne otvara detalje i da nema
 uklonjenih oznaka/akcija, uz očuvani fullscreen i pomicanje. Dva testa uklonjenog
 UI panela izbrisana su zajedno s komponentom. UI resurs je map-v3 radi cachea.
+
+## Klik na cijelu karticu
+
+Jedan nativni shadcn Button pokriva cijelu relativno pozicioniranu karticu, a
+sličica i tekst ne presreću pokazivač. Time se zadržavaju jedan fokusni korak,
+aria-pressed i izvorno Enter/Space ponašanje, bez dodatnih click callbackova ili
+ugniježđenih gumba. Hover podloga je iza teksta; puni naziv/adresa dostupni su i
+na title atributu gumba. Dimenzije i pomicanje kartica ostaju isti.
+
+Prolazi 39 frontend testova (dopunjena provjera Space aktivacije), lint, oba
+builda i 7 MCP testova. UI resurs map-v4 osvježava host cache.
