@@ -1,0 +1,83 @@
+"""AsyncpgLocationRepository reads active locations and source evidence together."""
+from KIDSic.dao.interfaces.location import LocationRepository
+from KIDSic.dto.location import LocationQuery
+from KIDSic.dto.text import normalize
+
+
+class AsyncpgLocationRepository(LocationRepository):
+    def __init__(self, connection):
+        self._connection = connection
+
+    async def list_locations(self, query: LocationQuery):
+        return await self._connection.fetch('''
+          WITH approved_record AS (
+            SELECT r.id::text AS record_id,r.kindergarten_id,r.location_id,
+              COALESCE(s.active_batch_id=r.batch_id,false) AS active_snapshot,
+              jsonb_build_object('name',s.title,'url',s.url,'license',s.license,
+                'reference_date',r.observed_on,'retrieved_at',r.fetched_at) AS evidence
+            FROM source_record r JOIN data_source s ON s.id=r.source_id
+            WHERE r.match_status='accepted' AND s.import_allowed
+          ), active_record AS (
+            SELECT * FROM approved_record WHERE active_snapshot
+          ), place AS (
+            SELECT l.id AS location_id,l.kindergarten_id,l.name AS location_name,
+              l.address,l.settlement,l.settlement_key,l.municipality_id,l.district,
+              l.longitude,l.latitude,'facility' AS location_role,l.provenance AS field_provenance,
+              (SELECT jsonb_agg(DISTINCT r.evidence ORDER BY r.evidence)
+               FROM active_record r WHERE r.location_id=l.id) AS sources
+            FROM location l
+            WHERE EXISTS (SELECT 1 FROM active_record r WHERE r.location_id=l.id)
+            UNION ALL
+            SELECT NULL,k.id,k.name,k.seat_address,k.seat_settlement,
+              k.seat_settlement_key,k.seat_municipality_id,NULL,sg.longitude,sg.latitude,'seat',
+              jsonb_build_object('location_name',k.provenance->'name',
+                'address',k.provenance->'seat_address',
+                'longitude',k.provenance->'seat_geography','latitude',k.provenance->'seat_geography'),
+              (SELECT jsonb_agg(DISTINCT r.evidence ORDER BY r.evidence)
+               FROM active_record r WHERE r.kindergarten_id=k.id)
+            FROM kindergarten k LEFT JOIN kindergarten_seat_geography sg ON sg.kindergarten_id=k.id
+            WHERE k.seat_settlement_key IS NOT NULL
+              AND EXISTS (SELECT 1 FROM active_record r WHERE r.kindergarten_id=k.id)
+              -- A facility outside the requested bounds still rules out a seat.
+              AND NOT EXISTS (SELECT 1 FROM location l JOIN active_record r
+                ON r.location_id=l.id WHERE l.kindergarten_id=k.id)
+          ), candidate AS (
+          SELECT pl.location_id,pl.kindergarten_id,k.name,pl.location_name,
+            pl.address,pl.settlement AS city,k.provider_kind,pl.district,
+            pl.longitude,pl.latitude,pl.location_role,pl.sources,
+            COALESCE(fields.field_sources,'{}') AS field_sources,
+            NOT ((pl.field_provenance ? 'longitude' AND NOT
+                  COALESCE(fields.field_sources ? 'longitude',false)) OR
+                 (pl.field_provenance ? 'latitude' AND NOT
+                  COALESCE(fields.field_sources ? 'latitude',false))) AS geometry_valid
+          FROM place pl JOIN kindergarten k ON k.id=pl.kindergarten_id
+          LEFT JOIN municipality m ON m.id=pl.municipality_id
+          LEFT JOIN LATERAL (
+            SELECT jsonb_object_agg(field.key,r.evidence ||
+              jsonb_build_object('active_snapshot',r.active_snapshot)) AS field_sources
+            FROM jsonb_each(pl.field_provenance || jsonb_build_object(
+              'name',k.provenance->'name','provider_kind',k.provenance->'provider_kind')) field
+            JOIN approved_record r ON r.record_id=field.value->>'source_record_id'
+              AND r.kindergarten_id=pl.kindergarten_id
+              AND (field.key IN ('name','provider_kind')
+                OR (field.key='location_name' AND pl.location_role='seat')
+                OR r.location_id IS NOT DISTINCT FROM pl.location_id)
+            WHERE field.key IN ('name','provider_kind','location_name','address',
+                                'district','longitude','latitude')
+          ) fields ON true
+          WHERE (pl.settlement_key=$1 OR m.key=$1 OR $1=ANY(m.aliases))
+            AND ($2='' OR strpos(lower(k.name),lower($2))>0
+                       OR strpos(lower(pl.location_name),lower($2))>0)
+            AND ($3::text IS NULL OR k.provider_kind=$3)
+          )
+          SELECT location_id,kindergarten_id,name,location_name,address,city,
+            provider_kind,district,location_role,sources,field_sources,
+            CASE WHEN geometry_valid THEN longitude END AS longitude,
+            CASE WHEN geometry_valid THEN latitude END AS latitude
+          FROM candidate
+          WHERE ($4::float8[] IS NULL OR (
+              geometry_valid AND longitude BETWEEN $4[1] AND $4[3]
+              AND latitude BETWEEN $4[2] AND $4[4]))
+          ORDER BY name,location_name,kindergarten_id,location_id
+        ''', normalize(query.city), query.q, query.provider_kind,
+            list(query.bbox) if query.bbox is not None else None)

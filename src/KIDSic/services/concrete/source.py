@@ -18,18 +18,20 @@ class SourceService(SourceServiceInterface):
         identities, urls = set(), set()
         for definition in self._definitions:
             package = await self._clients[definition.key].get_package(definition.dataset_id)
-            # This first importer is deliberately scoped to the three OD JSONs.
             # A changed/absent licence requires review, not implicit approval.
             if package.license_id != 'open-license':
                 raise SourceImportError(f'{definition.key}: expected Otvorena dozvola (open-license).')
+            formats = {'json': {'json', 'application/json'}, 'csv': {'csv', 'text/csv'}}
+            expected = formats[definition.resource_format]
             resources = [r for r in package.resources if r.state == 'active'
-                         and (r.format or '').strip().casefold() in {'json', 'application/json'}]
+                         and (r.format or '').strip().casefold() in expected
+                         and (definition.resource_id is None or r.id == definition.resource_id)]
             if len(resources) != 1:
-                raise SourceImportError(f'{definition.key}: expected exactly one active JSON resource.')
+                raise SourceImportError(f'{definition.key}: expected exactly one active {definition.resource_format.upper()} resource matching the configured identity.')
             resource = resources[0]
             identity = (definition.base_url.rstrip('/'), resource.id)
             if identity in identities or str(resource.url) in urls:
-                raise SourceImportError('Multiple datasets identify the same JSON resource.')
+                raise SourceImportError('Multiple datasets identify the same resource.')
             identities.add(identity)
             urls.add(str(resource.url))
             sources.append(PlannedSource(definition, package, resource))

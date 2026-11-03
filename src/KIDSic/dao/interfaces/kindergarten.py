@@ -8,7 +8,11 @@ class KindergartenRepository(ABC):
         """Return settlement and municipality keys with curated aliases."""
 
     @abstractmethod
-    async def find_options(self, *, city, age_months, as_of=None, include_unknown=False, limit=50):
+    async def list_areas(self, *, city):
+        """Return attested district, quarter and suburb names within a city."""
+
+    @abstractmethod
+    async def find_options(self, *, city, age_months, as_of=None, include_unknown=False, limit=50, area=None):
         """Return age-appropriate options and optionally unknown age conditions."""
 
     @abstractmethod

@@ -14,3 +14,10 @@ Differences required here: resource IDs accept nonempty strings (MZOM uses a
 slug); packages include attribution/licence metadata; a separate bounded JSON
 download reads the actual kindergarten records. Registration still does not
 download or import records. DataStore is not assumed to be enabled.
+
+`ckan_childminders.json` and `varazdin_childminders.csv` are synthetic fixtures
+for the Varaždin childminder resource. They test UTF-8 BOM, semicolon quoting,
+leading-zero identifiers, whitespace and joint-trade OIBs. They contain no real
+proprietors or contacts. The optional legacy Postman HTTP simulation explicitly
+selects its original three JSON sources; the CSV path has separate HTTP-client
+and database tests.

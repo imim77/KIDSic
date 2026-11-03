@@ -12,6 +12,7 @@ class ServiceWiringTests(unittest.IsolatedAsyncioTestCase):
     async def test_service_shares_one_uow_and_preserves_candidate_scope(self):
         repository = SimpleNamespace(
             list_cities=AsyncMock(return_value=[{'city_key':'varazdin','city_aliases':['varazdina']}]),
+            list_areas=AsyncMock(return_value=[]),
             find_options=AsyncMock(return_value=[
                 {'location_id':'location-1','kindergarten_id':'k-1','age_status':'confirmed','age_evidence':[{'program_id':'program-1'}]},
                 {'location_id':None,'kindergarten_id':'seat-only','age_status':'confirmed','age_evidence':[{'program_id':'program-2'}]},

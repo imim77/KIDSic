@@ -18,6 +18,8 @@ class SourceDefinition:
     base_url: str
     dataset_id: str
     parser: str
+    resource_format: str = 'json'
+    resource_id: str | None = None
 
 
 @dataclass(frozen=True)

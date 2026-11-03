@@ -8,7 +8,7 @@ class SourceServiceInterface(ABC):
 
     @abstractmethod
     async def register_sources(self) -> dict:
-        """Register selected JSON resources atomically; preserve flags and snapshots."""
+        """Register selected JSON/CSV resources atomically; preserve flags and snapshots."""
 
     @abstractmethod
     async def preview_import(self) -> dict:

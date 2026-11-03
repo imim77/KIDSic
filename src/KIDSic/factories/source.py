@@ -16,6 +16,9 @@ class SourceServiceFactory:
                              settings.ckan_zagreb_municipal_dataset_id, 'municipal'),
             SourceDefinition('zagreb-other', settings.ckan_zagreb_base_url,
                              settings.ckan_zagreb_other_dataset_id, 'other'),
+            SourceDefinition('varazdin-childminders', settings.ckan_base_url,
+                             settings.ckan_varazdin_childminders_dataset_id, 'varazdin-childminders',
+                             resource_format='csv', resource_id=settings.ckan_varazdin_childminders_resource_id),
         )
         if source_keys is not None:
             unknown = set(source_keys) - {d.key for d in definitions}

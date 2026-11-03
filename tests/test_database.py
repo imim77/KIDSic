@@ -66,6 +66,40 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             await parse_request(self.repo,'Dijete od 2 godine iz Zagreba ili Varazdina')
 
+    async def test_area_filters_candidates_before_rag_retrieval(self):
+        await self.c.execute("UPDATE location SET attributes=$2 WHERE id=$1", self.eligible[1],
+                             {'quarter': 'Široke ledine', 'suburb': 'Banfica'})
+        await self.c.execute("UPDATE location SET attributes=$2 WHERE id=$1", self.old[1],
+                             {'quarter': 'Đurek', 'suburb': 'Centar'})
+        vector = [1.0] + [0.0] * 383
+        await self.chunk(self.eligible, 'upis Banfica', vector)
+        await self.chunk(self.other, 'upis drugi grad', vector)
+        result = await self.service.recommend('Dijete od 2 godine iz Varaždina na Banfici',
+            embedding=vector, embedding_model='test-384', as_of=date(2026, 11, 1))
+        self.assertEqual(result['criteria']['area'], 'Banfica')
+        self.assertEqual([row['location_id'] for row in result['confirmed']], [self.eligible[1]])
+        self.assertEqual(result['confirmed'][0]['quarter'], 'Široke ledine')
+        self.assertEqual(result['age_unknown'], [])
+        self.assertEqual([row['location_id'] for row in result['context']], [self.eligible[1]])
+        rows = await self.repo.find_options(city='varazdin', age_months=24,
+                                           area='Široke ledine', include_unknown=True)
+        self.assertEqual([row['location_id'] for row in rows], [self.eligible[1]])
+        self.assertEqual(await self.repo.find_options(city='varazdin', age_months=24,
+                                                     area='Nepostojeći kvart', include_unknown=True), [])
+        with self.assertRaisesRegex(ValueError, 'jedan kvart'):
+            await parse_request(self.repo, 'Dijete od 2 godine iz Varaždina, Banfica ili Centar')
+        # A facility can stay active while the separate geographic source is disabled.
+        geo_source = await self.c.fetchval("INSERT INTO data_source(dataset_key,title,publisher,url,import_allowed,active_batch_id) VALUES ('geo','Geo','Test','https://example.invalid/geo',false,$1) RETURNING id", self.batch)
+        geo_record = await self.c.fetchval("INSERT INTO source_record(source_id,batch_id,raw_data,kindergarten_id,location_id,match_status,match_method) VALUES ($1,$2,'{}',$3,$4,'accepted','manual') RETURNING id", geo_source, self.batch, self.eligible[0], self.eligible[1])
+        await self.c.execute('UPDATE location SET provenance=$2 WHERE id=$1', self.eligible[1],
+                             {field: {'source_record_id': str(geo_record)} for field in ('quarter', 'suburb')})
+        self.assertNotIn('Banfica', [row['name'] for row in await self.repo.list_areas(city='varazdin')])
+        self.assertEqual(await self.repo.find_options(city='varazdin', age_months=24,
+                                                     area='Banfica', include_unknown=True), [])
+        # Inactive snapshots must not contribute area names to the parser.
+        await self.c.execute('UPDATE data_source SET import_allowed=false WHERE id=$1', self.source)
+        self.assertEqual(await self.repo.list_areas(city='varazdin'), [])
+
     async def test_boundary_staleness_and_unapproved_sources(self):
         rows=await self.repo.find_options(city='Varaždin',age_months=36,as_of=date(2026,11,1))
         self.assertEqual([r['name'] for r in rows],['Older children'])

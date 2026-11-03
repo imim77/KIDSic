@@ -18,9 +18,9 @@
 - [ ] Pretraživati nacionalni imenik prema nazivu, mjestu, gradu, županiji i poštanskom broju.
 - [ ] Pronalaziti objekte prema odabranoj lokaciji i radijusu udaljenosti kada su dostupne provjerene koordinate.
 - [ ] Filtrirati zagrebačke objekte prema gradskoj četvrti.
-- [ ] Filtrirati prema vrsti pružatelja: gradski, privatni, vjerski vrtić ili obrt dadilja.
+- [x] Filtrirati prema vrsti pružatelja: gradski, privatni, vjerski vrtić ili obrt dadilja.
 - [ ] Filtrirati prema dobi djeteta i programu kada postoje potvrđeni podaci, uz zasebnu oznaku za rezultate s nepoznatim uvjetima.
-- [ ] Prikazivati rezultate na listi i karti, s međusobno povezanim odabirom objekta.
+- [x] Prikazivati rezultate na listi i karti, s međusobno povezanim odabirom objekta.
 - [ ] Omogućiti sortiranje prema udaljenosti i objasniti aktivne kriterije pretrage.
 
 ## Detalji i usporedba

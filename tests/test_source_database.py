@@ -1,6 +1,8 @@
 """Actual asyncpg persistence and transaction tests on a disposable migrated database."""
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+import json
+from pathlib import Path
 import os
 from types import SimpleNamespace
 import unittest
@@ -45,6 +47,51 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
     def snapshot(self, records=None, source=None, parser='national'):
         return SourceSnapshot(source or self.source, normalize_records(records or [NATIONAL], parser),
                               datetime.now(timezone.utc))
+
+    async def test_childminder_csv_import_preserves_identity_and_last_good_snapshot(self):
+        fixtures = Path(__file__).parent / 'fixtures'
+        package = json.loads((fixtures / 'ckan_childminders.json').read_text())
+        state = {'bad': False, 'moved': False}
+
+        def respond(request):
+            if request.url.path.endswith('package_show'):
+                return httpx.Response(200, json=package)
+            body = (fixtures / 'varazdin_childminders.csv').read_bytes()
+            if state['bad']:
+                body = b'wrong;columns\n1;2'
+            elif state['moved']:
+                body = body.replace(b'Primjer 1,', b'Primjer 99,')
+            return httpx.Response(200, content=body)
+
+        @asynccontextmanager
+        async def work():
+            async with self.c.transaction():
+                yield SimpleNamespace(sources=self.repo)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
+            service = SourceServiceFactory(Settings(database_url=os.environ['KIDSIC_TEST_DATABASE_URL'])).create(
+                http, work, source_keys=['varazdin-childminders'])
+            first = await service.import_data()
+            self.assertEqual(first['records'], 2)
+            self.assertEqual(first['sources'][0]['accepted'], 2)
+            identities = await self.c.fetch('SELECT id,oib FROM kindergarten ORDER BY name')
+            state['moved'] = True
+            second = await service.import_data()
+            self.assertEqual(second['sources'][0]['kindergartens_added'], 0)
+            self.assertEqual(await self.c.fetch('SELECT id,oib FROM kindergarten ORDER BY name'), identities)
+            self.assertEqual(await self.c.fetchval('SELECT count(*) FROM location'), 0)
+            self.assertEqual(await self.c.fetchval('SELECT count(*) FROM knowledge_chunk'), 0)
+            self.assertEqual(await self.c.fetchval("SELECT count(*) FROM kindergarten WHERE provider_kind='childminder'"), 2)
+            self.assertEqual(await self.c.fetchval("SELECT seat_address FROM kindergarten WHERE oib='00123456789'"), 'Primjer 99')
+            rows = await AsyncpgKindergartenRepository(self.c).find_options(city='varazdin', age_months=24, include_unknown=True)
+            self.assertEqual({row['scope'] for row in rows}, {'seat'})
+            self.assertEqual({row['age_status'] for row in rows}, {'unknown'})
+            before = await self.c.fetchval("SELECT active_batch_id FROM data_source WHERE dataset_key='varazdin-childminders'")
+            state['bad'] = True
+            with self.assertRaises(SourceImportError):
+                await service.import_data()
+            self.assertEqual(await self.c.fetchval("SELECT active_batch_id FROM data_source WHERE dataset_key='varazdin-childminders'"), before)
+            self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 4)
 
     async def test_registration_is_idempotent_and_preserves_approval_and_active_snapshot(self):
         self.assertEqual(await self.repo.register(self.source), 'added')
@@ -208,7 +255,7 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         settings = Settings(database_url=os.environ['KIDSIC_TEST_DATABASE_URL'],
                             ckan_base_url=url, ckan_zagreb_base_url=url)
         async with httpx.AsyncClient() as http:
-            result = await SourceServiceFactory(settings).create(http, work).import_data()
+            result = await SourceServiceFactory(settings).create(http, work, source_keys=['national', 'zagreb-municipal', 'zagreb-other']).import_data()
             self.assertEqual(result['records'], 4)
             self.assertEqual(await self.c.fetchval('SELECT count(*) FROM kindergarten'), 2)
             self.assertEqual(await self.c.fetchval('SELECT count(*) FROM location'), 3)
@@ -217,6 +264,6 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
                               ckan_zagreb_base_url=url, ckan_zagreb_other_dataset_id='broken-download')
             from KIDSic.exceptions import CkanHttpError
             with self.assertRaises(CkanHttpError):
-                await SourceServiceFactory(broken).create(http, work).import_data()
+                await SourceServiceFactory(broken).create(http, work, source_keys=['national', 'zagreb-municipal', 'zagreb-other']).import_data()
             self.assertEqual(await self.c.fetch('SELECT dataset_key,active_batch_id FROM data_source ORDER BY dataset_key'),
                              before)

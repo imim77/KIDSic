@@ -26,8 +26,8 @@ def run_cli(command_type, description, argv=None):
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--dry-run', action='store_true', help='Validate without accessing the database.')
     parser.add_argument('--source', action='append', dest='source_keys',
-                        choices=('national', 'zagreb-municipal', 'zagreb-other'),
-                        help='Select a source; repeat to select several. Default: all three.')
+                        choices=('national', 'zagreb-municipal', 'zagreb-other', 'varazdin-childminders'),
+                        help='Select a source; repeat to select several. Default: all four.')
     args = parser.parse_args(argv)
     try:
         settings = Settings.from_env(require_database=not args.dry_run)
@@ -45,7 +45,7 @@ def run_cli(command_type, description, argv=None):
 
 
 def main(argv=None):
-    run_cli(SourceRegistrationCommand, 'Register the three kindergarten CKAN JSON sources.', argv)
+    run_cli(SourceRegistrationCommand, 'Register kindergarten and childminder CKAN sources.', argv)
 
 
 if __name__ == '__main__':

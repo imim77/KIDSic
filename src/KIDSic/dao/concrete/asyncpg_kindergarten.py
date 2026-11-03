@@ -18,8 +18,38 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
             UNION SELECT key,aliases FROM municipality
         ''')
 
+    async def list_areas(self, *, city: str):
+        return await self._connection.fetch('''
+            SELECT DISTINCT area.name FROM location l
+            LEFT JOIN municipality m ON m.id=l.municipality_id
+            CROSS JOIN LATERAL (VALUES ('district',l.district),
+                ('quarter',l.attributes->>'quarter'),('suburb',l.attributes->>'suburb'),
+                ('neighbourhood',l.attributes->>'neighbourhood')) AS area(field,name)
+            WHERE (l.settlement_key=$1 OR m.key=$1 OR $1=ANY(m.aliases))
+              AND area.name IS NOT NULL
+              AND (NOT (l.provenance ? area.field) OR EXISTS (
+                SELECT 1 FROM source_record r JOIN data_source s ON s.id=r.source_id
+                WHERE r.id::text=l.provenance->area.field->>'source_record_id'
+                  AND r.location_id=l.id AND r.match_status='accepted'
+                  AND s.import_allowed AND s.active_batch_id=r.batch_id))
+              AND EXISTS (SELECT 1 FROM source_record r JOIN data_source s ON s.id=r.source_id
+                WHERE r.location_id=l.id AND r.match_status='accepted'
+                  AND s.import_allowed AND s.active_batch_id=r.batch_id)
+            UNION
+            SELECT DISTINCT area.name FROM kindergarten k
+            JOIN kindergarten_seat_geography sg ON sg.kindergarten_id=k.id
+            LEFT JOIN municipality m ON m.id=k.seat_municipality_id
+            CROSS JOIN LATERAL unnest(ARRAY[sg.quarter,sg.suburb,sg.neighbourhood,sg.geo_settlement]) AS area(name)
+            WHERE (k.seat_settlement_key=$1 OR m.key=$1 OR $1=ANY(m.aliases))
+              AND area.name IS NOT NULL AND area.name IS DISTINCT FROM k.seat_settlement
+              AND area.name IS DISTINCT FROM m.name
+              AND NOT EXISTS (SELECT 1 FROM location l JOIN source_record r ON r.location_id=l.id
+                JOIN data_source s ON s.id=r.source_id WHERE l.kindergarten_id=k.id
+                  AND r.match_status='accepted' AND s.import_allowed AND s.active_batch_id=r.batch_id)
+        ''', normalize(city))
+
     async def find_options(self, *, city: str, age_months: int, as_of=None,
-                           include_unknown: bool = False, limit: int = 50):
+                           include_unknown: bool = False, limit: int = 50, area: str | None = None):
         if not isinstance(age_months, int) or isinstance(age_months, bool) or not 0 <= age_months <= 216:
             raise ValueError('Dob mora biti broj mjeseci od 0 do 216.')
         if not city.strip() or not 1 <= limit <= 100:
@@ -40,18 +70,34 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
           ), place AS (
             -- An object needs its own active record; without one, the institution seat stands in.
             SELECT l.id AS location_id,l.kindergarten_id,l.name AS location_name,l.settlement,
-                   l.settlement_key,l.municipality_id,l.address,'location' AS scope
+                   l.settlement_key,l.municipality_id,l.address,CASE WHEN NOT (l.provenance ? 'district') OR EXISTS (
+                     SELECT 1 FROM active_record r WHERE r.location_id=l.id
+                       AND r.id::text=l.provenance->'district'->>'source_record_id')
+                     THEN l.district END AS district,
+                   CASE WHEN NOT (l.provenance ? 'quarter') OR EXISTS (
+                     SELECT 1 FROM active_record r WHERE r.location_id=l.id
+                       AND r.id::text=l.provenance->'quarter'->>'source_record_id')
+                     THEN l.attributes->>'quarter' END AS quarter,CASE WHEN NOT (l.provenance ? 'suburb') OR EXISTS (
+                     SELECT 1 FROM active_record r WHERE r.location_id=l.id
+                       AND r.id::text=l.provenance->'suburb'->>'source_record_id')
+                     THEN l.attributes->>'suburb' END AS suburb,
+                   CASE WHEN NOT (l.provenance ? 'neighbourhood') OR EXISTS (
+                     SELECT 1 FROM active_record r WHERE r.location_id=l.id
+                       AND r.id::text=l.provenance->'neighbourhood'->>'source_record_id')
+                     THEN l.attributes->>'neighbourhood' END AS neighbourhood,NULL::text AS geo_settlement,
+                   'location' AS scope
             FROM location l WHERE EXISTS (SELECT 1 FROM active_record r WHERE r.location_id=l.id)
             UNION ALL
             SELECT NULL,k.id,k.name,k.seat_settlement,k.seat_settlement_key,k.seat_municipality_id,
-                   k.seat_address,'seat'
-            FROM kindergarten k WHERE k.seat_settlement_key IS NOT NULL
+                   k.seat_address,NULL,sg.quarter,sg.suburb,sg.neighbourhood,sg.geo_settlement,'seat'
+            FROM kindergarten k LEFT JOIN kindergarten_seat_geography sg ON sg.kindergarten_id=k.id
+            WHERE k.seat_settlement_key IS NOT NULL
               AND EXISTS (SELECT 1 FROM active_record r WHERE r.kindergarten_id=k.id)
               AND NOT EXISTS (SELECT 1 FROM location l JOIN active_record r ON r.location_id=l.id
                               WHERE l.kindergarten_id=k.id)
           ), candidates AS (
             SELECT pl.location_id,pl.kindergarten_id,k.name,pl.location_name,pl.settlement,
-              m.name AS municipality,pl.address,pl.scope,
+              m.name AS municipality,pl.address,pl.district,pl.quarter,pl.suburb,pl.neighbourhood,pl.geo_settlement,pl.scope,
               COALESCE((SELECT jsonb_agg(jsonb_build_object(
                 'program_id',p.id,'program_name',p.name,'source_record_id',p.source_record_id,
                 'source_url',p.url,'source_title',p.source_title,'verified_on',p.verified_on,
@@ -67,13 +113,15 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
               ) AS has_known_program
             FROM place pl JOIN kindergarten k ON k.id=pl.kindergarten_id
             LEFT JOIN municipality m ON m.id=pl.municipality_id
-            WHERE pl.settlement_key=$1 OR m.key=$1 OR $1=ANY(m.aliases)
-          ) SELECT location_id,kindergarten_id,name,location_name,settlement,municipality,address,scope,
+            WHERE (pl.settlement_key=$1 OR m.key=$1 OR $1=ANY(m.aliases))
+              AND ($6::text IS NULL OR pl.district=$6 OR pl.quarter=$6 OR pl.suburb=$6
+                   OR pl.neighbourhood=$6 OR pl.geo_settlement=$6)
+          ) SELECT location_id,kindergarten_id,name,location_name,settlement,municipality,address,district,quarter,suburb,neighbourhood,geo_settlement,scope,
                    age_evidence,
                    CASE WHEN jsonb_array_length(age_evidence)>0 THEN 'confirmed' ELSE 'unknown' END AS age_status
             FROM candidates WHERE jsonb_array_length(age_evidence)>0 OR ($4 AND NOT has_known_program)
             ORDER BY jsonb_array_length(age_evidence)>0 DESC,name,location_id LIMIT $5
-        ''', normalize(city), age_months, as_of, include_unknown, limit)
+        ''', normalize(city), age_months, as_of, include_unknown, limit, area)
 
 
     async def retrieve_context(self, *, location_ids, text: str = '', embedding=None,
@@ -96,6 +144,9 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
           JOIN data_source s ON s.id=r.source_id
           WHERE r.match_status='accepted' AND s.import_allowed AND s.active_batch_id=r.batch_id
             AND r.kindergarten_id=c.kindergarten_id
+            AND (r.raw_data->>'evidence_scope' IS DISTINCT FROM 'registered_seat_geography'
+              OR EXISTS (SELECT 1 FROM kindergarten_seat_geography sg
+                WHERE sg.kindergarten_id=c.kindergarten_id AND sg.source_record_id=r.id))
             AND (r.location_id IS NULL OR r.location_id IS NOT DISTINCT FROM c.location_id)
             AND (EXISTS (SELECT 1 FROM location l WHERE l.id=ANY($1::uuid[])
               AND l.kindergarten_id=c.kindergarten_id AND (c.location_id IS NULL OR c.location_id=l.id))
