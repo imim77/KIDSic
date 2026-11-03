@@ -1,4 +1,5 @@
 """LocationService converts one database snapshot into map and list evidence."""
+from KIDSic.db.uow.base import UnitOfWorkFactory
 from KIDSic.dto.location import (
     LocationCollection, LocationFeature, LocationMetadata, LocationPoint,
     LocationProperties, LocationQuery,
@@ -7,7 +8,7 @@ from KIDSic.services.interfaces.location import LocationServiceInterface
 
 
 class LocationService(LocationServiceInterface):
-    def __init__(self, uow_factory):
+    def __init__(self, uow_factory: UnitOfWorkFactory):
         self._uow_factory = uow_factory
 
     async def list_locations(self, query: LocationQuery) -> LocationCollection:

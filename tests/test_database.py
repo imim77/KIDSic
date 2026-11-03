@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import asyncpg
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from KIDSic.db.database import database_pool
+from KIDSic.exceptions import PersistenceError
 from KIDSic.db.uow.asyncpg import AsyncpgUnitOfWork
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
@@ -195,6 +196,14 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
                 await self.c.execute('INSERT INTO program(kindergarten_id,location_id,source_record_id,name,verified_on) VALUES ($1,$2,$3,\'bad\',CURRENT_DATE)',self.other[0],self.eligible[1],self.eligible[2])
         with self.assertRaises(ValueError):
             await self.repo.find_options(city='varazdin',age_months=-1)
+
+    async def test_driver_errors_cross_the_read_transaction_as_persistence_errors(self):
+        before = self.pool.get_size() - self.pool.get_idle_size()
+        with self.assertRaises(PersistenceError) as error:
+            async with AsyncpgUnitOfWork(self.pool) as work:
+                await work.search.retrieve_context(location_ids=['not-a-uuid'])
+        self.assertIsInstance(error.exception.__cause__, asyncpg.PostgresError)
+        self.assertEqual(self.pool.get_size() - self.pool.get_idle_size(), before)
 
     async def test_unit_of_work_releases_connection_after_error(self):
         before=self.pool.get_size()-self.pool.get_idle_size()

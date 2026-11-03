@@ -12,11 +12,11 @@ import httpx
 from KIDSic.dao.concrete.asyncpg_source import AsyncpgSourceRepository
 from KIDSic.dao.concrete.asyncpg_kindergarten import AsyncpgKindergartenRepository
 from KIDSic.db.database import database_pool
-from KIDSic.db.uow.source import AsyncpgSourceUnitOfWork
+from KIDSic.db.uow.asyncpg_source import AsyncpgSourceUnitOfWork
 from KIDSic.config.settings import Settings
 from KIDSic.factories.source import SourceServiceFactory
 from KIDSic.dto.source import PlannedSource, SourceDefinition, SourceSnapshot
-from KIDSic.exceptions import SourceImportError
+from KIDSic.exceptions import SourceImportError, PersistenceError
 from KIDSic.services.concrete.kindergarten_normalizer import normalize_records
 from KIDSic.services.concrete.source import SourceService
 from test_sources import NATIONAL, MUNICIPAL, source_client
@@ -234,6 +234,15 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM kindergarten'), 0)
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 0)
         self.assertEqual(await self.c.fetchval("SELECT count(*) FROM data_source WHERE dataset_key='national'"), 0)
+
+    async def test_writer_translates_driver_errors_and_releases_the_connection(self):
+        import asyncpg
+        before = self.pool.get_size() - self.pool.get_idle_size()
+        with self.assertRaises(PersistenceError) as error:
+            async with AsyncpgSourceUnitOfWork(self.pool):
+                raise asyncpg.PostgresError('synthetic database failure')
+        self.assertIsInstance(error.exception.__cause__, asyncpg.PostgresError)
+        self.assertEqual(self.pool.get_size() - self.pool.get_idle_size(), before)
 
     async def test_writer_unit_of_work_rolls_back_and_releases_connection(self):
         before = self.pool.get_size() - self.pool.get_idle_size()
