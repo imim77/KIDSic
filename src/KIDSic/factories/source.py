@@ -1,4 +1,7 @@
 from KIDSic.dto.source import SourceDefinition
+from KIDSic.services.concrete.parsers import default_parsers
+from KIDSic.services.concrete.source_normalizer import SourceRecordNormalizer
+from KIDSic.services.concrete.source_planner import SourceRegistrationPlanner
 from KIDSic.integrations.concrete.ckan import CkanClient
 from KIDSic.services.concrete.source import SourceService
 from KIDSic.services.interfaces.source import SourceServiceInterface
@@ -27,4 +30,6 @@ class SourceServiceFactory:
             definitions = tuple(d for d in definitions if d.key in source_keys)
         clients = {d.key: CkanClient(http, d.base_url, settings.ckan_timeout,
                                     settings.ckan_max_bytes) for d in definitions}
-        return SourceService(clients, definitions, uow_factory)
+        return SourceService(clients, definitions, uow_factory,
+                             normalizer=SourceRecordNormalizer(default_parsers()),
+                             planner=SourceRegistrationPlanner())

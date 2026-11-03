@@ -1,0 +1,93 @@
+"""LocationTools translates MCP calls into location-service requests."""
+import base64
+import gzip
+import logging
+from collections.abc import Callable
+from mcp import types
+from pydantic import ValidationError
+from KIDSic.dto.location import LocationQuery, LocationMetadata
+from KIDSic.services.interfaces.location import LocationServiceInterface
+from KIDSic.api.apps.map_resource import TOOL_META
+
+logger = logging.getLogger(__name__)
+
+
+class LocationTools:
+    def __init__(self, service: Callable[[], LocationServiceInterface]):
+        self._service = service
+
+    def register(self, server):
+        server.list_tools()(self.list_tools)
+        server.call_tool(validate_input=False)(self.call_tool)
+
+    @staticmethod
+    def _error_result(message: str) -> types.CallToolResult:
+        return types.CallToolResult(
+            content=[types.TextContent(type='text', text=message)], isError=True,
+            _meta=TOOL_META,
+        )
+
+
+    async def list_tools(self):
+        return [types.Tool(
+            name='prikazi_vrtice', title='Prikaži vrtiće na karti',
+            description=(
+                'ALWAYS use this tool when the user asks to show or find '
+                'kindergartens in a city. Displays the map and scrollable cards. '
+                'REQUIRES a city supplied explicitly by the user. If no city '
+                'is given, ask "U kojem gradu želiš prikaz vrtića?" first. '
+                'Never assume Zagreb or any other city.'
+            ),
+            inputSchema={
+                'type': 'object', 'properties': {'city': {
+                    'type': 'string', 'minLength': 1, 'maxLength': 100,
+                    'description': 'Naziv grada koji je korisnik izričito naveo.',
+                }}, 'required': ['city'], 'additionalProperties': False,
+            },
+            outputSchema={
+                'type': 'object', 'properties': {
+                    'city': {'type': 'string'},
+                    'metadata': LocationMetadata.model_json_schema(),
+                }, 'required': ['city', 'metadata'], 'additionalProperties': False,
+            },
+            annotations=types.ToolAnnotations(
+                readOnlyHint=True, destructiveHint=False, idempotentHint=True,
+                openWorldHint=False,
+            ),
+            _meta=TOOL_META,
+        )]
+
+    # Validation here provides the same actionable missing-city response for all
+    # clients, including those which do not enforce the advertised input schema.
+    async def call_tool(self, name, arguments):
+        if name != 'prikazi_vrtice':
+            return self._error_result('Nepoznat alat.')
+        if not isinstance(arguments, dict) or set(arguments) != {'city'}:
+            return self._error_result('Grad je obavezan. Pitaj korisnika: U kojem gradu želiš prikaz vrtića?')
+        try:
+            query = LocationQuery.model_validate({'city': arguments['city']})
+        except ValidationError:
+            return self._error_result('Navedi valjan naziv grada (1–100 znakova). Pitaj korisnika za grad.')
+        try:
+            locations = await self._service().list_locations(query)
+        except Exception:
+            logger.exception('MCP location read failed.')
+            return self._error_result('Vrtići trenutačno nisu dostupni. Pokušaj ponovno kasnije.')
+        return types.CallToolResult(
+            content=[types.TextContent(type='text', text=(
+                f'Prikaz vrtića za grad {query.city}: {locations.metadata.total} '
+                f'rezultata, {locations.metadata.mapped} s koordinatama. '
+                'Prikaži povezanu kartu i kartice.'
+            ))],
+            structuredContent={'city': query.city,
+                               'metadata': locations.metadata.model_dump(mode='json')},
+            # Host size limits also apply to UI-only metadata. Keep provenance
+            # lossless while fitting large cities into the tool-result budget.
+            _meta={**TOOL_META, 'locations': {
+                'encoding': 'gzip+base64',
+                'data': base64.b64encode(gzip.compress(
+                    locations.model_dump_json().encode('utf-8'), mtime=0,
+                )).decode('ascii'),
+            }},
+        )
+

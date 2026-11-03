@@ -1,0 +1,1 @@
+"""Embedded MCP application resources."""

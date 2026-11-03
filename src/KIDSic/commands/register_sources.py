@@ -4,10 +4,9 @@ import asyncio
 import json
 import sys
 
-import asyncpg
 
 from KIDSic.config.settings import Settings
-from KIDSic.exceptions import KIDSicError
+from KIDSic.exceptions import KIDSicError, PersistenceError
 from KIDSic.services.dependency import DependencyService
 
 
@@ -32,7 +31,7 @@ def run_cli(command_type, description, argv=None):
     try:
         settings = Settings.from_env(require_database=not args.dry_run)
         result = asyncio.run(command_type(settings).run(args.dry_run, args.source_keys))
-    except (asyncpg.PostgresError, OSError):
+    except (PersistenceError, OSError):
         print('Source operation failed: check connectivity, DATABASE_URL and Alembic migrations.', file=sys.stderr)
         raise SystemExit(1) from None
     except KeyError:

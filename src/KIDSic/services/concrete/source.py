@@ -1,42 +1,34 @@
 """Plan before writing, following FOIHireloom's source-registration workflow."""
 from datetime import datetime, timezone
+from collections.abc import Mapping, Sequence
+from KIDSic.db.uow.source import SourceUnitOfWorkFactory
+from KIDSic.integrations.interfaces.ckan import CkanClientInterface
 
-from KIDSic.dto.source import PlannedSource, SourceSnapshot
-from KIDSic.exceptions import SourceImportError
-from KIDSic.services.concrete.kindergarten_normalizer import normalize_records
+from KIDSic.dto.source import PlannedSource, SourceSnapshot, SourceDefinition
+from KIDSic.services.concrete.parsers import default_parsers
+from KIDSic.services.concrete.source_normalizer import SourceRecordNormalizer
+from KIDSic.services.concrete.source_planner import SourceRegistrationPlanner
 from KIDSic.services.interfaces.source import SourceServiceInterface
 
 
 class SourceService(SourceServiceInterface):
-    def __init__(self, clients, definitions, uow_factory=None):
-        self._clients = clients
-        self._definitions = definitions
+    def __init__(self, clients: Mapping[str, CkanClientInterface],
+                 definitions: Sequence[SourceDefinition],
+                 uow_factory: SourceUnitOfWorkFactory | None = None, *,
+                 normalizer: SourceRecordNormalizer | None = None,
+                 planner: SourceRegistrationPlanner | None = None):
+        self._normalizer = normalizer or SourceRecordNormalizer(default_parsers())
+        self._planner = planner or SourceRegistrationPlanner()
+        self._clients = dict(clients)
+        self._definitions = tuple(definitions)
         self._uow_factory = uow_factory
 
     async def _plan(self):
         sources = []
-        identities, urls = set(), set()
         for definition in self._definitions:
             package = await self._clients[definition.key].get_package(definition.dataset_id)
-            # A changed/absent licence requires review, not implicit approval.
-            if package.license_id != 'open-license':
-                raise SourceImportError(f'{definition.key}: expected Otvorena dozvola (open-license).')
-            formats = {'json': {'json', 'application/json'}, 'csv': {'csv', 'text/csv'}}
-            expected = formats[definition.resource_format]
-            resources = [r for r in package.resources if r.state == 'active'
-                         and (r.format or '').strip().casefold() in expected
-                         and (definition.resource_id is None or r.id == definition.resource_id)]
-            if len(resources) != 1:
-                raise SourceImportError(f'{definition.key}: expected exactly one active {definition.resource_format.upper()} resource matching the configured identity.')
-            resource = resources[0]
-            identity = (definition.base_url.rstrip('/'), resource.id)
-            if identity in identities or str(resource.url) in urls:
-                raise SourceImportError('Multiple datasets identify the same resource.')
-            identities.add(identity)
-            urls.add(str(resource.url))
-            sources.append(PlannedSource(definition, package, resource))
-        if not sources:
-            raise SourceImportError('Select at least one source.')
+            sources.append(self._planner.select(definition, package))
+        self._planner.validate(sources)
         return sources
 
     @staticmethod
@@ -66,7 +58,7 @@ class SourceService(SourceServiceInterface):
         snapshots = []
         for source in await self._plan():
             records = await self._clients[source.definition.key].download_records(source.resource)
-            rows = normalize_records(records, source.definition.parser)
+            rows = self._normalizer.normalize(records, source.definition.parser)
             snapshots.append(SourceSnapshot(source, rows, datetime.now(timezone.utc)))
         return snapshots
 

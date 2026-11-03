@@ -14,7 +14,7 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
 from KIDSic.dto.location import LocationCollection
-from KIDSic.mcp.server import create_app, UI_URI, UI_MIME
+from KIDSic.api.mcp_server import create_app, UI_URI, UI_MIME
 
 
 def empty_collection():
@@ -118,7 +118,7 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
     async def test_service_errors_are_sanitized_without_false_empty_map(self):
         service = SimpleNamespace(list_locations=AsyncMock(side_effect=RuntimeError('secret DSN')))
         async with connected(service) as (session, _):
-            with self.assertLogs('KIDSic.mcp.server', level='ERROR'):
+            with self.assertLogs('KIDSic.api.location_tools', level='ERROR'):
                 result = await session.call_tool('prikazi_vrtice', {'city': 'Zagreb'})
             self.assertTrue(result.isError)
             self.assertIsNone(result.structuredContent)
@@ -159,7 +159,7 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_unbuilt_ui_prevents_startup_before_opening_database(self):
         app = create_app(ui_path='/nonexistent/kidsic/mcp.html')
-        with patch('KIDSic.mcp.server.DependencyService') as dependencies:
+        with patch('KIDSic.api.mcp_server.DependencyService') as dependencies:
             with self.assertRaisesRegex(RuntimeError, 'build:mcp'):
                 async with app.router.lifespan_context(app):
                     self.fail('Startup should fail before accepting requests.')
@@ -178,8 +178,8 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
         with TemporaryDirectory() as directory:
             asset = Path(directory) / 'mcp.html'
             asset.write_text('<html>map</html>')
-            with patch('KIDSic.mcp.server.Settings.from_env'), \
-                 patch('KIDSic.mcp.server.DependencyService') as dependencies:
+            with patch('KIDSic.api.mcp_server.Settings.from_env'), \
+                 patch('KIDSic.api.mcp_server.DependencyService') as dependencies:
                 dependencies.return_value.location_service = locations
                 app = create_app(ui_path=asset)
                 async with app.router.lifespan_context(app):

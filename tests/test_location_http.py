@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock, patch
 
-import asyncpg
+from KIDSic.exceptions import PersistenceError
 from starlette.testclient import TestClient
 
 from KIDSic.api.locations import create_app
@@ -46,7 +46,7 @@ class LocationHttpTests(unittest.TestCase):
 
     def test_database_failures_return_sanitized_service_unavailable(self):
         for error in (OSError('secret DSN'), TimeoutError('secret DSN'),
-                      asyncpg.PostgresError('secret SQL'), asyncpg.InterfaceError('pool closed')):
+                      PersistenceError('secret SQL'), PersistenceError('pool closed')):
             service = SimpleNamespace(list_locations=AsyncMock(side_effect=error))
             with self.subTest(error=type(error)), TestClient(create_app(service)) as client:
                 with self.assertLogs('KIDSic.api.locations', level='ERROR'):
