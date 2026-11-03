@@ -1,5 +1,8 @@
 """MCP tests exercise protocol negotiation, discovery, reads and calls over HTTP."""
 from contextlib import asynccontextmanager
+import base64
+import gzip
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -18,6 +21,11 @@ def empty_collection():
     return LocationCollection(features=[], metadata={
         'total': 0, 'mapped': 0, 'unmapped': 0, 'scope': 'city',
     })
+
+
+def decoded_locations(result):
+    payload = result.meta['locations']
+    return json.loads(gzip.decompress(base64.b64decode(payload['data'])))
 
 
 @asynccontextmanager
@@ -66,7 +74,7 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
             result = await session.call_tool('prikazi_vrtice', {'city': ' Split '})
             self.assertFalse(result.isError)
             self.assertEqual(result.structuredContent['city'], 'Split')
-            self.assertEqual(result.meta['locations']['features'], [])
+            self.assertEqual(decoded_locations(result)['features'], [])
             self.assertEqual(result.meta['ui']['resourceUri'], UI_URI)
             self.assertEqual(result.structuredContent['metadata']['total'], 0)
             self.assertNotIn('locations', result.structuredContent)
@@ -100,7 +108,8 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
         async with connected(service) as (session, _):
             result = await session.call_tool('prikazi_vrtice', {'city': 'Split'})
             self.assertFalse(result.isError)
-            self.assertEqual(result.meta['locations'], payload.model_dump(mode='json'))
+            self.assertEqual(result.meta['locations']['encoding'], 'gzip+base64')
+            self.assertEqual(decoded_locations(result), payload.model_dump(mode='json'))
             self.assertEqual(result.structuredContent, {
                 'city': 'Split', 'metadata': payload.metadata.model_dump(mode='json'),
             })
@@ -114,6 +123,39 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(result.isError)
             self.assertIsNone(result.structuredContent)
             self.assertNotIn('secret', result.model_dump_json())
+
+    async def test_large_city_fits_host_budget_without_losing_provenance(self):
+        features = []
+        for index in range(461):
+            source = {
+                'name': 'Synthetic city directory',
+                'url': 'https://example.invalid/source',
+                'reference_date': None, 'retrieved_at': '2026-11-03T10:00:00Z',
+            }
+            features.append({
+                'id': f'location-{index}',
+                'geometry': {'coordinates': [15.9 + index / 10000, 45.8]},
+                'properties': {
+                    'location_id': f'location-{index}',
+                    'kindergarten_id': f'kindergarten-{index}',
+                    'name': f'Synthetic institution {index}',
+                    'location_name': f'Synthetic facility Čarobna kućica {index}',
+                    'address': f'Synthetic address {index}', 'city': 'Zagreb',
+                    'provider_kind': 'municipal', 'district': None,
+                    'location_role': 'facility', 'sources': [source],
+                    'field_sources': {key: {**source, 'active_snapshot': True}
+                                      for key in ('name', 'address', 'longitude', 'latitude')},
+                },
+            })
+        payload = LocationCollection(features=features, metadata={
+            'total': 461, 'mapped': 461, 'unmapped': 0, 'scope': 'city',
+        })
+        self.assertGreater(len(payload.model_dump_json().encode()), 500_000)
+        service = SimpleNamespace(list_locations=AsyncMock(return_value=payload))
+        async with connected(service) as (session, _):
+            result = await session.call_tool('prikazi_vrtice', {'city': 'Zagreb'})
+            self.assertLess(len(result.model_dump_json().encode()), 130_000)
+            self.assertEqual(decoded_locations(result), payload.model_dump(mode='json'))
 
     async def test_unbuilt_ui_prevents_startup_before_opening_database(self):
         app = create_app(ui_path='/nonexistent/kidsic/mcp.html')

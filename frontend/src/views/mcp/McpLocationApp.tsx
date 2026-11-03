@@ -32,18 +32,19 @@ export function McpLocationApp() {
       setSelection(null)
       setSnapshot(city ? { city, data: null, status: 'loading' } : initial)
     }
-    app.ontoolresult = (result) => {
-      revision.current++
+    app.ontoolresult = async (result) => {
+      const request = ++revision.current
       setSelection(null)
       if (result.isError) {
         setSnapshot((previous) => previous.city ? { city: previous.city, data: null, status: 'error' } : initial)
         return
       }
       try {
-        const parsed = LocationToolResult.fromResult(result)
+        const parsed = await LocationToolResult.fromResult(result)
+        if (!active || request !== revision.current) return
         setSnapshot({ city: parsed.city, data: parsed.locations, status: 'ready' })
       } catch {
-        setSnapshot((previous) => ({ city: previous.city, data: null, status: 'error' }))
+        if (active && request === revision.current) setSnapshot((previous) => ({ city: previous.city, data: null, status: 'error' }))
       }
     }
     app.ontoolcancelled = () => {
@@ -67,7 +68,8 @@ export function McpLocationApp() {
       const result = await app.callServerTool({ name: 'prikazi_vrtice', arguments: { city } })
       if (request !== revision.current) return
       if (result.isError) throw new Error('Tool failed')
-      const parsed = LocationToolResult.fromResult(result)
+      const parsed = await LocationToolResult.fromResult(result)
+      if (request !== revision.current) return
       setSnapshot({ city: parsed.city, data: parsed.locations, status: 'ready' })
     } catch {
       if (request === revision.current) setSnapshot({ city, data: null, status: 'error' })

@@ -1,5 +1,7 @@
 """create_app links city-specific location reads to the embedded map resource."""
 from contextlib import asynccontextmanager
+import base64
+import gzip
 import logging
 import os
 from pathlib import Path
@@ -18,7 +20,7 @@ from KIDSic.services.dependency import DependencyService
 from KIDSic.services.interfaces.location import LocationServiceInterface
 
 logger = logging.getLogger(__name__)
-UI_URI = 'ui://kidsic/map-v4.html'
+UI_URI = 'ui://kidsic/map-v5.html'
 UI_MIME = 'text/html;profile=mcp-app'
 SERVER_INSTRUCTIONS = (
     'When the user asks to show or find kindergartens in a city, ALWAYS call '
@@ -119,8 +121,14 @@ def create_app(service: LocationServiceInterface | None = None,
             ))],
             structuredContent={'city': query.city,
                                'metadata': locations.metadata.model_dump(mode='json')},
-            # Full provenance hydrates the UI without filling the model context.
-            _meta={**TOOL_META, 'locations': locations.model_dump(mode='json')},
+            # Host size limits also apply to UI-only metadata. Keep provenance
+            # lossless while fitting large cities into the tool-result budget.
+            _meta={**TOOL_META, 'locations': {
+                'encoding': 'gzip+base64',
+                'data': base64.b64encode(gzip.compress(
+                    locations.model_dump_json().encode('utf-8'), mtime=0,
+                )).decode('ascii'),
+            }},
         )
 
     @server.list_resources()

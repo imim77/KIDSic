@@ -6,10 +6,17 @@ function record(value: unknown): value is Record<string, unknown> {
 
 // LocationToolResult validates host data before it reaches map and card components.
 export class LocationToolResult {
-  static fromResult(result: { structuredContent?: unknown; _meta?: Record<string, unknown> }) {
+  static async fromResult(result: { structuredContent?: unknown; _meta?: Record<string, unknown> }) {
     const summary = result.structuredContent
     if (!record(summary)) throw new Error('Missing summary')
-    const parsed = this.parse({ city: summary.city, locations: result._meta?.locations })
+    let locations = result._meta?.locations
+    if (record(locations) && locations.encoding === 'gzip+base64') {
+      if (typeof locations.data !== 'string') throw new Error('Missing compressed locations')
+      const bytes = Uint8Array.from(atob(locations.data), (character) => character.charCodeAt(0))
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
+      locations = await new Response(stream).json()
+    }
+    const parsed = this.parse({ city: summary.city, locations })
     const metadata = summary.metadata
     if (!record(metadata) || metadata.total !== parsed.locations.metadata.total
       || metadata.mapped !== parsed.locations.metadata.mapped || metadata.unmapped !== parsed.locations.metadata.unmapped

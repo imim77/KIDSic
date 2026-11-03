@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { McpLocationApp } from '../src/views/mcp/McpLocationApp'
 import { collection, deferred, facility } from './fixtures'
+import { LocationToolResult } from '../src/shared/mcp/LocationToolResult'
 
 const host = vi.hoisted(() => ({
   instance: null as unknown as {
@@ -92,4 +93,16 @@ it('rejects malformed results and requests host fullscreen without replacing car
   host.context.displayMode = 'inline'
   await act(async () => host.instance.onhostcontextchanged())
   expect(screen.getByRole('button', { name: 'Prikaži preko cijelog ekrana' })).toBeVisible()
+})
+
+it('ignores decompression finishing after results for another city', async () => {
+  const pending = deferred<{ city: string; locations: ReturnType<typeof collection> }>()
+  vi.spyOn(LocationToolResult, 'fromResult').mockReturnValueOnce(pending.promise)
+  render(<McpLocationApp />)
+  await act(async () => { host.instance.ontoolresult({}) })
+  await act(async () => host.instance.ontoolinput({ arguments: { city: 'Split' } }))
+  await result('Split', 'latest')
+  await act(async () => pending.resolve({ city: 'Zagreb', locations: collection(facility('old')) }))
+  expect(screen.getByRole('main', { name: 'Vrtići: Split' })).toBeVisible()
+  expect(screen.queryByText('Synthetic facility old')).toBeNull()
 })
