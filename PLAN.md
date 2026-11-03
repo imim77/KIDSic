@@ -419,3 +419,47 @@ te MCP HTML bez vanjskih skripti ili stylesheet zahtjeva. Lokalni MCP server na
 build. Nova vizualna provjera nije odrađena jer je upravljanje preglednikom
 onemogućeno postavkom aplikacije; promijenjena pravila imaju iste vrijednosti
 kao prethodni CSS.
+
+## Kompaktne shadcn/ui kartice na karti
+
+Referentna snimka prikazuje niži vodoravni red s više vidljivih kartica i kružnim
+strelicama na rubovima. Sadašnja kartica ima širinu do 510 px i minimalnu visinu
+188 px, uz dodatni red kontrola iznad. Nema stvarnih fotografija vrtića u izvorima,
+pa ostaje neutralna sličica bez izmišljanja fotografija, ocjena i cijena.
+
+Uspoređeni su zamjena cijelog carousela shadcn Carousel/Embla komponentom i
+primjena shadcn Card/Button/Badge uz postojeći native scroll-snap. Odabrano je
+zadržati provjereno pomicanje i odabir te zamijeniti kartice i gumbe službenim
+shadcn komponentama: manje ovisnosti, očuvani fokus, touch i map-marker reveal.
+
+- [x] SC-a: Dodati lokalni shadcn/ui config i službene Card/Button/Badge komponente
+  iz @shadcn registra preko CLI-ja. Podesiti alias u TypeScriptu, oba Vite builda i
+  testovima; spojiti semantičke tokene s postojećom temom bez reseta Mapbox stilova.
+- [x] SC-b: Prekomponirati kartice s CardHeader/Title/Description/Content/Footer,
+  manjom sličicom i kratkim retcima. Cilj širina oko 320 px, visina oko 132 px
+  (ista visina u landscapeu radi poruke o koordinatama), uz više vidljivih kartica na desktopu.
+- [x] SC-c: Premjestiti shadcn icon gumbe na lijevi/desni rub reda. Zadržati
+  pristupačna imena, disabled rubove, reduced motion, keyboard i scroll-snap.
+- [x] SC-d: Provjeriti postojeće interakcijske testove i oba builda/lint; provjeriti
+  dimenzije u pregledniku ako je upravljanje dostupno. Osvježiti MCP build/server
+  i spremiti manje commitove.
+
+Reference: korisnikova snimka 2026-11-03 13.00.47 i službene stranice
+https://ui.shadcn.com/docs/components/base/card,
+https://ui.shadcn.com/docs/components/base/button,
+https://ui.shadcn.com/docs/components/base/badge.
+
+
+Shadcn CLI dodao je Card/Button/Badge u `src/shared/ui`; korištena je službena
+Radix Slot primitiva umjesto cijelog Radix paketa. Kompaktne kartice su 132 px
+visoke; širina je 320 px na desktopu i do 280 px na mobitelu. Zadržana je ista visina
+u landscapeu da napomena o nepoznatim koordinatama i gumb za detalje ne budu
+odrezani. Na vrlo uskom ekranu širina računa viewport, a ne sadržaj tracka nakon
+paddinga, čime se izbjegava dvostruko sužavanje.
+
+Neovisni pregled i završne provjere potvrđuju 41 frontend test, lint i oba builda;
+7 MCP protokolnih testova prolazi nakon verzioniranja UI resursa na map-v2 zbog
+host cachea. Ispravljeni su nedostajući --primary/--radius i odvojene boje muted
+pozadine/teksta. Vizualna usporedba sa snimkom nije odrađena: Work postavke i dalje
+onemogućuju upravljanje preglednikom. Lokalni MCP server osvježen je za pregled
+u Inspectoru; korisnik treba ponovno otvoriti app nakon reconnecta.

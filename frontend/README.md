@@ -5,10 +5,24 @@ React/TypeScript UI za MCP app prikazuje Mapbox kartu s vodoravnim karticama, de
 Tailwind CSS v4 uključen je preko službenog `@tailwindcss/vite` plugina u oba
 Vite builda. Klase se pišu izravno u TSX-u (npr. `w-full h-dvh p-2` ili
 `min-w-0 flex-1`). Zajednički `src/shared/theme.css` izlaže postojeće boje kao
-`text-ink`, `text-muted`, `text-accent`, `border-border` i `bg-surface` tokene.
+`text-ink`, `text-muted-foreground`, `text-primary`, `border-border` i `bg-surface` tokene.
 Skeniranje klasa obuhvaća cijeli `src`, uključujući MCP ulaz. Tema i utilities
 učitavaju se bez Preflight reseta kako bi se očuvali postojeći Mapbox i osnovni
 stilovi. Specifični responsive stilovi karte, kartica i fullscreena ostaju u CSS-u.
+
+Kartice koriste lokalne shadcn/ui komponente `Card`, `Button` i `Badge` iz
+`src/shared/ui`, dodane službenim CLI-jem iz `@shadcn` registra. Konfiguracija je
+u `components.json` (`new-york`, Radix, Lucide). Komponente koriste samo Radix Slot
+primitivu, `class-variance-authority` i službeni `cn` za spajanje klasa; nisu
+potrebne sve Radix kontrole. Alias `@/` pokazuje na `src/` u oba builda i testovima.
+Nove komponente dodavati izričito iz istog registra, npr.
+`npx shadcn@latest add @shadcn/separator`, i pregledati generirani kod.
+
+Red kartica koristi postojeći native scroll-snap: širina je do 320 px na većim
+ekranima i do 280 px na mobitelu, a visina 132 px. Kružni gumbi na rubovima reda
+ne mijenjaju odabir karte. Naziv i adresa mogu biti vizualno skraćeni; puni tekst
+ostaje u pristupačnom nazivu i detaljima. Sličica je neutralna ikona jer izvori
+ne sadrže fotografije vrtića.
 
 - `src/views/index.html`: HTML ulaz.
 - `src/views/welcome/`: React prikaz, njegov stil i ulazna skripta.
