@@ -463,3 +463,25 @@ host cachea. Ispravljeni su nedostajući --primary/--radius i odvojene boje mute
 pozadine/teksta. Vizualna usporedba sa snimkom nije odrađena: Work postavke i dalje
 onemogućuju upravljanje preglednikom. Lokalni MCP server osvježen je za pregled
 u Inspectoru; korisnik treba ponovno otvoriti app nakon reconnecta.
+
+## Uklanjanje dodatnog sadržaja kartica i pogleda detalja
+
+Korisnik traži uklanjanje oznake pružatelja, napomene o sjedištu/koordinatama i
+akcije „Detalji i izvori”, zajedno s cijelim panelom detalja. Izabrano je ukloniti
+komponente, stanje i callbackove umjesto samo skrivanja elemenata CSS-om, tako da
+odabir sjedišta više ne otvara zaseban pogled. Kartica zadržava naziv, adresu,
+neutralnu sličicu i postojeći odabir; backend podaci i pravila crtanja oznaka se
+ne mijenjaju.
+
+- [x] Ukloniti polja i akciju iz Card kompozicije te details props/state/panel i
+  pripadajući neupotrijebljeni CSS.
+- [x] Prilagoditi interakcijske provjere: bez detalja i automatskog otvaranja za
+  sjedište, uz očuvani odabir, pomicanje i fullscreen. Ukloniti testove izbrisanog
+  UI panela; izvori ostaju u backend ugovoru.
+- [x] Provjeriti testove/lint/build, verzionirati UI resurs radi cachea i osvježiti
+  lokalni MCP server. Spremiti manji commit.
+
+Provjereno: 39 frontend testova, lint, standalone i MCP build te 7 MCP testova
+prolaze. Testovi potvrđuju da ni odabir sjedišta ne otvara detalje i da nema
+uklonjenih oznaka/akcija, uz očuvani fullscreen i pomicanje. Dva testa uklonjenog
+UI panela izbrisana su zajedno s komponentom. UI resurs je map-v3 radi cachea.

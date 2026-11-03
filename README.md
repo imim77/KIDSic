@@ -1,6 +1,6 @@
 # KIDSic
 
-MCP app za pronalazak dječjih vrtića povezivanjem više otvorenih skupova. Implementirani su PostgreSQL model, CKAN registracija izvora i uvoz triju JSON skupova, SQL pretraga prema gradu i dobi te RAG dohvat s izvorima. MCP alat `prikazi_vrtice` povezuje obavezan grad s Mapbox kartom, vodoravnim karticama i detaljima izvora. Embedding pružatelj još nije implementiran.
+MCP app za pronalazak dječjih vrtića povezivanjem više otvorenih skupova. Implementirani su PostgreSQL model, CKAN registracija izvora i uvoz triju JSON skupova, SQL pretraga prema gradu i dobi te RAG dohvat s izvorima. MCP alat `prikazi_vrtice` povezuje obavezan grad s Mapbox kartom i vodoravnim karticama naziva i adresa. Embedding pružatelj još nije implementiran.
 
 ## Struktura
 
@@ -103,7 +103,7 @@ Vite služi `src/views/index.html`, učitava env iz mape `frontend/` i prosljeđ
 
 Ako je port 8000 zauzet, API pokrenuti s `--port 18000`, a frontend naredbom `KIDSIC_API_TARGET=http://127.0.0.1:18000 npm run dev`. `KIDSIC_API_TARGET` je varijabla procesa koji pokreće Vite, ne javna varijabla aplikacije iz `.env.local`.
 
-UI prikazuje kartu s vodoravno pomičnim karticama, odabirom objekta, detaljima i kontrolom za fullscreen. Navigacija, legenda i filtri uklonjeni su iz samog prikaza; razvojni dohvat koristi Zagreb kao početni kontekst, a API i dalje prihvaća dokumentirane strukturirane kriterije. Sjedišta bez potvrđenog objekta i objekti bez koordinata ostaju među karticama s oznakom, a ne postaju točke na karti. Dobna prikladnost, slobodna mjesta i kapacitet ne zaključuju se iz lokacije. Bez Mapbox tokena ili podržanog WebGL-a dostupne su kartice stvarnih rezultata. Prazna baza daje prazan rezultat, a nedostupan API poruku za ponovni pokušaj; aplikacija ne prikazuje zamjenske izmišljene objekte.
+UI prikazuje kartu s vodoravno pomičnim karticama, odabirom objekta i kontrolom za fullscreen. Navigacija, legenda i filtri uklonjeni su iz samog prikaza; razvojni dohvat koristi Zagreb kao početni kontekst, a API i dalje prihvaća dokumentirane strukturirane kriterije. Sjedišta bez potvrđenog objekta i objekti bez koordinata ostaju među karticama, a ne postaju točke na karti. Kartice nemaju oznaku pružatelja, napomenu o sjedištu niti akciju za otvaranje detalja. Dobna prikladnost, slobodna mjesta i kapacitet ne zaključuju se iz lokacije. Bez Mapbox tokena ili podržanog WebGL-a dostupne su kartice stvarnih rezultata. Prazna baza daje prazan rezultat, a nedostupan API poruku za ponovni pokušaj; aplikacija ne prikazuje zamjenske izmišljene objekte.
 
 ## Provjere i dokumentacija
 

@@ -1,6 +1,6 @@
 # KIDSic frontend
 
-React/TypeScript UI za MCP app prikazuje Mapbox kartu s vodoravnim karticama, detaljima i fullscreen kontrolom nad stvarnim podacima iz `GET /api/locations`. Prikaz zauzima prostor hosta; nema zasebnu navigaciju, legendu ili filtre.
+React/TypeScript UI za MCP app prikazuje Mapbox kartu s vodoravnim karticama i fullscreen kontrolom nad stvarnim podacima iz `GET /api/locations`. Prikaz zauzima prostor hosta; nema zasebnu navigaciju, legendu ili filtre.
 
 Tailwind CSS v4 uključen je preko službenog `@tailwindcss/vite` plugina u oba
 Vite builda. Klase se pišu izravno u TSX-u (npr. `w-full h-dvh p-2` ili
@@ -21,13 +21,13 @@ Nove komponente dodavati izričito iz istog registra, npr.
 Red kartica koristi postojeći native scroll-snap: širina je do 320 px na većim
 ekranima i do 280 px na mobitelu, a visina 132 px. Kružni gumbi na rubovima reda
 ne mijenjaju odabir karte. Naziv i adresa mogu biti vizualno skraćeni; puni tekst
-ostaje u pristupačnom nazivu i detaljima. Sličica je neutralna ikona jer izvori
+ostaje u pristupačnom nazivu i title atributu. Sličica je neutralna ikona jer izvori
 ne sadrže fotografije vrtića.
 
 - `src/views/index.html`: HTML ulaz.
 - `src/views/welcome/`: React prikaz, njegov stil i ulazna skripta.
-- `src/shared/locations/`: ugovor podataka, dohvat, kartice, carousel i izvori.
-- `src/shared/explorer/`: zajednički okvir, detalji i prošireni prikaz.
+- `src/shared/locations/`: ugovor podataka, dohvat, kartice i carousel.
+- `src/shared/explorer/`: zajednički okvir i prošireni prikaz.
 - `src/shared/map/`: Mapbox lifecycle, GeoJSON slojevi i odabir objekta.
 - `src/shared/`: zajednička tema i resursi.
 - `public/`: statičke datoteke.
@@ -48,3 +48,7 @@ API mora biti zasebno pokrenut na portu 8000. Za drugi port koristiti, primjeric
 `npm run build:mcp` gradi `dist/mcp.html` sa svim skriptama i stilovima ugrađenima u HTML. Ulaz je `src/views/mcp/mcp.html`; koristi službeni MCP Apps SDK, prima grad i sažetak iz `structuredContent` te GeoJSON iz `_meta.locations` i traži fullscreen od hosta. Ne poziva `/api` niti koristi početni Zagreb. Samostalni `npm run build` čisti `dist`, pa MCP build pokrenuti nakon njega ako trebaju oba prikaza.
 
 Detaljne [upute za bazu i API](../README.md#lokalni-pregled-mcp-sučelja), [ugovor lokacija](../LOCATION_API.md) i [MCP povezivanje](../MCP.md) nalaze se u korijenu repozitorija.
+
+Kartice prikazuju naziv, adresu i dostupnu gradsku četvrt. Oznaka pružatelja,
+napomena o sjedištu/koordinatama i zaseban pogled detalja uklonjeni su iz UI-ja.
+Odabir kartice i oznake na karti ostaje zajednički.
