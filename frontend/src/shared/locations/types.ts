@@ -54,8 +54,3 @@ export const providerLabels: Record<ProviderKind, string> = {
 }
 
 export const initialLocationFilters: LocationFilters = { city: 'Zagreb', q: '', provider_kind: '' }
-
-export const providerColors: Record<ProviderKind, string> = {
-  municipal: '#2055c7', private: '#087e8b', religious: '#8558a6',
-  childminder: '#a66b05', other: '#52647d', unknown: '#737780',
-}

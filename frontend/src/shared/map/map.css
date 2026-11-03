@@ -1,16 +1,30 @@
-.kindergarten-map { position: relative; width: 100%; height: 100%; min-height: inherit; background: #edf3fb; }
-.map-canvas { width: 100%; height: 100%; min-height: inherit; position: absolute; inset: 0; }
-.map-message { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%, -50%); width: min(340px, calc(100% - 48px)); background: var(--surface); padding: 25px; border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 30px #172c480a; }
-.map-message-marker { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #edf3fb; color: var(--accent); margin-bottom: 16px; font-size: 23px; }
-.map-message h2 { font-size: 18px; margin-bottom: 9px; }
-.map-message p { color: var(--muted); font-size: 14px; line-height: 1.6; }
-
-.map-legend { position: absolute; bottom: 35px; left: 14px; display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 11px; color: var(--ink); }
-.legend-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
-.legend-cluster { display: inline-grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; background: var(--accent); color: white; margin-left: 8px; font-size: 10px; }
-.map-data-message { position: absolute; top: 16px; left: 16px; max-width: calc(100% - 80px); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 13px; }
-
-.map-legend { flex-wrap: wrap; max-width: min(560px, calc(100% - 28px)); gap: 8px 14px; }
-.legend-entry { display: inline-flex; gap: 6px; align-items: center; }
-.legend-cluster { margin-left: 0; }
-.legend-selected { width: 13px; height: 13px; border-radius: 50%; background: var(--ink); border: 2px solid white; box-shadow: 0 0 0 1px var(--ink); }
+.kindergarten-map { position: relative; width: 100%; height: 100%; background: #edf0e9; }
+.map-canvas { width: 100%; height: 100%; position: absolute; inset: 0; }
+.map-message { position: absolute; inset: 30% auto auto 50%; transform: translate(-50%, -50%); width: min(340px, calc(100% - 48px)); background: var(--surface); padding: 22px; border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 8px 30px #172c480a; }
+.map-message-marker { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: #f7ecec; color: var(--accent); margin-bottom: 12px; font-size: 21px; }
+.map-message h2 { font-size: 17px; margin-bottom: 8px; }
+.map-message p { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.map-data-message { position: absolute; top: 18px; left: 18px; max-width: calc(100% - 110px); background: var(--surface); border-radius: 13px; padding: 12px; font-size: 12px; }
+.kindergarten-map .mapboxgl-ctrl-top-right { top: max(82px, calc(env(safe-area-inset-top) + 82px)); right: max(18px, env(safe-area-inset-right)); }
+.kindergarten-map .mapboxgl-ctrl-top-right .mapboxgl-ctrl { margin: 0; border-radius: 16px; overflow: hidden; box-shadow: 0 3px 14px #18221c16; }
+.kindergarten-map .mapboxgl-ctrl-bottom-left { bottom: calc(3px + env(safe-area-inset-bottom)); left: 8px; }
+.kindergarten-map .mapboxgl-ctrl-bottom-right { bottom: calc(3px + env(safe-area-inset-bottom)); right: 8px; }
+.kindergarten-map .mapboxgl-ctrl-attrib { font-size: 10px; }
+@media (max-width: 650px) {
+  .map-data-message { top: 18px; left: 12px; font-size: 11px; }
+  .map-message { top: 35%; padding: 16px; }
+  .map-message-marker { display: none; }
+}
+@media (max-height: 540px) and (orientation: landscape) {
+  .kindergarten-map .mapboxgl-ctrl-top-right .mapboxgl-ctrl-group { display: flex; }
+  .kindergarten-map .mapboxgl-ctrl-group button + button { border-top: 0; border-left: 1px solid #ddd; }
+  .map-data-message { top: 18px; max-width: calc(100% - 160px); }
+  .map-message { top: 30%; padding: 12px; }
+  .map-message-marker { display: none; }
+  .map-message h2 { font-size: 13px; }
+  .map-message p { font-size: 10px; }
+}
+@media (max-height: 350px) and (orientation: landscape) {
+  .kindergarten-map .mapboxgl-ctrl-top-right { top: max(64px, calc(env(safe-area-inset-top) + 64px)); }
+  .map-data-message { top: 18px; padding: 6px; font-size: 10px; line-height: 1.4; }
+}

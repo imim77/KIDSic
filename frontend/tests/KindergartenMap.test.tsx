@@ -39,6 +39,8 @@ const mock = vi.hoisted(() => {
       setFilter: vi.fn(),
       setPaintProperty: vi.fn(),
       getCanvas: vi.fn(() => ({ style: { cursor: '' } })),
+      getContainer: vi.fn(() => document.createElement('div')),
+      setPadding: vi.fn(),
       resize: vi.fn(),
       remove: vi.fn(),
     }
@@ -90,6 +92,7 @@ describe('Mapbox lifecycle and data', () => {
     const map = mock.maps[0]
     expect(map.addSource).not.toHaveBeenCalled()
     act(() => map.emit('style.load'))
+    expect(screen.queryByText('Legenda karte')).toBeNull()
     expect(map.addSource).toHaveBeenCalledTimes(2)
     expect(map.addSource).toHaveBeenCalledWith('kindergarten-locations', expect.objectContaining({
       cluster: true,
@@ -117,6 +120,47 @@ describe('Mapbox lifecycle and data', () => {
     expect(original).not.toHaveBeenCalled()
     mock.observers[0].callback([], {} as ResizeObserver)
     expect(map.resize).toHaveBeenCalledOnce()
+  })
+
+  it('refreshes viewport padding in both rotation directions without resetting the selected camera or map', async () => {
+    const payload = collection(facility('mapped'))
+    const { getByTestId } = render(<div className="kindergarten-explorer" data-testid="explorer">
+      <KindergartenMap collection={payload} selectedId="mapped" />
+      <section className="location-carousel" data-testid="deck" />
+    </div>)
+    await waitFor(() => expect(mock.maps).toHaveLength(1))
+    const map = mock.maps[0]
+    act(() => map.emit('style.load'))
+    const frame = getByTestId('explorer')
+    const deck = getByTestId('deck')
+    map.getContainer.mockReturnValue(frame.querySelector<HTMLElement>('.map-canvas')!)
+    let height = 680
+    let deckHeight = 230
+    Object.defineProperty(frame, 'clientHeight', { get: () => height })
+    deck.getBoundingClientRect = () => ({ height: deckHeight } as DOMRect)
+    map.fitBounds.mockClear()
+    map.jumpTo.mockClear()
+    map.easeTo.mockClear()
+    const sourceWrites = map.getSource()?.setData.mock.calls.length
+
+    act(() => mock.observers[0].callback([], {} as ResizeObserver))
+    expect(map.setPadding).toHaveBeenLastCalledWith({ top: 90, bottom: 275, left: 45, right: 45 })
+    height = 296
+    deckHeight = 174
+    act(() => mock.observers[0].callback([], {} as ResizeObserver))
+    expect(map.setPadding).toHaveBeenLastCalledWith({ top: 59.2, bottom: 177.6, left: 45, right: 45 })
+    height = 680
+    deckHeight = 230
+    act(() => mock.observers[0].callback([], {} as ResizeObserver))
+    expect(map.setPadding).toHaveBeenLastCalledWith({ top: 90, bottom: 275, left: 45, right: 45 })
+    expect(map.resize).toHaveBeenCalledTimes(3)
+    expect(map.resize.mock.invocationCallOrder.at(-1)).toBeLessThan(map.setPadding.mock.invocationCallOrder.at(-1)!)
+    expect(map.fitBounds).not.toHaveBeenCalled()
+    expect(map.jumpTo).not.toHaveBeenCalled()
+    expect(map.easeTo).not.toHaveBeenCalled()
+    expect(map.getSource()?.setData).toHaveBeenCalledTimes(sourceWrites!)
+    expect(mock.maps).toHaveLength(1)
+    expect(map.remove).not.toHaveBeenCalled()
   })
 
   it('selects the canonical location property when rendered vector tiles omit the UUID feature id', async () => {
@@ -176,7 +220,7 @@ describe('Mapbox lifecycle and data', () => {
     expect(map.addSource).toHaveBeenCalledWith('kindergarten-selection', expect.objectContaining({
       data: expect.objectContaining({ features: [payload.features[0]] }),
     }))
-    expect(map.jumpTo).toHaveBeenCalledWith({ center: [15.98, 45.81], zoom: 15 })
+    expect(map.jumpTo).toHaveBeenCalledWith({ center: [15.98, 45.81], zoom: 15, padding: { top: 50, bottom: 50, left: 50, right: 50 } })
     map.jumpTo.mockClear()
     rerender(<KindergartenMap collection={payload} selectedId="unlocated" />)
     expect(map.getSource('kindergarten-selection')?.setData).toHaveBeenLastCalledWith(expect.objectContaining({ features: [] }))

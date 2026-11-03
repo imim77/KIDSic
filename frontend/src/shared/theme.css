@@ -1,14 +1,14 @@
 :root {
   font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
-  color: #172c48;
-  background: #edf3fb;
+  color: #232625;
+  background: #fafbf9;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --ink: #172c48;
-  --muted: #52647d;
-  --accent: #2055c7;
-  --border: #d5dfed;
+  --ink: #232625;
+  --muted: #69716b;
+  --accent: #bf0e23;
+  --border: #dfe3dd;
   --surface: #fff;
 }
 * { box-sizing: border-box; }

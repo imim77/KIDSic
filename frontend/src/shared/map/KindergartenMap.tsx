@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import type { Map } from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { LocationLayer } from './LocationLayer'
-import { providerColors, providerLabels } from '../locations/types'
 import type { LocationCollection } from '../locations/types'
 import './map.css'
 
@@ -52,7 +51,7 @@ export function KindergartenMap({ collection = null, onSelect, selectedId = null
       map.on('error', () => {
         if (!disposed) setStatus('Kartu nije moguće učitati. Provjerite internetsku vezu ili pregledajte objekte na popisu.')
       })
-      observer = new ResizeObserver(() => map?.resize())
+      observer = new ResizeObserver(() => { map?.resize(); layer?.resize() })
       observer.observe(containerRef.current)
     }).catch(() => {
       observer?.disconnect()
@@ -87,11 +86,6 @@ export function KindergartenMap({ collection = null, onSelect, selectedId = null
   return (
     <div className="kindergarten-map">
       <div className="map-canvas" ref={containerRef} />
-      {accessToken && !status && <div className="map-legend" aria-label="Legenda karte">
-        {Object.entries(providerColors).map(([kind, color]) => <span className="legend-entry" key={kind}><span className="legend-dot" style={{ background: color }} />{providerLabels[kind as keyof typeof providerLabels]}</span>)}
-        <span className="legend-entry"><span className="legend-cluster">2</span>Skupina objekata</span>
-        <span className="legend-entry"><span className="legend-selected" />Odabrani objekt</span>
-      </div>}
       {accessToken && !status && collection?.metadata.mapped === 0 && <p className="map-data-message" role="status">Rezultati nemaju potvrđene koordinate. Pregledajte ih na popisu.</p>}
       {(!accessToken || status) && (
         <div className="map-message" role="status">

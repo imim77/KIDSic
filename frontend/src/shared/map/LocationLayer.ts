@@ -1,6 +1,5 @@
 import type { GeoJSONSource, Map, MapLayerMouseEvent } from 'mapbox-gl'
 import type { FeatureCollection, Point } from 'geojson'
-import { providerColors } from '../locations/types'
 import type { LocationCollection, LocationFeature, LocationProperties } from '../locations/types'
 
 const sourceId = 'kindergarten-locations'
@@ -48,7 +47,7 @@ export class LocationLayer {
     this.map.fitBounds([
       [Math.min(...longitudes), Math.min(...latitudes)],
       [Math.max(...longitudes), Math.max(...latitudes)],
-    ], { padding: 50, maxZoom: 14, duration: 0 })
+    ], { padding: this.cameraPadding(), maxZoom: 14, duration: 0 })
   }
 
   select(id: string | null, focus = true) {
@@ -60,7 +59,13 @@ export class LocationLayer {
     if (feature && focus) this.map.jumpTo({
       center: feature.geometry.coordinates as [number, number],
       zoom: Math.max(this.map.getZoom(), 15),
+      padding: this.cameraPadding(),
     })
+  }
+
+  resize() {
+    // Padding follows the card deck while the logical center and zoom stay put.
+    this.map.setPadding(this.cameraPadding())
   }
 
   dispose() {
@@ -75,6 +80,15 @@ export class LocationLayer {
   }
 
   private source() { return this.map.getSource(sourceId) as GeoJSONSource | undefined }
+  private cameraPadding() {
+    const frame = this.map.getContainer?.().closest('.kindergarten-explorer')
+    if (!frame) return { top: 50, bottom: 50, left: 50, right: 50 }
+    const height = frame.clientHeight
+    const deck = frame.querySelector('.location-carousel')?.getBoundingClientRect().height ?? 0
+    // Center selected pins in the map area above the cards, also in landscape.
+    const bottom = Math.min(deck + 45, height * .6)
+    return { top: Math.min(90, height * .2), bottom, left: 45, right: 45 }
+  }
   private showPointer = () => { this.map.getCanvas().style.cursor = 'pointer' }
   private hidePointer = () => { this.map.getCanvas().style.cursor = '' }
   private selectPoint = (event: MapLayerMouseEvent) => {
@@ -99,7 +113,7 @@ export class LocationLayer {
     this.map.addSource(sourceId, { type: 'geojson', data: this.data, cluster: true, clusterMaxZoom: 14, clusterRadius: 42 })
     this.map.addLayer({
       id: clustersId, type: 'circle', source: sourceId, filter: ['has', 'point_count'],
-      paint: { 'circle-color': '#2055c7', 'circle-radius': ['step', ['get', 'point_count'], 18, 20, 23, 60, 28], 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 },
+      paint: { 'circle-color': '#bf0e23', 'circle-radius': ['step', ['get', 'point_count'], 18, 20, 23, 60, 28], 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 },
     })
     this.map.addLayer({
       id: 'kindergarten-cluster-count', type: 'symbol', source: sourceId, filter: ['has', 'point_count'],
@@ -108,12 +122,12 @@ export class LocationLayer {
     })
     this.map.addLayer({
       id: pointsId, type: 'circle', source: sourceId, filter: ['!', ['has', 'point_count']],
-      paint: { 'circle-color': ['match', ['get', 'provider_kind'], ...Object.entries(providerColors).flat(), '#737780'], 'circle-radius': 7, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 },
+      paint: { 'circle-color': '#bf0e23', 'circle-radius': 7, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 },
     })
     this.map.addSource(selectionSourceId, { type: 'geojson', data: this.selection })
     this.map.addLayer({
       id: 'kindergarten-selected-point', type: 'circle', source: selectionSourceId,
-      paint: { 'circle-color': '#172c48', 'circle-radius': 10, 'circle-stroke-color': '#fff', 'circle-stroke-width': 4 },
+      paint: { 'circle-color': '#6e0714', 'circle-radius': 11, 'circle-stroke-color': '#fff', 'circle-stroke-width': 4 },
     })
   }
 }
