@@ -17,7 +17,7 @@ class CkanHttpTests(unittest.IsolatedAsyncioTestCase):
         settings = Settings(database_url='postgresql://localhost/unused', ckan_base_url=url,
                             ckan_zagreb_base_url=url)
         async with httpx.AsyncClient() as http:
-            service = SourceServiceFactory(settings).create(http)
+            service = SourceServiceFactory(settings).create(http, source_keys=['national', 'zagreb-municipal', 'zagreb-other'])
             self.assertEqual(len((await service.preview_sources())['sources']), 3)
             result = await service.preview_import()
         self.assertEqual([s['records'] for s in result['sources']], [1, 2, 1])

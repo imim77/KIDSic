@@ -20,4 +20,23 @@ async def parse_request(repository, question: str) -> SearchCriteria:
              if re.search(r'(?<!\w)' + re.escape(normalize(alias)) + r'(?!\w)', text)}
     if len(found) != 1:
         raise ValueError('Navedite jedan grad; grad mora postojati u imeniku.')
-    return {'city': found.pop(), 'age_months': age}
+    city = found.pop()
+    areas = await repository.list_areas(city=city)
+    matched = set()
+    for row in areas:
+        name = row['name']
+        key = normalize(name)
+        forms = {key}
+        # Cover common feminine cases, e.g. Banfica / Banfici / Banfice.
+        if key.endswith('a'):
+            forms.update(key[:-1] + suffix for suffix in ('i', 'e', 'u', 'om'))
+        forms.update({'centar': ('centru', 'centra'), 'durek': ('durku', 'durka'),
+                      'brezje': ('brezju', 'brezja'), 'cenjavec': ('cenjavcu', 'cenjavca')}.get(key, ()))
+        if any(re.search(r'(?<!\w)' + re.escape(form) + r'(?!\w)', text) for form in forms):
+            matched.add(name)
+    if len(matched) > 1:
+        raise ValueError('Navedite jedan kvart ili naselje za pretragu.')
+    criteria = {'city': city, 'age_months': age}
+    if matched:
+        criteria['area'] = matched.pop()
+    return criteria

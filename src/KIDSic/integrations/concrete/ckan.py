@@ -1,4 +1,6 @@
-"""FOIHireloom's caller-owned async CKAN client, extended for JSON resources."""
+"""FOIHireloom's caller-owned async CKAN client, extended for JSON and CSV resources."""
+import csv
+import io
 import json
 import math
 
@@ -25,7 +27,7 @@ class CkanClient(CkanClientInterface):
         self._timeout = timeout
         self._max_bytes = max_bytes
 
-    async def _read_json(self, url: str, *, params=None):
+    async def _read_bytes(self, url: str, *, params=None):
         try:
             async with self._client.stream('GET', url, params=params, timeout=self._timeout,
                                            follow_redirects=True) as response:
@@ -38,6 +40,10 @@ class CkanClient(CkanClientInterface):
                         raise CkanResponseError('CKAN response exceeds the configured size limit.')
         except httpx.RequestError as error:
             raise CkanTransportError('Could not reach the CKAN source.') from error
+        return bytes(content)
+
+    async def _read_json(self, url: str, *, params=None):
+        content = await self._read_bytes(url, params=params)
         try:
             return json.loads(content)
         except (ValueError, UnicodeError) as error:
@@ -57,6 +63,24 @@ class CkanClient(CkanClientInterface):
             raise CkanResponseError('CKAN returned invalid dataset metadata or resources.') from error
 
     async def download_records(self, resource: CkanResource) -> list[dict]:
+        if (resource.format or '').strip().casefold() in {'csv', 'text/csv'}:
+            content = await self._read_bytes(str(resource.url))
+            try:
+                reader = csv.reader(io.StringIO(content.decode('utf-8-sig'), newline=''),
+                                    delimiter=';', strict=True)
+                headers = [field.strip() for field in next(reader, [])]
+                if not headers or not all(headers) or len(set(headers)) != len(headers):
+                    raise CkanResponseError('CSV requires unique, nonblank column names.')
+                records = []
+                for values in reader:
+                    if not values or not any(value.strip() for value in values):
+                        continue
+                    if len(values) != len(headers):
+                        raise CkanResponseError('CSV row width does not match its header.')
+                    records.append(dict(zip(headers, values)))
+                return records
+            except (UnicodeError, csv.Error) as error:
+                raise CkanResponseError('CKAN did not return valid UTF-8 semicolon CSV.') from error
         payload = await self._read_json(str(resource.url))
         if not isinstance(payload, list) or any(not isinstance(row, dict) for row in payload):
             raise CkanResponseError('The JSON resource must contain an array of objects.')

@@ -12,7 +12,8 @@ interface LocationCardProps {
 // LocationCard selects a map result from its compact name and address summary.
 export function LocationCard({ feature, selected, onSelect }: LocationCardProps) {
   const location = feature.properties
-  const address = location.address ?? 'Adresa nije poznata'
+  const rawAddress = location.address ?? 'Adresa nije poznata'
+  const address = location.location_role === 'seat' ? `Sjedište: ${rawAddress}` : rawAddress
 
   return <Card className="location-card relative flex-row items-center gap-3 rounded-2xl p-3" data-selected={selected} role="article">
     <Button type="button" variant="ghost" className="absolute inset-0 h-full w-full rounded-2xl p-0" aria-label={`${location.location_name} ${address}`} title={`${location.location_name}\n${address}`} aria-pressed={selected} onClick={() => onSelect(feature.id)} />

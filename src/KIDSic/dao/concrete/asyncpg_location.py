@@ -29,12 +29,14 @@ class AsyncpgLocationRepository(LocationRepository):
             WHERE EXISTS (SELECT 1 FROM active_record r WHERE r.location_id=l.id)
             UNION ALL
             SELECT NULL,k.id,k.name,k.seat_address,k.seat_settlement,
-              k.seat_settlement_key,k.seat_municipality_id,NULL,NULL,NULL,'seat',
+              k.seat_settlement_key,k.seat_municipality_id,NULL,sg.longitude,sg.latitude,'seat',
               jsonb_build_object('location_name',k.provenance->'name',
-                'address',k.provenance->'seat_address'),
+                'address',k.provenance->'seat_address',
+                'longitude',k.provenance->'seat_geography','latitude',k.provenance->'seat_geography'),
               (SELECT jsonb_agg(DISTINCT r.evidence ORDER BY r.evidence)
                FROM active_record r WHERE r.kindergarten_id=k.id)
-            FROM kindergarten k WHERE k.seat_settlement_key IS NOT NULL
+            FROM kindergarten k LEFT JOIN kindergarten_seat_geography sg ON sg.kindergarten_id=k.id
+            WHERE k.seat_settlement_key IS NOT NULL
               AND EXISTS (SELECT 1 FROM active_record r WHERE r.kindergarten_id=k.id)
               -- A facility outside the requested bounds still rules out a seat.
               AND NOT EXISTS (SELECT 1 FROM location l JOIN active_record r

@@ -47,6 +47,17 @@ class NormalizationTests(unittest.TestCase):
         # A curated name in another county is not assumed to be the same municipality.
         self.assertIsNone(normalize_records([{**NATIONAL, 'Zupanija': 'Druga županija'}], 'national')[0].municipality)
 
+    def test_explicitly_removed_varazdin_associations_are_not_reimported(self):
+        names = ('udruga DRUŠTVO NAŠA DJECA',
+                 'Udruga Društvo športske rekreacije "SPORTSKA ABECEDA"',
+                 'udruga Univerzalna športska škola "Junior"')
+        rows = normalize_records([NATIONAL, *({**NATIONAL, 'Naziv': name} for name in names)], 'national')
+        self.assertEqual([row.name for row in rows], [NATIONAL['Naziv']])
+        self.assertEqual(normalize_records([{**NATIONAL, 'Naziv': names[0]}], 'national'), ())
+        # The exclusion is scoped to the requested institutions in Varaždin.
+        self.assertEqual(len(normalize_records([{**NATIONAL, 'Naziv': names[0], 'Mjesto': 'Zagreb'}], 'national')), 1)
+        self.assertEqual(len(normalize_records([{**NATIONAL, 'Naziv': 'Dječji vrtić Junior'}], 'national')), 1)
+
     def test_zagreb_address_suffix_becomes_settlement(self):
         row = normalize_records([{**MUNICIPAL, 'Adresa': 'Augusta Šenoe 26A, Đurđekovec'}], 'municipal')[0]
         self.assertEqual((row.address, row.settlement, row.municipality, row.scope),

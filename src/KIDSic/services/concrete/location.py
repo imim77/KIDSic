@@ -18,7 +18,9 @@ class LocationService(LocationServiceInterface):
                 location_id = str(row['location_id']) if row['location_id'] else None
                 kindergarten_id = str(row['kindergarten_id'])
                 point = None
-                if row['location_role'] == 'facility' and row['longitude'] is not None:
+                seat_evidence = dict(row).get('field_sources', {})
+                if row['longitude'] is not None and (row['location_role'] == 'facility' or
+                        all(key in seat_evidence for key in ('longitude', 'latitude'))):
                     point = LocationPoint(coordinates=(row['longitude'], row['latitude']))
                 features.append(LocationFeature(
                     id=location_id or f'seat:{kindergarten_id}', geometry=point,

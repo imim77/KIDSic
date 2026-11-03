@@ -84,6 +84,43 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         await self.c.execute('UPDATE data_source SET import_allowed=false WHERE id=$1', self.source)
         self.assertEqual(await self.repository.list_locations(LocationQuery()), [])
 
+    async def test_seat_geography_requires_current_address_and_approved_evidence(self):
+        from KIDSic.dao.concrete.asyncpg_kindergarten import AsyncpgKindergartenRepository
+        owner, _ = await self.fixture('Childminder seat', provider='childminder', seat=True)
+        geo_source = await self.c.fetchval("INSERT INTO data_source(dataset_key,title,publisher,url,import_allowed,active_batch_id) VALUES ($1,'Geo','Test','https://example.invalid/geo',true,$2) RETURNING id", str(uuid4()), self.batch)
+        record = await self.c.fetchval("INSERT INTO source_record(source_id,batch_id,raw_data,kindergarten_id,match_status,match_method) VALUES ($1,$2,'{}',$3,'accepted','manual') RETURNING id", geo_source, self.batch, owner)
+        await self.c.execute("UPDATE kindergarten SET seat_longitude=15.98,seat_latitude=45.81,seat_attributes=$2,provenance=$3 WHERE id=$1", owner,
+                             {'address':'Seat 1','quarter':'Synthetic quarter','suburb':'Banfica','neighbourhood':'Synthetic neighbourhood','settlement':'Zagreb'},
+                             {'seat_geography':{'source_record_id':str(record)}})
+        await self.c.execute('UPDATE source_record SET raw_data=$2 WHERE id=$1', record,
+                             {'evidence_scope':'registered_seat_geography'})
+        await self.c.execute("INSERT INTO knowledge_chunk(kindergarten_id,source_record_id,ordinal,content,source_url,content_sha256) VALUES ($1,$2,0,'Banfica seat geography','https://example.invalid/geo',$3)", owner, record, 'a'*64)
+        rows = await self.repository.list_locations(LocationQuery())
+        self.assertEqual((rows[0]['location_id'],rows[0]['location_role'],rows[0]['longitude']), (None,'seat',15.98))
+        self.assertIn('longitude', rows[0]['field_sources'])
+        search = AsyncpgKindergartenRepository(self.c)
+        self.assertIn('Banfica', [r['name'] for r in await search.list_areas(city='Zagreb')])
+        from KIDSic.services.concrete.request_parser import parse_request
+        self.assertNotIn('area', await parse_request(search, 'Dijete od 2 godine Zagreb'))
+        self.assertEqual((await parse_request(search, 'Dijete od 2 godine Zagreb na Banfici'))['area'], 'Banfica')
+        options = await search.find_options(city='Zagreb',age_months=24,area='Banfica',include_unknown=True)
+        self.assertEqual([r['kindergarten_id'] for r in options], [owner])
+        self.assertEqual(options[0]['neighbourhood'], 'Synthetic neighbourhood')
+        self.assertEqual(len(await search.retrieve_context(location_ids=[],kindergarten_ids=[owner],text='Banfica')), 1)
+        await self.c.execute('UPDATE data_source SET import_allowed=false WHERE id=$1', geo_source)
+        self.assertIsNone((await self.repository.list_locations(LocationQuery()))[0]['longitude'])
+        self.assertEqual(await search.list_areas(city='Zagreb'), [])
+        await self.c.execute('UPDATE data_source SET import_allowed=true WHERE id=$1', geo_source)
+        await self.c.execute("UPDATE kindergarten SET seat_address='New seat 2' WHERE id=$1", owner)
+        self.assertIsNone((await self.repository.list_locations(LocationQuery()))[0]['longitude'])
+        self.assertEqual(await search.find_options(city='Zagreb',age_months=24,area='Banfica',include_unknown=True), [])
+        self.assertEqual(await search.retrieve_context(location_ids=[],kindergarten_ids=[owner],text='Banfica'), [])
+        self.assertEqual(await self.repository.list_locations(LocationQuery(bbox=(15,45,16,46))), [])
+        # Evidence linked to another institution never authorizes a pin.
+        await self.c.execute("UPDATE kindergarten SET seat_address='Seat 1',provenance=$2 WHERE id=$1", owner,
+                             {'seat_geography':{'source_record_id':str(uuid4())}})
+        self.assertIsNone((await self.repository.list_locations(LocationQuery()))[0]['longitude'])
+
     async def test_seat_fallback_and_unlocated_facility_stay_distinct(self):
         seat, _ = await self.fixture('Seat only', seat=True)
         unlocated, _ = await self.fixture('Unlocated', coords=(None, None))

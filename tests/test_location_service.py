@@ -11,6 +11,23 @@ from KIDSic.factories.location import LocationServiceFactory
 
 
 class LocationServiceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_geocoded_seat_keeps_seat_identity_and_maps_with_evidence(self):
+        institution = uuid4()
+        source = {'name':'Geo','url':'https://example.invalid','reference_date':None,
+                  'retrieved_at':datetime(2026,11,3,tzinfo=timezone.utc),'active_snapshot':True}
+        row = dict(kindergarten_id=institution,name='Seat',location_name='Seat',location_id=None,
+                   address='Seat 1',city='Varaždin',provider_kind='childminder',district=None,
+                   longitude=16.3,latitude=46.3,location_role='seat',sources=[source],
+                   field_sources={'longitude':source,'latitude':source})
+        @asynccontextmanager
+        async def uow():
+            yield SimpleNamespace(locations=SimpleNamespace(list_locations=AsyncMock(return_value=[row])))
+        result = await LocationServiceFactory().create(uow).list_locations(LocationQuery(city='Varaždin'))
+        self.assertEqual(result.metadata.mapped,1)
+        self.assertEqual(result.features[0].id,f'seat:{institution}')
+        self.assertEqual(result.features[0].properties.location_role,'seat')
+        self.assertEqual(result.features[0].geometry.coordinates,(16.3,46.3))
+
     async def test_snapshot_counts_identity_sources_and_null_geometry(self):
         institution = uuid4()
         location = uuid4()

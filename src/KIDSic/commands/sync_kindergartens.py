@@ -1,4 +1,4 @@
-"""Import real CKAN JSON rows, retaining raw evidence and the last good snapshot."""
+"""Import real CKAN JSON/CSV rows, retaining raw evidence and the last good snapshot."""
 from KIDSic.commands.register_sources import SourceRegistrationCommand, run_cli
 from KIDSic.services.dependency import DependencyService
 
@@ -12,7 +12,7 @@ class KindergartenSyncCommand(SourceRegistrationCommand):
 
 
 def main(argv=None):
-    run_cli(KindergartenSyncCommand, 'Import and activate kindergarten snapshots from CKAN JSON sources.', argv)
+    run_cli(KindergartenSyncCommand, 'Import and activate kindergarten and childminder snapshots from CKAN JSON/CSV sources.', argv)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,21 @@
+{
+  "success": true,
+  "result": {
+    "id": "childminders-example",
+    "name": "grad-varazdin-dadilje",
+    "title": "Grad Varaždin - dadilje (synthetic test)",
+    "organization": {
+      "title": "Test publisher"
+    },
+    "license_id": "open-license",
+    "license_title": "Otvorena dozvola (OD)",
+    "resources": [
+      {
+        "id": "2bde0eae-1d20-41c5-aec4-711f2a485439",
+        "url": "https://example.invalid/childminders.csv",
+        "format": "CSV",
+        "state": "active"
+      }
+    ]
+  }
+}
