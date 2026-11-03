@@ -33,6 +33,7 @@ function SourceEvidence({ source }: { source: LocationSource }) {
 export function LocationDetails({ feature, onClose }: { feature: LocationFeature; onClose: () => void }) {
   const { properties } = feature
   return <section className="location-details" id={`details-${feature.id}`} aria-label={`Detalji: ${properties.location_name}`}>
+    <div className="panel-heading"><h2>{properties.location_name}</h2><button className="panel-close" type="button" aria-label="Zatvori detalje" onClick={onClose}>×</button></div>
     <dl>
       <dt>Ustanova</dt><dd>{properties.name}</dd>
       <dt>Grad / općina</dt><dd>{properties.city}</dd>
@@ -53,6 +54,5 @@ export function LocationDetails({ feature, onClose }: { feature: LocationFeature
         <SourceEvidence source={source} />
       </li>)}
     </ul>
-    <button className="text-button" type="button" onClick={onClose}>Zatvori detalje</button>
   </section>
 }
