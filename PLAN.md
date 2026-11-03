@@ -317,3 +317,50 @@ Za proširenje koristiti vlastiti gumb na zajedničkom okviru i Fullscreen API. 
 ### Zabilježene provjere UI dorade
 
 Dana 3. studenoga 2026. prolazi 36 frontend testova, build i lint. Stvarni preglednik potvrđuje pomicanje kartica, odabir i detalje, native fullscreen s gumbom i Escapeom te očuvanje pomaka reda i odabranog objekta. Provjereni su uski prikaz 390×844 i rotacija u 568×320 bez ponovnog učitavanja; kamera pri promjeni veličine osvježava samo padding i zadržava središte i zoom. Korigirani UI nema navigaciju, legendu ni filtre.
+
+## MCP prikaz vrtića po obaveznom gradu (3. studenoga 2026.)
+
+### Istraživanje i odluka
+
+Postojeći HTTP API (`api/locations.py`) koristi `LocationService` i potpuni GeoJSON,
+a `Welcome.tsx` dohvaća početni Zagreb. MCP transport i povezani HTML resurs još
+ne postoje. `LocationQuery` smije zadržati HTTP default, ali MCP alat ne smije
+naslijediti Zagreb kada korisnik nije naveo grad.
+
+Uspoređene su dvije mogućnosti: povezati alat s vanjskim Vite URL-om ili poslužiti
+samostalni HTML resurs kroz MCP. Vanjski URL zahtijeva dodatni hosting, CORS i
+pristup API-ju iz sandboxa; odabran je samostalni HTML s rezultatima preko host
+bridgea. Prikaz koristi postojeći explorer, bez zasebnog dohvata ili novih filtara.
+
+Službeni MCP Apps obrazac povezuje alat preko `_meta.ui.resourceUri` s HTML-om
+`text/html;profile=mcp-app`. Rezultati ulaze kroz `ui/notifications/tool-result`,
+a fullscreen se traži od hosta kada je podržan. Reference:
+https://developers.openai.com/plugins/build/chatgpt-ui i
+https://modelcontextprotocol.io/extensions/apps/overview.
+
+### Mali koraci
+
+- [ ] MCP-a: Dodati službeni Python MCP SDK i Streamable HTTP `/mcp` tvornicu s
+  postojećim servisom i upravljanim životnim vijekom baze.
+- [ ] MCP-b: Registrirati read-only alat `prikazi_vrtice(city)` s obaveznim,
+  nepraznim gradom, bez defaulta. Upute servera/alata nalažu pitanje za grad;
+  nevaljan poziv ne smije čitati bazu. Rezultat je `{city, locations}`.
+- [ ] MCP-c: Povezati svaki poziv s istim UI resursom, uključujući prazan skup;
+  poslužiti samostalni build i CSP za Mapbox. Pogreške servisa sanitizirati.
+- [ ] MCP-d: Dodati zaseban embedded ulaz i standardni MCP Apps bridge. Ne čitati
+  `/api` ni pretpostaviti Zagreb. Očistiti zastarjele rezultate/odabir pri novom
+  gradu; ponovni pokušaj koristi host alat. Sačuvati samostalni razvojni preview.
+- [ ] MCP-e: Dodati host fullscreen uz postojeći samostalni fullscreen te
+  dokumentirati build, pokretanje i spajanje klijenta.
+- [ ] MCP-f: Provjeriti stvarni MCP initialize/tools/list/tools/call/resources/read,
+  obavezan grad, prazne rezultate i kvar baze; frontend testove, lint, build te
+  host bridge s ugrađenim HTML-om. Spremiti male Conventional Commitove.
+
+### Granice i provjera
+
+Server može jamčiti UI metapodatke za svaki poziv alata i odbiti izostavljen grad.
+Generički AI klijent odlučuje hoće li pozvati alat i podržava li MCP Apps; njegove
+odluke ne možemo nametnuti serverom. Upute eksplicitno nalažu ovaj alat za zahtjev
+za prikaz vrtića te pitanje kada grad nedostaje. Stvarni ChatGPT prikaz traži
+povezan dostupan server; lokalna provjera ne znači objavu ili povezivanje računa.
+Bez potvrđenih koordinata kartice ostaju dostupne; podaci se ne izmišljaju.
