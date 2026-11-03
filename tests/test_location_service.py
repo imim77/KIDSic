@@ -20,7 +20,9 @@ class LocationServiceTests(unittest.IsolatedAsyncioTestCase):
                    address=None, city='Zagreb', provider_kind='unknown', district=None,
                    longitude=15.98, latitude=45.81, sources=[source])
         repository = SimpleNamespace(list_locations=AsyncMock(return_value=[
-            dict(row, location_id=location, location_role='facility'),
+            dict(row, location_id=location, location_role='facility', field_sources={
+                'longitude': dict(source, active_snapshot=False),
+            }),
             dict(row, location_id=uuid4(), location_role='facility', longitude=None, latitude=None),
             dict(row, location_id=None, location_role='seat'),
         ]))
@@ -42,6 +44,10 @@ class LocationServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload['features'][0]['geometry']['coordinates'], [15.98, 45.81])
         self.assertEqual(payload['features'][0]['properties']['sources'][0]['retrieved_at'],
                          '2026-11-02T00:00:00Z')
+        evidence = payload['features'][0]['properties']['field_sources']['longitude']
+        self.assertFalse(evidence['active_snapshot'])
+        self.assertEqual(evidence['retrieved_at'], '2026-11-02T00:00:00Z')
+        self.assertEqual(payload['features'][1]['properties']['field_sources'], {})
         self.assertIsNone(payload['features'][1]['geometry'])
         self.assertEqual(payload['features'][2]['id'], f'seat:{institution}')
         self.assertIsNone(payload['features'][2]['geometry'])

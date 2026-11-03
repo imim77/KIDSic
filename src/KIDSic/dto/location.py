@@ -41,6 +41,10 @@ class LocationSource(BaseModel):
     retrieved_at: datetime
 
 
+class LocationFieldSource(LocationSource):
+    active_snapshot: bool
+
+
 class LocationProperties(BaseModel):
     location_id: str | None
     kindergarten_id: str
@@ -52,6 +56,7 @@ class LocationProperties(BaseModel):
     district: str | None
     location_role: Literal['facility', 'seat']
     sources: list[LocationSource]
+    field_sources: dict[str, LocationFieldSource] = Field(default_factory=dict)
     # Age suitability is not evaluated by this endpoint.
     age_groups: None = None
 

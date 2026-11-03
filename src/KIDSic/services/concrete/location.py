@@ -27,7 +27,8 @@ class LocationService(LocationServiceInterface):
                             'name', 'location_name', 'address', 'city', 'provider_kind',
                             'district', 'location_role', 'sources',
                         )
-                    }, location_id=location_id, kindergarten_id=kindergarten_id),
+                    }, location_id=location_id, kindergarten_id=kindergarten_id,
+                        field_sources=dict(row).get('field_sources', {})),
                 ))
             mapped = sum(feature.geometry is not None for feature in features)
             return LocationCollection(features=features, metadata=LocationMetadata(

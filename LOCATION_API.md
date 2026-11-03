@@ -34,6 +34,21 @@ reference dates, licenses or age groups are inferred. Age evidence remains
 available through the existing age-aware search; `age_groups: null` here means
 unknown and is not an enrolment or capacity claim.
 
+`properties.field_sources` separately attributes stored fields to their accepted,
+still import-approved evidence, including historical records. It defaults to `{}`
+and may contain `name`, `provider_kind`, `location_name`, `address`, `district`,
+`longitude` and `latitude`. Each entry contains the same source metadata as above
+plus `active_snapshot: true|false`. False means the last-known value came from an
+older snapshot; its original fetch/reference dates are preserved. Active location
+attestation in `sources` does not assert every attribute was supplied by that
+snapshot. Missing field provenance remains absent, rather than assigning it to a
+current source. Provenance must resolve to an accepted record of the same owner;
+facility-specific fields additionally require the same location. If recorded
+coordinate provenance is rejected, disabled, missing or points to another
+owner/location, geometry becomes null and the location is excluded from `bbox`
+results, while its list entry remains. Legacy/manual coordinates without recorded
+field provenance remain available without an invented field source.
+
 Illustrative response (identities and values below are synthetic):
 
 ```json
@@ -49,6 +64,7 @@ Illustrative response (identities and values below are synthetic):
       "name": "Primjer ustanove", "location_name": "Primjer objekta",
       "address": "Primjer 1", "city": "Zagreb", "provider_kind": "municipal",
       "district": null, "location_role": "facility", "age_groups": null,
+      "field_sources": {},
       "sources": [{"name": "Primjer izvora", "url": "https://example.invalid",
         "license": null, "reference_date": null,
         "retrieved_at": "2026-11-02T10:00:00Z"}]

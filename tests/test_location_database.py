@@ -1,12 +1,16 @@
 """Rollback-only location integration fixtures are synthetic, never real institutions."""
 import os
+from datetime import datetime, timezone
 import unittest
 from urllib.parse import urlparse
 from uuid import uuid4
 
 from KIDSic.dao.concrete.asyncpg_location import AsyncpgLocationRepository
+from KIDSic.dao.concrete.asyncpg_source import AsyncpgSourceRepository
 from KIDSic.db.database import database_pool
 from KIDSic.dto.location import LocationQuery
+from KIDSic.dto.source import PlannedSource, SourceDefinition, SourceSnapshot
+from KIDSic.services.concrete.kindergarten_normalizer import normalize_records
 
 
 @unittest.skipUnless(os.getenv('KIDSIC_TEST_DATABASE_URL'), 'Set KIDSIC_TEST_DATABASE_URL')
@@ -106,3 +110,65 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         for i in range(101):
             await self.fixture(f'Facility {i}')
         self.assertEqual(len(await self.repository.list_locations(LocationQuery())), 101)
+
+    async def test_reimport_exposes_last_known_coordinate_evidence_without_relabeling_it(self):
+        from test_sources import MUNICIPAL, source_client
+        client = source_client('municipal')
+        package = client.get_package.return_value
+        source = PlannedSource(SourceDefinition('coordinate-history', 'https://data.zagreb.hr',
+            'gradski_vrtici_grada_zagreba', 'municipal'), package, package.resources[0])
+        importer = AsyncpgSourceRepository(self.c)
+        earlier = datetime(2026, 10, 1, tzinfo=timezone.utc)
+        current = datetime(2026, 11, 1, tzinfo=timezone.utc)
+        await importer.import_snapshot(SourceSnapshot(source,
+            normalize_records([MUNICIPAL], 'municipal'), earlier))
+        await importer.import_snapshot(SourceSnapshot(source, normalize_records([
+            {**MUNICIPAL, 'X': None, 'Y': None, 'GradskaCetvrt': None}], 'municipal'), current))
+        rows = await self.repository.list_locations(LocationQuery())
+        self.assertEqual(len(rows), 1)
+        self.assertEqual((rows[0]['longitude'], rows[0]['latitude']), (15.9452, 45.8017))
+        fields = rows[0]['field_sources']
+        self.assertFalse(fields['longitude']['active_snapshot'])
+        self.assertFalse(fields['latitude']['active_snapshot'])
+        self.assertFalse(fields['district']['active_snapshot'])
+        self.assertEqual(datetime.fromisoformat(fields['longitude']['retrieved_at']), earlier)
+        self.assertIsNone(fields['longitude']['reference_date'])
+        self.assertTrue(fields['address']['active_snapshot'])
+        self.assertEqual(datetime.fromisoformat(fields['address']['retrieved_at']), current)
+        self.assertEqual(datetime.fromisoformat(rows[0]['sources'][0]['retrieved_at']), current)
+
+    async def test_invalid_coordinate_provenance_keeps_list_entry_but_excludes_point_and_bbox(self):
+        owner, location = await self.fixture('Target')
+        evidence = await self.c.fetchval('SELECT id FROM source_record WHERE location_id=$1', location)
+        alternate = await self.c.fetchval('''INSERT INTO data_source
+            (dataset_key,title,publisher,url,import_allowed,active_batch_id)
+            VALUES ($1,'Current','Test','https://example.invalid/current',true,$2)
+            RETURNING id''', str(uuid4()), self.batch)
+        await self.record(owner, location, source=alternate)
+        _, other_location = await self.fixture('Other')
+        wrong_owner = await self.c.fetchval('SELECT id FROM source_record WHERE location_id=$1', other_location)
+        same_owner_location = await self.c.fetchval('''INSERT INTO location
+            (kindergarten_id,name,settlement,settlement_key)
+            VALUES ($1,'Other branch','Zagreb','zagreb') RETURNING id''', owner)
+        await self.record(owner, same_owner_location, active=False)
+        wrong_location = await self.c.fetchval('SELECT id FROM source_record WHERE location_id=$1',
+                                              same_owner_location)
+        for label, pointer, status, allowed in (
+            ('rejected', evidence, 'rejected', True),
+            ('candidate', evidence, 'candidate', True),
+            ('wrong_owner', wrong_owner, 'accepted', True),
+            ('wrong_location', wrong_location, 'accepted', True),
+            ('disabled', evidence, 'accepted', False),
+        ):
+            with self.subTest(label=label):
+                await self.c.execute('UPDATE source_record SET match_status=$2 WHERE id=$1', evidence, status)
+                await self.c.execute('UPDATE data_source SET import_allowed=$2 WHERE id=$1', self.source, allowed)
+                await self.c.execute('UPDATE location SET provenance=$2 WHERE id=$1', location, {
+                    key: {'source_record_id': str(pointer)} for key in ('longitude', 'latitude')})
+                rows = await self.repository.list_locations(LocationQuery(q='Target'))
+                self.assertEqual(len(rows), 1)
+                self.assertIsNone(rows[0]['longitude'])
+                self.assertIsNone(rows[0]['latitude'])
+                self.assertNotIn('longitude', rows[0]['field_sources'])
+                self.assertEqual(await self.repository.list_locations(
+                    LocationQuery(q='Target', bbox=(15, 45, 16, 46))), [])
