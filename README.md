@@ -8,8 +8,11 @@ Organizacija prati [FOIHireloom](https://github.com/imim77/FOIHireloom), pregled
 
 ```text
 src/KIDSic/
-  api/                      # HTTP lokacije za samostalni razvojni pregled
-  mcp/                      # MCP alat, HTML resurs i Streamable HTTP transport
+  api/                      # HTTP/MCP prezentacijski adapteri
+    apps/map_resource.py    # HTML resurs i metapodaci MCP aplikacije
+    location_tools.py       # grupa MCP alata za lokacije
+    mcp_server.py           # vlasnik MCP transporta i životnog vijeka
+  mcp/server.py             # kompatibilni ulaz u api.mcp_server
   commands/                 # izvršne naredbe, bez SQL-a
   config/                   # postavke okruženja
   dao/interfaces/           # ugovori repozitorija
@@ -25,7 +28,8 @@ src/KIDSic/
   integrations/interfaces/  # CKAN ugovor
   integrations/concrete/    # async httpx CKAN klijent i JSON/CSV dohvat
   services/interfaces/      # ugovori poslovnih operacija
-  services/concrete/        # tumačenje upita i povezivanje pretrage s RAG-om
+  services/concrete/        # poslovna orkestracija, planner i parser upita
+    parsers/                # zamjenjivi parseri nacionalnog, Zagreb i CSV izvora
   services/dependency.py    # životni vijek infrastrukture
   main.py                   # ulazna točka
 frontend/src/
@@ -37,6 +41,16 @@ database/                   # lokalni ERA model i generirani rječnik (ignoriran
 ```
 
 Tok ovisnosti: naredba/API → DependencyService/factory → service → Unit of Work → DAO interface → asyncpg DAO. SQL i vektorski operatori pripadaju konkretnom DAO-u; servis odlučuje koje kandidate i dokaze vratiti. Transakcije pripadaju Unit of Worku. Struktura prati referentni projekt uz traženi izravni asyncpg pristup; SQLAlchemy se koristi samo za Alembic.
+
+### Odgovornosti triju slojeva
+
+Prezentacijski sloj čine `api` i `commands`: validiraju ulaz, pozivaju servis i pretvaraju rezultat ili aplikacijsku pogrešku u HTTP/MCP/CLI odgovor. `McpServer` upravlja transportom, `LocationTools` alatom, a `MapResource` HTML resursom. Stari `KIDSic.mcp.server:create_app` ostaje podržan.
+
+Poslovni sloj čine `services/interfaces` i `services/concrete`: `SourceRegistrationPlanner` provjerava odabir izvora, `SourceRecordNormalizer` primjenjuje ubrizganu strategiju parsera i čuva pravila identiteta snimke, a `SourceService` koordinira dohvat i atomarni uvoz. Nova shema dodaje se parserom koji implementira `SourceRowParser` i registracijom u sastavljanju, bez promjene petlje normalizacije. `RequestParser` interpretira podatke kataloga koje dohvaća servis; ne poziva bazu.
+
+Podatkovni sloj čine ugovori i implementacije `dao`, vanjski adapteri `integrations` te `db/uow`. SQL ostaje u konkretnim DAO klasama, a HTTP dohvat u CKAN adapteru. UoW ugovori nemaju driver ovisnosti; `asyncpg.py` i `asyncpg_source.py` provode read-only snimku odnosno serijalizirani upis. Driver pogreške prelaze prema servisima kao `PersistenceError`, uz očuvanje uzroka i oslobađanje veze. Postojeća commit/rollback pravila nisu promijenjena.
+
+`factories` i `DependencyService` sastavljaju konkretne implementacije i upravljaju resursima. DTO-i prenose podatke preko granica slojeva. SOLID ovdje znači odvojene razloge promjene, zamjenjive parser strategije, male ugovore čitanja/upisa i constructor injection; čisti pomoćni izračuni ostaju funkcije. `tests/test_architecture.py` provjerava smjer ovisnosti i dodavanje nove sheme bez mijenjanja poslovnog servisa.
 
 ## Pokretanje
 
