@@ -2,7 +2,7 @@
 
 ## Gdje gradu najviše nedostaje dostupnih vrtićkih usluga?
 
-Status: planirano; početni obuhvat je Grad Zagreb. Funkcionalnost nadograđuje postojeći uvoz imenika ustanova i gradskih objekata.
+Status: implementirani koraci a–f (karta, lista i filtri); analitički slojevi i scenariji ostaju planirani. Početni obuhvat je Grad Zagreb. Funkcionalnost nadograđuje postojeći uvoz imenika ustanova i gradskih objekata.
 
 ### Cilj i vrijednost
 
@@ -67,9 +67,11 @@ Ustanove i objekte povezivati dostupnim stabilnim identifikatorima i provjerenim
 
 ## Plan implementacije u manjim koracima
 
-Obuhvat: prethodno opisana analiza dostupnosti vrtića u Zagrebu. Prvo gradimo upotrebljivu kartu objekata, potom analitičke slojeve i usporedbu jedne nove lokacije. Svaki korak može biti zasebna promjena koju provjeravamo prije nastavka. Sve stavke u nastavku su planirane.
+Obuhvat: prethodno opisana analiza dostupnosti vrtića u Zagrebu. Prvo gradimo upotrebljivu kartu objekata, potom analitičke slojeve i usporedbu jedne nove lokacije. Svaki korak može biti zasebna promjena koju provjeravamo prije nastavka. Koraci a–f su implementirani i provjereni; koraci g–o ostaju planirani.
 
 ### Polazište i Mapbox referenca
+
+Sljedeći nalazi opisuju stanje prije implementacije a–f; dovršene stavke i provjere zabilježene su ispod.
 
 - Postoje React/TypeScript/Vite frontend, asyncpg pristup bazi, uvoz triju izvora i SQL pretraga. Frontend još prikazuje početnu stranicu; `src/KIDSic/api/` nema implementiran transport.
 - Tablica `location` već ima koordinate, PostGIS `position` i prostorni indeks. Postojeći rezultat pretrage ne izlaže koordinate; potrebno je dodati ugovor za kartu. Nije potrebno ponovno uvoditi PostGIS.
@@ -97,53 +99,55 @@ Implementer kreće od ovih postojećih mjesta:
 
 - Prva analitička verzija obuhvaća Zagreb, jednu kandidatsku lokaciju i zračnu udaljenost. Pretraga drugih gradova ostaje dio postojećeg šireg proizvoda.
 - Konkretni resursi Geoportala, granica i DZS tablice, njihove licence, dobne skupine i međusobna prostorna usklađenost još nisu potvrđeni za ovaj tijek. To su izlazni rezultati koraka g–i; bez njih ne tvrdimo da je analiza potpuna.
-- Nisu provjereni stvarna popunjenost lokalne baze, pokrivenost koordinatama ni postojeći Mapbox račun/token. Provjeriti ih prije povezivanja stvarnog prikaza; ne popunjavati nedostatke izmišljenim podacima.
-- HTTP framework još nije ovisnost projekta. U koraku d odabrati minimalan adapter uz postojeće asinkrone servise, a dogovoreni DTO zadržati neovisnim o njemu. MCP host i njegova pravila učitavanja potvrditi u koraku n.
+- Lokalna baza, pokrivenost koordinatama i javni Mapbox token provjereni su tijekom a–f. U drugim okruženjima provjeriti njihove aktivne snimke i konfiguraciju; ne popunjavati nedostatke izmišljenim podacima.
+- U koraku d odabrani su Starlette i Uvicorn, uz DTO neovisan o transportu. MCP host i njegova pravila učitavanja potvrditi u koraku n.
 - Prag dostupnosti i izbor reprezentativne točke moraju biti dokumentirane postavke, a ne predstavljeni kao službeni standard. Promjena metode znači ponovno računanje oba uspoređivana stanja.
 
 ### a) Pripremiti Mapbox konfiguraciju
 
-- [ ] Dodati `mapbox-gl` v3 i konfiguraciju javnog `VITE_MAPBOX_ACCESS_TOKEN` tokena, uz predložak bez stvarne vrijednosti. Token za preglednik je javno vidljiv i kada dolazi iz `.env`; koristiti namjenski javni token s ograničenjima URL-ova za dopuštena okruženja.
-- [ ] Uskladiti Vite `envDir` s lokacijom `frontend/.env.local` i `frontend/.env.example`, jer je trenutačni Vite `root` postavljen na `src/views`. Dodati TypeScript tip varijable i poruku kada token nedostaje.
+- [x] Dodati `mapbox-gl` v3 i konfiguraciju javnog `VITE_MAPBOX_ACCESS_TOKEN` tokena, uz predložak bez stvarne vrijednosti. Token za preglednik je javno vidljiv i kada dolazi iz `.env`; koristiti namjenski javni token s ograničenjima URL-ova za dopuštena okruženja.
+- [x] Uskladiti Vite `envDir` s lokacijom `frontend/.env.local` i `frontend/.env.example`, jer je trenutačni Vite `root` postavljen na `src/views`. Dodati TypeScript tip varijable i poruku kada token nedostaje.
 
 **Gotovo kada:** aplikacija učitava konfiguraciju iz očekivane mape; nedostatak tokena daje razumljivu poruku.
 
 ### b) Prikazati osnovnu kartu Zagreba
 
-- [ ] Dodati izdvojenu `KindergartenMap` komponentu u zajednički frontend kod i otvoriti je iz glavnog prikaza. Postaviti početni pogled na Zagreb, visinu spremnika, navigacijske kontrole i vidljivu atribuciju.
-- [ ] Primijeniti lifecycle obrazac iz skilla, obraditi pogreške učitavanja i nepodržan WebGL te pozvati `resize()` kada se promijeni veličina panela. Kartu inicijalizirati jednom po montiranju; cleanup mora raditi i u React StrictModeu.
+- [x] Dodati izdvojenu `KindergartenMap` komponentu u zajednički frontend kod i otvoriti je iz glavnog prikaza. Postaviti početni pogled na Zagreb, visinu spremnika, navigacijske kontrole i vidljivu atribuciju.
+- [x] Primijeniti lifecycle obrazac iz skilla, obraditi pogreške učitavanja i nepodržan WebGL te pozvati `resize()` kada se promijeni veličina panela. Kartu inicijalizirati jednom po montiranju; cleanup mora raditi i u React StrictModeu.
 
 **Gotovo kada:** karta radi na desktopu i mobitelu, a ponovno otvaranje prikaza ne ostavlja dodatne instance ni listenere.
 
 ### c) Definirati ugovor podataka za kartu
 
-- [ ] Dogovoriti DTO i GeoJSON `FeatureCollection`: stabilni `location_id`, `kindergarten_id`, naziv objekta, adresa, vrsta pružatelja, četvrt kada je poznata te podrijetlo i datumi. Koordinate su WGS84 u redoslijedu `[longitude, latitude]`.
-- [ ] Razlikovati objekte i sjedišta. Zapise bez potvrđenih koordinata zadržati dostupnima u listi, uz oznaku da nemaju prikaz na karti. Odrediti kriterije filtara i ponašanje ograničenih/paginiranih odgovora.
+- [x] Dogovoriti DTO i GeoJSON `FeatureCollection`: stabilni `location_id`, `kindergarten_id`, naziv objekta, adresa, vrsta pružatelja, četvrt kada je poznata te podrijetlo i datumi. Koordinate su WGS84 u redoslijedu `[longitude, latitude]`.
+- [x] Razlikovati objekte i sjedišta. Zapise bez potvrđenih koordinata zadržati dostupnima u listi, uz oznaku da nemaju prikaz na karti. Odrediti kriterije filtara i ponašanje ograničenih/paginiranih odgovora.
 
 **Gotovo kada:** postoji mali dokumentirani primjer odgovora i jasan odnos između broja rezultata u listi i broja točaka na karti.
 
 ### d) Izložiti stvarne objekte iz baze
 
-- [ ] Dodati DAO upit i servis za aktivne objekte i njihove koordinate, uz provjeru grada, vrste pružatelja i opcionalnog prostornog obuhvata. Zadržati tok API → service → Unit of Work → DAO.
-- [ ] Dodati tanki HTTP adapter za frontend, primjerice planiranu rutu `GET /api/locations`, te razvojni Vite proxy. Ne vezati kartu uz parser razgovornog upita niti RAG. Potpune rezultate za analizu dohvaćati neovisno o paginaciji liste i trenutačnom pogledu karte.
+- [x] Dodati DAO upit i servis za aktivne objekte i njihove koordinate, uz provjeru grada, vrste pružatelja i opcionalnog prostornog obuhvata. Zadržati tok API → service → Unit of Work → DAO.
+- [x] Dodati tanki HTTP adapter za frontend, primjerice planiranu rutu `GET /api/locations`, te razvojni Vite proxy. Ne vezati kartu uz parser razgovornog upita niti RAG. Potpune rezultate za analizu dohvaćati neovisno o paginaciji liste i trenutačnom pogledu karte.
 
 **Gotovo kada:** frontend može dohvatiti GeoJSON stvarnih objekata iz aktivnih snimki; testovi potvrđuju da nema duplikata ni sjedišta prikazanih kao objekti.
 
 ### e) Nacrtati objekte i njihove detalje
 
-- [ ] Dodati GeoJSON izvor i slojeve točaka, s razlikovanjem vrsta pružatelja i grupiranjem točaka pri udaljenom pogledu. Slojeve dodavati nakon učitavanja stila; ako uvedemo promjenu stila, ponovno ih povezati na `style.load`.
-- [ ] Klik na objekt otvara panel s nazivom, adresom i izvorima; klik na grupu približava kartu. Tekst podataka prikazivati kroz React ili sigurne DOM metode.
+- [x] Dodati GeoJSON izvor i slojeve točaka, s razlikovanjem vrsta pružatelja i grupiranjem točaka pri udaljenom pogledu. Slojeve dodavati nakon učitavanja stila; ako uvedemo promjenu stila, ponovno ih povezati na `style.load`.
+- [x] Klik na objekt otvara panel s nazivom, adresom i izvorima; klik na grupu približava kartu. Tekst podataka prikazivati kroz React ili sigurne DOM metode.
 
 **Gotovo kada:** moguće je pronaći stvarni objekt, otvoriti njegove podatke i provjeriti izvor. Pogreška dohvata i prazan rezultat imaju zasebna stanja.
 
 ### f) Povezati kartu, listu i osnovne filtre
 
-- [ ] Dodati zajedničko stanje odabranog `location_id` i filtara grada, naziva i vrste pružatelja. Odabir u listi ističe objekt na karti; odabir na karti otvara odgovarajući zapis u listi.
-- [ ] Filtriranje ažurira podatke bez ponovne inicijalizacije karte. Zanemariti ili otkazati zastarjele zahtjeve; razlikovati učitavanje, prazne rezultate i pogreške. Omogućiti pristup detaljima tipkovnicom kroz listu.
+- [x] Dodati zajedničko stanje odabranog `location_id` i filtara grada, naziva i vrste pružatelja. Odabir u listi ističe objekt na karti; odabir na karti otvara odgovarajući zapis u listi.
+- [x] Filtriranje ažurira podatke bez ponovne inicijalizacije karte. Zanemariti ili otkazati zastarjele zahtjeve; razlikovati učitavanje, prazne rezultate i pogreške. Omogućiti pristup detaljima tipkovnicom kroz listu.
 
 **Gotovo kada:** lista i karta primjenjuju iste kriterije, uz objašnjen izostanak zapisa bez koordinata. Nepoznata dobna prikladnost ostaje označena kao nepoznata.
 
 **Prva prekretnica — a–f:** upotrebljiva karta i pretraga stvarnih vrtićkih objekata.
+
+Potvrđeno 3. studenoga 2026.: 24 frontend testa, 52 backend testa nad zasebnom PostgreSQL bazom, frontend build i lint. Tri neobavezna testa postojećeg CKAN simulatora su preskočena. Preglednik s javnim Mapbox tokenom potvrđuje stvarnu podlogu, grupiranje, odabir i filtre, desktop prikaze 1366×768 i 1024×768 te mobilni prikaz 390×844. Lokalna aktivna snimka za Zagreb daje 371 točku i 90 zasebno označenih sjedišta bez točke. Dodane regresijske provjere pokrivaju zadržane starije koordinate, zastarjele odgovore i Mapbox događaje bez renderiranog UUID identifikatora.
 
 ### g) Dopuniti i provjeriti lokacije Geoportal izvorom
 

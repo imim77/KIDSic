@@ -1,6 +1,6 @@
 # KIDSic
 
-MCP app u razvoju za pronalazak dječjih vrtića povezivanjem više otvorenih skupova. Implementirani su PostgreSQL model, CKAN registracija izvora i uvoz triju JSON skupova, SQL pretraga prema gradu i dobi te RAG dohvat s izvorima. Embedding pružatelj i MCP transport tek se implementiraju. Frontend zasad sadrži Vite/React početni prikaz.
+MCP app u razvoju za pronalazak dječjih vrtića povezivanjem više otvorenih skupova. Implementirani su PostgreSQL model, CKAN registracija izvora i uvoz triju JSON skupova, SQL pretraga prema gradu i dobi te RAG dohvat s izvorima. Web prikaz povezuje listu, filtre i Mapbox kartu objekata preko zasebnog read API-ja. Embedding pružatelj i MCP transport tek se implementiraju.
 
 ## Struktura
 
@@ -8,7 +8,7 @@ Organizacija prati [FOIHireloom](https://github.com/imim77/FOIHireloom), pregled
 
 ```text
 src/KIDSic/
-  api/                      # budući MCP alati i app prikazi
+  api/                      # HTTP lokacije; budući MCP alati i app prikazi
   commands/                 # izvršne naredbe, bez SQL-a
   config/                   # postavke okruženja
   dao/interfaces/           # ugovori repozitorija
@@ -77,21 +77,40 @@ Sync provjerava sve odabrane resurse prije transakcije. Sprema izvorne retke u `
 
 Ovi skupovi nemaju potvrđene dobne uvjete, slobodna mjesta ni upisne upute. Uvoz ih ne izmišlja i ne stvara programe ni RAG dokumente iz kontaktnih podataka. Rezultati zato imaju dobni status `unknown`. Datum preuzimanja i izmjene resursa spremaju se odvojeno; ne proglašavaju se datumom stvarnog stanja podataka.
 
-Frontend:
+## Web prikaz lokacija
+
+API se pokreće nad prethodno migriranom i popunjenom bazom iz koraka iznad:
+
+```sh
+uv run uvicorn KIDSic.api.locations:create_app --factory --host 127.0.0.1 --port 8000
+```
+
+`DATABASE_URL` mora biti postavljen u istom terminalu. API drži jedan pool kroz životni vijek aplikacije; svaki zahtjev čita konzistentnu snimku kroz read-only Unit of Work. Pokretanje ne izvršava migracije ni uvoz. [Ugovor lokacija](LOCATION_API.md) opisuje `GET /api/locations`, filtre, GeoJSON, izvore, datume i pogreške. Dobno filtrirana razgovorna pretraga ostaje zaseban servis.
+
+Frontend pokrenuti u drugom terminalu:
 
 ```sh
 cd frontend
 npm ci
+cp .env.example .env.local
 npm run dev
 ```
 
-Vite služi `src/views/index.html`; zajednički resursi su u `src/shared`. `npm run build` i `npm run lint` provjeravaju početni prikaz. MCP app HTML pakiranje još nije implementirano.
+U `frontend/.env.local` postaviti javni `VITE_MAPBOX_ACCESS_TOKEN=pk.…` iz Mapbox računa. Koristiti namjenski javni token s dopuštenim razvojnim i produkcijskim URL-ovima. Vite ugrađuje `VITE_*` vrijednosti u klijentski kod: token je vidljiv korisniku, a tajni `sk.*` token ne pripada frontendu. `.env.local` je ignoriran; nakon promjene ponovno pokrenuti Vite, a za produkciju ponovno izgraditi frontend.
+
+Vite služi `src/views/index.html`, učitava env iz mape `frontend/` i prosljeđuje `/api` lokalnom API-ju na portu 8000. Produkcijski hosting mora usmjeriti `/api` na isti backend; razvojni proxy nije dio statičkog builda. Zajednički resursi su u `src/shared`. `npm run build` i `npm run lint` provjeravaju frontend. MCP app HTML pakiranje još nije implementirano.
+
+Ako je port 8000 zauzet, API pokrenuti s `--port 18000`, a frontend naredbom `KIDSIC_API_TARGET=http://127.0.0.1:18000 npm run dev`. `KIDSIC_API_TARGET` je varijabla procesa koji pokreće Vite, ne javna varijabla aplikacije iz `.env.local`.
+
+Karta i lista koriste iste primijenjene filtre grada, naziva i vrste pružatelja. Sjedišta bez potvrđenog objekta i objekti bez koordinata ostaju u listi s oznakom, a ne postaju točke na karti. Dobna prikladnost, slobodna mjesta i kapacitet ne zaključuju se iz lokacije. Bez Mapbox tokena ili podržanog WebGL-a dostupna je lista stvarnih rezultata. Prazna baza daje prazan rezultat, a nedostupan API poruku za ponovni pokušaj; aplikacija ne prikazuje zamjenske izmišljene objekte.
 
 ## Provjere i dokumentacija
 
 ```sh
 uv run python -m unittest discover -s tests -v
 ```
+
+Frontend provjere iz mape `frontend/`: `npm test`, `npm run build` i `npm run lint`. Testovi komponenti provjeravaju lifecycle karte, potpune odgovore i otkazivanje zastarjelih zahtjeva s izoliranim Mapbox mockom; stvarni prikaz podloge treba provjeriti u pregledniku s javnim tokenom.
 
 Integracijske provjere trebaju zasebnu, migriranu bazu `kidsic_test_*` i `KIDSIC_TEST_DATABASE_URL`. Bez te varijable integracijski testovi se preskaču. Detalji: [baza i RAG](database/README.md), [ERA model](database/ERA.md), [funkcionalnosti](TO-DO.md).
 
