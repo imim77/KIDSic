@@ -58,7 +58,7 @@ pročitati rezultat, ali ne može prikazati interaktivnu kartu.
 
 ## Ugovor UI-ja i provjera
 
-Resurs `ui://kidsic/map-v2.html` ima MIME `text/html;profile=mcp-app`. Moderni
+Resurs `ui://kidsic/map-v3.html` ima MIME `text/html;profile=mcp-app`. Moderni
 `_meta.ui.resourceUri` i kompatibilni `openai/outputTemplate` povezuju ga s alatom.
 Uspješan rezultat ima sažetak `structuredContent: {city, metadata}`, uz deklarirani
 `outputSchema`. Potpuni GeoJSON je u `_meta.locations`, koji host prosljeđuje UI-ju
@@ -88,7 +88,7 @@ MCP testovi koriste službeni Python `ClientSession` preko stvarnog ASGI HTTP
 transporta, bez baze. Frontend provjerava i stvarni SDK `postMessage` handshake,
 primanje rezultata i host fullscreen uz simulirani host. To ne zamjenjuje konačnu
 provjeru u ChatGPT-u: povezati server, isprobati oba grada i upit bez grada,
-potvrditi podlogu, kartice, detalje i izlazak iz fullscreena.
+potvrditi podlogu, odabir kartica i izlazak iz fullscreena.
 
 Reference: [MCP Apps](https://modelcontextprotocol.io/extensions/apps/overview),
 [UI povezivanje u ChatGPT-u](https://developers.openai.com/plugins/build/chatgpt-ui).

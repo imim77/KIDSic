@@ -7,10 +7,8 @@ import type { LocationFeature } from './types'
 interface LocationCarouselProps {
   features: LocationFeature[]
   selectedId: string | null
-  detailsId: string | null
   reveal: { id: string; revision: number } | null
   onSelect: (id: string) => void
-  onDetails: (feature: LocationFeature, trigger: HTMLButtonElement) => void
 }
 
 function motion(): ScrollBehavior {
@@ -23,7 +21,7 @@ function anchor(track: HTMLElement, card: HTMLElement) {
 }
 
 // LocationCarousel scrolls its own viewport without changing the map selection.
-export function LocationCarousel({ features, selectedId, detailsId, reveal, onSelect, onDetails }: LocationCarouselProps) {
+export function LocationCarousel({ features, selectedId, reveal, onSelect }: LocationCarouselProps) {
   const trackRef = useRef<HTMLUListElement>(null)
   const [edges, setEdges] = useState({ start: true, end: features.length < 2 })
   useEffect(() => {
@@ -65,7 +63,7 @@ export function LocationCarousel({ features, selectedId, detailsId, reveal, onSe
       <Button type="button" variant="outline" size="icon-lg" className="rounded-full" aria-label="Sljedeći vrtić" disabled={edges.end} onClick={() => move(1)}><ChevronRight data-icon="inline-end" /></Button>
     </div>
     <ul ref={trackRef} className="location-track" aria-label="Vrtićki objekti">
-      {features.map((feature) => <li className="location-slide" key={feature.id}><LocationCard feature={feature} selected={feature.id === selectedId} detailsOpen={feature.id === detailsId} onSelect={onSelect} onDetails={onDetails} /></li>)}
+      {features.map((feature) => <li className="location-slide" key={feature.id}><LocationCard feature={feature} selected={feature.id === selectedId} onSelect={onSelect} /></li>)}
     </ul>
   </section>
 }

@@ -26,10 +26,11 @@ afterEach(() => {
 })
 
 describe('directory interactions', () => {
-  it('shares keyboard/list and map selection, preserving details for a seat without inventing a pin', async () => {
+  it('shares keyboard/list and map selection without opening a details view for seats', async () => {
     const seat = facility('seat', false)
     seat.properties.location_role = 'seat'
     seat.properties.location_id = null
+    seat.properties.provider_kind = 'unknown'
     const payload = collection(facility('first'), facility('second'), seat)
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => payload }))
     const user = userEvent.setup()
@@ -38,43 +39,35 @@ describe('directory interactions', () => {
     first.focus()
     await user.keyboard('{Enter}')
     expect(first).toHaveAttribute('aria-pressed', 'true')
-    const details = screen.getByRole('button', { name: 'Detalji i izvori: Synthetic facility first' })
-    await user.click(details)
     expect(screen.getByTestId('map-selection')).toHaveTextContent('first')
-    expect(screen.getByRole('region', { name: 'Detalji: Synthetic facility first' })).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'Map select second' }))
     expect(first).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('button', { name: /Synthetic facility second.*Synthetic address/ })).toHaveAttribute('aria-pressed', 'true')
-    await user.click(screen.getByRole('button', { name: 'Detalji i izvori: Synthetic facility second' }))
-    expect(screen.getByRole('region', { name: 'Detalji: Synthetic facility second' })).toBeVisible()
     expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: /Synthetic facility seat.*Synthetic address/ }))
-    expect(screen.getByText(/Sjedište ustanove/)).toBeVisible()
-    expect(screen.getByRole('region', { name: 'Detalji: Synthetic facility seat' })).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Map select seat' })).toBeNull()
-    expect(screen.getByText('Dobna prikladnost nije provjerena u ovom prikazu.')).toBeVisible()
-    await user.click(screen.getByRole('button', { name: 'Zatvori detalje' }))
     expect(screen.getByTestId('map-selection')).toHaveTextContent('seat')
     expect(screen.getByRole('button', { name: /Synthetic facility seat.*Synthetic address/ })).toHaveFocus()
     expect(screen.queryByRole('region', { name: /Detalji:/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Detalji i izvori/ })).toBeNull()
+    expect(screen.queryByText('Nepoznat pružatelj')).toBeNull()
+    expect(screen.queryByText(/Sjedište ustanove/)).toBeNull()
+    expect(screen.queryByText(/Koordinate nisu poznate/)).toBeNull()
   })
 
-  it('preserves cards, selection, open details and requests when expanding the same explorer', async () => {
+  it('preserves cards, selection and requests when expanding the same explorer', async () => {
     const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => collection(facility('first'), facility('second')) })
     vi.stubGlobal('fetch', fetch)
     const user = userEvent.setup()
     render(<App />)
     const title = await screen.findByRole('button', { name: /Synthetic facility second.*Synthetic address/ })
     await user.click(title)
-    const details = screen.getByRole('button', { name: 'Detalji i izvori: Synthetic facility second' })
-    await user.click(details)
     const track = screen.getByRole('list', { name: 'Vrtićki objekti' })
     track.scrollLeft = 240
     await user.click(screen.getByRole('button', { name: 'Prikaži preko cijelog ekrana' }))
     expect(screen.getByRole('dialog')).toBeVisible()
     expect(screen.getByRole('list', { name: 'Vrtićki objekti' })).toBe(track)
     expect(track.scrollLeft).toBe(240)
-    expect(screen.getByRole('region', { name: 'Detalji: Synthetic facility second' })).toBeVisible()
     expect(title).toHaveAttribute('aria-pressed', 'true')
     expect(fetch).toHaveBeenCalledOnce()
     await user.click(screen.getByRole('button', { name: 'Vrati prikaz' }))

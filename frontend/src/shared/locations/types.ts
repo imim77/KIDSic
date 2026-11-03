@@ -44,13 +44,4 @@ export interface LocationFilters {
   provider_kind: ProviderKind | ''
 }
 
-export const providerLabels: Record<ProviderKind, string> = {
-  municipal: 'Gradski',
-  private: 'Privatni',
-  religious: 'Vjerski',
-  childminder: 'Dadilje',
-  other: 'Ostali',
-  unknown: 'Nepoznat pružatelj',
-}
-
 export const initialLocationFilters: LocationFilters = { city: 'Zagreb', q: '', provider_kind: '' }

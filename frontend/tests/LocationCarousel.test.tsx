@@ -6,7 +6,6 @@ import { facility } from './fixtures'
 
 const features = [facility('first'), facility('second'), facility('third')]
 const onSelect = vi.fn()
-const onDetails = vi.fn()
 const scrollTo = vi.fn(function (this: HTMLElement, options: ScrollToOptions) {
   this.scrollLeft = Math.max(0, Math.min(this.scrollWidth - this.clientWidth, options.left ?? 0))
   fireEvent.scroll(this)
@@ -23,7 +22,7 @@ beforeEach(() => {
   Object.defineProperty(HTMLElement.prototype, 'scrollTo', { configurable: true, value: scrollTo })
 })
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); Reflect.deleteProperty(HTMLElement.prototype, 'scrollTo') })
-function props() { return { features, selectedId: null, detailsId: null, reveal: null, onSelect, onDetails } }
+function props() { return { features, selectedId: null, reveal: null, onSelect } }
 
 describe('location carousel', () => {
   it('moves both directions to bounded edges without selecting a card', async () => {
@@ -41,7 +40,6 @@ describe('location carousel', () => {
     await user.click(previous)
     expect(previous).toBeDisabled()
     expect(onSelect).not.toHaveBeenCalled()
-    expect(onDetails).not.toHaveBeenCalled()
   })
   it('reveals marker selection by scrolling only its own viewport and leaves manual browsing unselected', () => {
     const pageScroll = vi.fn()
@@ -57,7 +55,7 @@ describe('location carousel', () => {
     expect(pageScroll).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: /Synthetic facility third.*Synthetic address/ })).toHaveAttribute('aria-pressed', 'true')
   })
-  it('keeps keyboard selection separate from opening sources and omits unknown address data', async () => {
+  it('keeps keyboard selection and unknown address fallback without details actions', async () => {
     const first = facility('first')
     first.properties.address = null
     const user = userEvent.setup()
@@ -66,9 +64,6 @@ describe('location carousel', () => {
     select.focus()
     await user.keyboard('{Enter}')
     expect(onSelect).toHaveBeenCalledExactlyOnceWith('first')
-    expect(onDetails).not.toHaveBeenCalled()
-    const details = screen.getByRole('button', { name: 'Detalji i izvori: Synthetic facility first' })
-    await user.click(details)
-    expect(onDetails).toHaveBeenCalledExactlyOnceWith(first, details)
+    expect(screen.queryByRole('button', { name: /Detalji i izvori/ })).toBeNull()
   })
 })

@@ -18,7 +18,7 @@ from KIDSic.services.dependency import DependencyService
 from KIDSic.services.interfaces.location import LocationServiceInterface
 
 logger = logging.getLogger(__name__)
-UI_URI = 'ui://kidsic/map-v2.html'
+UI_URI = 'ui://kidsic/map-v3.html'
 UI_MIME = 'text/html;profile=mcp-app'
 SERVER_INSTRUCTIONS = (
     'When the user asks to show or find kindergartens in a city, ALWAYS call '
@@ -43,7 +43,7 @@ RESOURCE_META = {
         'csp': {'connectDomains': MAPBOX_DOMAINS,
                 'resourceDomains': [*MAPBOX_DOMAINS, 'blob:', 'data:']},
     },
-    'openai/widgetDescription': 'Karta vrtića s pomičnim karticama i detaljima.',
+    'openai/widgetDescription': 'Karta vrtića s pomičnim karticama naziva i adresa.',
     'openai/widgetPrefersBorder': True,
     'openai/widgetCSP': {'connect_domains': MAPBOX_DOMAINS,
                          'resource_domains': [*MAPBOX_DOMAINS, 'blob:', 'data:']},
