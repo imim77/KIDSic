@@ -1,5 +1,3 @@
-.directory { width: 100%; height: 100dvh; padding: 8px; overflow: hidden; }
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .kindergarten-explorer { --card-height: 188px; position: relative; isolation: isolate; width: 100%; height: 100%; min-height: 0; overflow: hidden; border: 1px solid #dedfdf; border-radius: 32px; background: #f0f1f0; }
 .location-carousel { position: absolute; z-index: 2; bottom: calc(38px + env(safe-area-inset-bottom)); left: 0; width: 100%; pointer-events: none; }
 .carousel-controls { display: flex; justify-content: flex-end; gap: 7px; padding: 0 22px 10px; }
@@ -12,8 +10,6 @@
 .location-card[data-selected="true"] { border-color: var(--accent); }
 .location-thumbnail { flex: 0 0 116px; height: 128px; border-radius: 19px; display: grid; place-items: center; background: #f0f1ed; color: #a4aca3; }
 .location-thumbnail svg { width: 70px; height: 70px; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.location-card-copy { flex: 1; min-width: 0; }
-.location-select { display: block; border: 0; padding: 0; text-align: left; background: none; color: var(--ink); width: 100%; }
 .location-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 20px; letter-spacing: -.45px; line-height: 1.15; font-weight: 700; overflow-wrap: anywhere; }
 .location-address { display: block; font-size: 13px; line-height: 1.4; color: var(--ink); margin-top: 7px; }
 .location-context { font-size: 12px; color: var(--muted); line-height: 1.4; margin-top: 5px; }

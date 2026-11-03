@@ -16,8 +16,8 @@ export function LocationCard({ feature, selected, detailsOpen, onSelect, onDetai
     <div className="location-thumbnail" aria-hidden="true">
       <svg viewBox="0 0 80 80" fill="none"><path d="M15 65V30L40 14l25 16v35H15Z" /><path d="M33 65V47h14v18M25 33h8v8h-8zm22 0h8v8h-8zM9 65h62" /></svg>
     </div>
-    <div className="location-card-copy">
-      <button type="button" className="location-select" aria-pressed={selected} onClick={() => onSelect(feature.id)}>
+    <div className="min-w-0 flex-1">
+      <button type="button" className="block w-full border-0 bg-transparent p-0 text-left text-ink" aria-pressed={selected} onClick={() => onSelect(feature.id)}>
         <span className="location-name">{location.location_name}</span>{' '}
         <span className="location-address">{location.address ?? 'Adresa nije poznata'}</span>
       </button>

@@ -74,7 +74,7 @@ export function McpLocationApp() {
     }
   }
 
-  return <main className="directory" aria-label={snapshot.city ? `Vrtići: ${snapshot.city}` : 'Karta vrtićkih objekata'}>
+  return <main className="w-full h-dvh overflow-hidden p-2" aria-label={snapshot.city ? `Vrtići: ${snapshot.city}` : 'Karta vrtićkih objekata'}>
     <KindergartenExplorer data={snapshot.data} status={snapshot.status} selectedId={selection} onSelect={setSelection}
       notice={snapshot.notice} retry={() => { void retry() }}
       hostFullscreen={display.available ? { expanded: display.expanded, request: async (mode) => {
