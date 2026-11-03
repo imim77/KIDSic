@@ -23,4 +23,6 @@ Postaviti javni `VITE_MAPBOX_ACCESS_TOKEN` u `.env.local`; Vite čita tu datotek
 
 API mora biti zasebno pokrenut na portu 8000. Za drugi port koristiti, primjerice, `KIDSIC_API_TARGET=http://127.0.0.1:18000 npm run dev`. Produkcijski hosting mora sam usmjeriti `/api` na backend.
 
-Detaljne [upute za bazu i API](../README.md#lokalni-pregled-mcp-sučelja) i [ugovor lokacija](../LOCATION_API.md) nalaze se u korijenu repozitorija. MCP Apps SDK i HTML pakiranje još nisu implementirani.
+`npm run build:mcp` gradi `dist/mcp.html` sa svim skriptama i stilovima ugrađenima u HTML. Ulaz je `src/views/mcp/mcp.html`; koristi službeni MCP Apps SDK, prima grad i sažetak iz `structuredContent` te GeoJSON iz `_meta.locations` i traži fullscreen od hosta. Ne poziva `/api` niti koristi početni Zagreb. Samostalni `npm run build` čisti `dist`, pa MCP build pokrenuti nakon njega ako trebaju oba prikaza.
+
+Detaljne [upute za bazu i API](../README.md#lokalni-pregled-mcp-sučelja), [ugovor lokacija](../LOCATION_API.md) i [MCP povezivanje](../MCP.md) nalaze se u korijenu repozitorija.

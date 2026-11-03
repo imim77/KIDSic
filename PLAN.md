@@ -340,19 +340,19 @@ https://modelcontextprotocol.io/extensions/apps/overview.
 
 ### Mali koraci
 
-- [ ] MCP-a: Dodati službeni Python MCP SDK i Streamable HTTP `/mcp` tvornicu s
+- [x] MCP-a: Dodati službeni Python MCP SDK i Streamable HTTP `/mcp` tvornicu s
   postojećim servisom i upravljanim životnim vijekom baze.
-- [ ] MCP-b: Registrirati read-only alat `prikazi_vrtice(city)` s obaveznim,
+- [x] MCP-b: Registrirati read-only alat `prikazi_vrtice(city)` s obaveznim,
   nepraznim gradom, bez defaulta. Upute servera/alata nalažu pitanje za grad;
-  nevaljan poziv ne smije čitati bazu. Rezultat je `{city, locations}`.
-- [ ] MCP-c: Povezati svaki poziv s istim UI resursom, uključujući prazan skup;
+  nevaljan poziv ne smije čitati bazu. Rezultat je sažetak `{city, metadata}`, a potpuni GeoJSON u `_meta.locations`.
+- [x] MCP-c: Povezati svaki poziv s istim UI resursom, uključujući prazan skup;
   poslužiti samostalni build i CSP za Mapbox. Pogreške servisa sanitizirati.
-- [ ] MCP-d: Dodati zaseban embedded ulaz i standardni MCP Apps bridge. Ne čitati
+- [x] MCP-d: Dodati zaseban embedded ulaz i standardni MCP Apps bridge. Ne čitati
   `/api` ni pretpostaviti Zagreb. Očistiti zastarjele rezultate/odabir pri novom
   gradu; ponovni pokušaj koristi host alat. Sačuvati samostalni razvojni preview.
-- [ ] MCP-e: Dodati host fullscreen uz postojeći samostalni fullscreen te
+- [x] MCP-e: Dodati host fullscreen uz postojeći samostalni fullscreen te
   dokumentirati build, pokretanje i spajanje klijenta.
-- [ ] MCP-f: Provjeriti stvarni MCP initialize/tools/list/tools/call/resources/read,
+- [x] MCP-f: Provjeriti stvarni MCP initialize/tools/list/tools/call/resources/read,
   obavezan grad, prazne rezultate i kvar baze; frontend testove, lint, build te
   host bridge s ugrađenim HTML-om. Spremiti male Conventional Commitove.
 
@@ -364,3 +364,23 @@ odluke ne možemo nametnuti serverom. Upute eksplicitno nalažu ovaj alat za zah
 za prikaz vrtića te pitanje kada grad nedostaje. Stvarni ChatGPT prikaz traži
 povezan dostupan server; lokalna provjera ne znači objavu ili povezivanje računa.
 Bez potvrđenih koordinata kartice ostaju dostupne; podaci se ne izmišljaju.
+
+
+### Završne provjere MCP integracije
+
+Prolazi 41 frontend test (uključujući stvarni SDK postMessage handshake), lint,
+samostalni build i MCP single-file build. Backend suite: 62 testa, 32 prolaze,
+30 se preskače bez zasebne testne baze/CKAN simulatora; svih 7 novih MCP testova
+prolazi preko službenog ClientSession i ASGI transporta.
+
+Stvarni lokalni MCP endpoint na portu 8001 provjeren je nad razvojnom bazom:
+Zagreb 461 rezultat (371 koordinata), Split 22 i Varaždin 14 (bez koordinata),
+izmišljeni naziv grada 0 rezultata. Izostavljen grad vraća pojašnjenje. UI resurs
+nema vanjske skripte ni stylesheet zahtjeve. Puni zagrebački odgovor je oko 1,12 MB,
+pa su GeoJSON i izvori u `_meta.locations`, a sažetak za model oko 112 bajtova.
+
+Vizualna provjera novog host prikaza nije dovršena: upravljanje preglednikom
+onemogućeno je postavkom aplikacije. Postojeći standalone UI je ranije vizualno
+provjeren; handshake i host fullscreen sada su provjereni testnim hostom. Stvarni
+ChatGPT prikaz i njegove odluke o pozivu alata ostaju provjera nakon povezivanja
+servera prema `MCP.md`; server nije automatski objavljen ni dodan u korisnikov račun.

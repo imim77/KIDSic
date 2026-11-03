@@ -1,6 +1,6 @@
 # KIDSic
 
-MCP app u razvoju za pronalazak dječjih vrtića povezivanjem više otvorenih skupova. Implementirani su PostgreSQL model, CKAN registracija izvora i uvoz triju JSON skupova, SQL pretraga prema gradu i dobi te RAG dohvat s izvorima. Ugrađeni prikaz za MCP app povezuje Mapbox kartu, vodoravne kartice i detalje izvora preko zasebnog read API-ja. Embedding pružatelj i MCP transport tek se implementiraju.
+MCP app za pronalazak dječjih vrtića povezivanjem više otvorenih skupova. Implementirani su PostgreSQL model, CKAN registracija izvora i uvoz triju JSON skupova, SQL pretraga prema gradu i dobi te RAG dohvat s izvorima. MCP alat `prikazi_vrtice` povezuje obavezan grad s Mapbox kartom, vodoravnim karticama i detaljima izvora. Embedding pružatelj još nije implementiran.
 
 ## Struktura
 
@@ -8,7 +8,8 @@ Organizacija prati [FOIHireloom](https://github.com/imim77/FOIHireloom), pregled
 
 ```text
 src/KIDSic/
-  api/                      # HTTP lokacije; budući MCP alati i app prikazi
+  api/                      # HTTP lokacije za samostalni razvojni pregled
+  mcp/                      # MCP alat, HTML resurs i Streamable HTTP transport
   commands/                 # izvršne naredbe, bez SQL-a
   config/                   # postavke okruženja
   dao/interfaces/           # ugovori repozitorija
@@ -98,7 +99,7 @@ npm run dev
 
 U `frontend/.env.local` postaviti javni `VITE_MAPBOX_ACCESS_TOKEN=pk.…` iz Mapbox računa. Koristiti namjenski javni token s dopuštenim razvojnim i produkcijskim URL-ovima. Vite ugrađuje `VITE_*` vrijednosti u klijentski kod: token je vidljiv korisniku, a tajni `sk.*` token ne pripada frontendu. `.env.local` je ignoriran; nakon promjene ponovno pokrenuti Vite, a za produkciju ponovno izgraditi frontend.
 
-Vite služi `src/views/index.html`, učitava env iz mape `frontend/` i prosljeđuje `/api` lokalnom API-ju na portu 8000. Produkcijski hosting mora usmjeriti `/api` na isti backend; razvojni proxy nije dio statičkog builda. Zajednički resursi su u `src/shared`. `npm run build` i `npm run lint` provjeravaju frontend. MCP app HTML pakiranje još nije implementirano.
+Vite služi `src/views/index.html`, učitava env iz mape `frontend/` i prosljeđuje `/api` lokalnom API-ju na portu 8000. Produkcijski samostalni hosting mora usmjeriti `/api` na isti backend; razvojni proxy nije dio statičkog builda. Zajednički resursi su u `src/shared`. MCP prikaz koristi zaseban samostalni HTML build i rezultate alata preko host bridgea, bez HTTP dohvata iz iframea; [upute za MCP povezivanje](MCP.md).
 
 Ako je port 8000 zauzet, API pokrenuti s `--port 18000`, a frontend naredbom `KIDSIC_API_TARGET=http://127.0.0.1:18000 npm run dev`. `KIDSIC_API_TARGET` je varijabla procesa koji pokreće Vite, ne javna varijabla aplikacije iz `.env.local`.
 
