@@ -9,3 +9,8 @@
 .legend-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
 .legend-cluster { display: inline-grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; background: var(--accent); color: white; margin-left: 8px; font-size: 10px; }
 .map-data-message { position: absolute; top: 16px; left: 16px; max-width: calc(100% - 80px); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 13px; }
+
+.map-legend { flex-wrap: wrap; max-width: min(560px, calc(100% - 28px)); gap: 8px 14px; }
+.legend-entry { display: inline-flex; gap: 6px; align-items: center; }
+.legend-cluster { margin-left: 0; }
+.legend-selected { width: 13px; height: 13px; border-radius: 50%; background: var(--ink); border: 2px solid white; box-shadow: 0 0 0 1px var(--ink); }

@@ -1,10 +1,12 @@
 import type { GeoJSONSource, Map, MapLayerMouseEvent } from 'mapbox-gl'
 import type { FeatureCollection, Point } from 'geojson'
+import { providerColors } from '../locations/types'
 import type { LocationCollection, LocationFeature, LocationProperties } from '../locations/types'
 
 const sourceId = 'kindergarten-locations'
 const clustersId = 'kindergarten-clusters'
 const pointsId = 'kindergarten-points'
+const selectionSourceId = 'kindergarten-selection'
 
 // LocationLayer keeps one clustered source alive as directory results change.
 export class LocationLayer {
@@ -12,6 +14,9 @@ export class LocationLayer {
   private data: FeatureCollection<Point, LocationProperties> = { type: 'FeatureCollection', features: [] }
   private onSelect: (id: string) => void
   private disposed = false
+  private cameraRevision = 0
+  private selectedId: string | null = null
+  private selection: FeatureCollection<Point, LocationProperties> = { type: 'FeatureCollection', features: [] }
 
   constructor(map: Map, onSelect: (id: string) => void) {
     this.map = map
@@ -27,6 +32,7 @@ export class LocationLayer {
   }
 
   update(collection: LocationCollection | null) {
+    this.cameraRevision += 1
     this.data = {
       type: 'FeatureCollection',
       features: (collection?.features ?? []).filter(
@@ -34,6 +40,7 @@ export class LocationLayer {
       ),
     }
     this.source()?.setData(this.data)
+    this.select(this.selectedId, false)
     const coordinates = this.data.features.map((feature) => feature.geometry.coordinates)
     if (!coordinates.length) return
     const longitudes = coordinates.map(([longitude]) => longitude)
@@ -42,6 +49,18 @@ export class LocationLayer {
       [Math.min(...longitudes), Math.min(...latitudes)],
       [Math.max(...longitudes), Math.max(...latitudes)],
     ], { padding: 50, maxZoom: 14, duration: 0 })
+  }
+
+  select(id: string | null, focus = true) {
+    if (focus) this.cameraRevision += 1
+    this.selectedId = id
+    const feature = this.data.features.find((item) => item.id === id)
+    this.selection = { type: 'FeatureCollection', features: feature ? [feature] : [] }
+    ;(this.map.getSource(selectionSourceId) as GeoJSONSource | undefined)?.setData(this.selection)
+    if (feature && focus) this.map.jumpTo({
+      center: feature.geometry.coordinates as [number, number],
+      zoom: Math.max(this.map.getZoom(), 15),
+    })
   }
 
   dispose() {
@@ -59,7 +78,10 @@ export class LocationLayer {
   private showPointer = () => { this.map.getCanvas().style.cursor = 'pointer' }
   private hidePointer = () => { this.map.getCanvas().style.cursor = '' }
   private selectPoint = (event: MapLayerMouseEvent) => {
-    const id = event.features?.[0]?.id
+    const feature = event.features?.[0]
+    // Vector tiling can discard UUID feature IDs; retain the canonical property.
+    const locationId = feature?.properties?.location_id
+    const id = typeof locationId === 'string' && locationId.trim() ? locationId : feature?.id
     if (id !== undefined) this.onSelect(String(id))
   }
   private expandCluster = (event: MapLayerMouseEvent) => {
@@ -67,8 +89,9 @@ export class LocationLayer {
     if (feature?.geometry.type !== 'Point') return
     const center = feature.geometry.coordinates as [number, number]
     const clusterId = Number(feature.properties?.cluster_id)
+    const revision = ++this.cameraRevision
     this.source()?.getClusterExpansionZoom(clusterId, (error, zoom) => {
-      if (!error && zoom != null && !this.disposed) this.map.easeTo({ center, zoom })
+      if (!error && zoom != null && !this.disposed && revision === this.cameraRevision) this.map.easeTo({ center, zoom })
     })
   }
   private mount = () => {
@@ -85,7 +108,12 @@ export class LocationLayer {
     })
     this.map.addLayer({
       id: pointsId, type: 'circle', source: sourceId, filter: ['!', ['has', 'point_count']],
-      paint: { 'circle-color': '#2055c7', 'circle-radius': 7, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 },
+      paint: { 'circle-color': ['match', ['get', 'provider_kind'], ...Object.entries(providerColors).flat(), '#737780'], 'circle-radius': 7, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 },
+    })
+    this.map.addSource(selectionSourceId, { type: 'geojson', data: this.selection })
+    this.map.addLayer({
+      id: 'kindergarten-selected-point', type: 'circle', source: selectionSourceId,
+      paint: { 'circle-color': '#172c48', 'circle-radius': 10, 'circle-stroke-color': '#fff', 'circle-stroke-width': 4 },
     })
   }
 }

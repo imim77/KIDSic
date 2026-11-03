@@ -8,7 +8,7 @@ type Listener = (...args: unknown[]) => void
 const mock = vi.hoisted(() => {
   function createMap() {
     const listeners = new Map<string, Set<Listener>>()
-    let source: { setData: ReturnType<typeof vi.fn>; getClusterExpansionZoom: ReturnType<typeof vi.fn> } | undefined
+    const sources = new Map<string, { setData: ReturnType<typeof vi.fn>; getClusterExpansionZoom: ReturnType<typeof vi.fn> }>()
     const api = {
       on: vi.fn((event: string, layerOrListener: string | Listener, handler?: Listener) => {
         const key = typeof layerOrListener === 'string' ? `${event}:${layerOrListener}` : event
@@ -22,17 +22,20 @@ const mock = vi.hoisted(() => {
         return api
       }),
       emit(event: string, ...args: unknown[]) { listeners.get(event)?.forEach((listener) => listener(...args)) },
+      resetStyle() { sources.clear() },
       listenerCount(event: string) { return listeners.get(event)?.size ?? 0 },
       isStyleLoaded: vi.fn(() => false),
-      getSource: vi.fn(() => source),
-      addSource: vi.fn(() => {
-        source = { setData: vi.fn(), getClusterExpansionZoom: vi.fn() }
+      getSource: vi.fn((id = 'kindergarten-locations') => sources.get(id)),
+      addSource: vi.fn((id: string) => {
+        sources.set(id, { setData: vi.fn(), getClusterExpansionZoom: vi.fn() })
       }),
       addLayer: vi.fn(),
       addControl: vi.fn(),
       fitBounds: vi.fn(),
       easeTo: vi.fn(),
       flyTo: vi.fn(),
+      getZoom: vi.fn(() => 11),
+      jumpTo: vi.fn(),
       setFilter: vi.fn(),
       setPaintProperty: vi.fn(),
       getCanvas: vi.fn(() => ({ style: { cursor: '' } })),
@@ -87,7 +90,7 @@ describe('Mapbox lifecycle and data', () => {
     const map = mock.maps[0]
     expect(map.addSource).not.toHaveBeenCalled()
     act(() => map.emit('style.load'))
-    expect(map.addSource).toHaveBeenCalledOnce()
+    expect(map.addSource).toHaveBeenCalledTimes(2)
     expect(map.addSource).toHaveBeenCalledWith('kindergarten-locations', expect.objectContaining({
       cluster: true,
       data: expect.objectContaining({ features: [beforeStyle.features[0]] }),
@@ -96,7 +99,7 @@ describe('Mapbox lifecycle and data', () => {
     rerender(<KindergartenMap collection={afterStyle} />)
     expect(map.getSource()?.setData).toHaveBeenLastCalledWith(expect.objectContaining({ features: afterStyle.features }))
     expect(mock.maps).toHaveLength(1)
-    expect(map.addSource).toHaveBeenCalledOnce()
+    expect(map.addSource).toHaveBeenCalledTimes(2)
     unmount()
     expect(map.listenerCount('click:kindergarten-points')).toBe(0)
     expect(map.remove).toHaveBeenCalledOnce()
@@ -114,6 +117,17 @@ describe('Mapbox lifecycle and data', () => {
     expect(original).not.toHaveBeenCalled()
     mock.observers[0].callback([], {} as ResizeObserver)
     expect(map.resize).toHaveBeenCalledOnce()
+  })
+
+  it('selects the canonical location property when rendered vector tiles omit the UUID feature id', async () => {
+    const onSelect = vi.fn()
+    render(<KindergartenMap onSelect={onSelect} />)
+    await waitFor(() => expect(mock.maps).toHaveLength(1))
+    const map = mock.maps[0]
+    act(() => map.emit('click:kindergarten-points', {
+      features: [{ properties: { location_id: 'canonical-location-uuid' } }],
+    }))
+    expect(onSelect).toHaveBeenCalledWith('canonical-location-uuid')
   })
 
   it('leaves exactly one live map under StrictMode and disposes its listeners and observer', async () => {
@@ -151,5 +165,73 @@ describe('Mapbox lifecycle and data', () => {
     expect(map.listenerCount('click:kindergarten-points')).toBe(0)
     unmount()
     expect(map.remove).toHaveBeenCalledOnce()
+  })
+
+  it('highlights and focuses list selection above clusters, but never places a seat or an unlocated object', async () => {
+    const payload = collection(facility('mapped'), facility('unlocated', false))
+    const { rerender } = render(<KindergartenMap collection={payload} selectedId="mapped" />)
+    await waitFor(() => expect(mock.maps).toHaveLength(1))
+    const map = mock.maps[0]
+    act(() => map.emit('style.load'))
+    expect(map.addSource).toHaveBeenCalledWith('kindergarten-selection', expect.objectContaining({
+      data: expect.objectContaining({ features: [payload.features[0]] }),
+    }))
+    expect(map.jumpTo).toHaveBeenCalledWith({ center: [15.98, 45.81], zoom: 15 })
+    map.jumpTo.mockClear()
+    rerender(<KindergartenMap collection={payload} selectedId="unlocated" />)
+    expect(map.getSource('kindergarten-selection')?.setData).toHaveBeenLastCalledWith(expect.objectContaining({ features: [] }))
+    expect(map.jumpTo).not.toHaveBeenCalled()
+    rerender(<KindergartenMap collection={payload} selectedId={null} />)
+    expect(map.getSource('kindergarten-selection')?.setData).toHaveBeenLastCalledWith(expect.objectContaining({ features: [] }))
+    expect(mock.maps).toHaveLength(1)
+  })
+
+  it('restores the latest data and selection after a style reload', async () => {
+    const payload = collection(facility('first'))
+    render(<KindergartenMap collection={payload} selectedId="first" />)
+    await waitFor(() => expect(mock.maps).toHaveLength(1))
+    const map = mock.maps[0]
+    act(() => map.emit('style.load'))
+    map.resetStyle()
+    act(() => map.emit('style.load'))
+    expect(map.addSource).toHaveBeenLastCalledWith('kindergarten-selection', expect.objectContaining({
+      data: expect.objectContaining({ features: payload.features }),
+    }))
+    expect(mock.maps).toHaveLength(1)
+    expect(map.listenerCount('click:kindergarten-points')).toBe(1)
+  })
+
+  it('expands a clicked cluster and ignores expansion callbacks after disposal', async () => {
+    const { unmount } = render(<KindergartenMap />)
+    await waitFor(() => expect(mock.maps).toHaveLength(1))
+    const map = mock.maps[0]
+    act(() => map.emit('style.load'))
+    const zoom = map.getSource()?.getClusterExpansionZoom
+    const callbacks: ((error: Error | null, zoom: number) => void)[] = []
+    zoom?.mockImplementation((_id: number, callback: (error: Error | null, zoom: number) => void) => { callbacks.push(callback) })
+    const feature = { geometry: { type: 'Point', coordinates: [16, 45.8] }, properties: { cluster_id: 7 } }
+    act(() => map.emit('click:kindergarten-clusters', { features: [feature] }))
+    callbacks[0](null, 13)
+    expect(map.easeTo).toHaveBeenCalledWith({ center: [16, 45.8], zoom: 13 })
+    act(() => map.emit('click:kindergarten-clusters', { features: [feature] }))
+    map.easeTo.mockClear()
+    unmount()
+    callbacks[1](null, 14)
+    expect(map.easeTo).not.toHaveBeenCalled()
+  })
+
+  it('ignores pending cluster expansion from a superseded filter result', async () => {
+    const { rerender } = render(<KindergartenMap collection={collection(facility('previous'))} />)
+    await waitFor(() => expect(mock.maps).toHaveLength(1))
+    const map = mock.maps[0]
+    act(() => map.emit('style.load'))
+    let finish!: (error: Error | null, zoom: number) => void
+    map.getSource()?.getClusterExpansionZoom.mockImplementation((_id: number, callback: typeof finish) => { finish = callback })
+    act(() => map.emit('click:kindergarten-clusters', {
+      features: [{ geometry: { type: 'Point', coordinates: [16, 45.8] }, properties: { cluster_id: 7 } }],
+    }))
+    rerender(<KindergartenMap collection={collection(facility('current'))} />)
+    finish(null, 14)
+    expect(map.easeTo).not.toHaveBeenCalled()
   })
 })

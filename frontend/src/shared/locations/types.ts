@@ -21,6 +21,7 @@ export interface LocationProperties {
   district: string | null
   location_role: 'facility' | 'seat'
   sources: LocationSource[]
+  field_sources?: Record<string, LocationSource & { active_snapshot: boolean }>
   age_groups: null
 }
 
@@ -50,4 +51,11 @@ export const providerLabels: Record<ProviderKind, string> = {
   childminder: 'Dadilje',
   other: 'Ostali',
   unknown: 'Nepoznat pružatelj',
+}
+
+export const initialLocationFilters: LocationFilters = { city: 'Zagreb', q: '', provider_kind: '' }
+
+export const providerColors: Record<ProviderKind, string> = {
+  municipal: '#2055c7', private: '#087e8b', religious: '#8558a6',
+  childminder: '#a66b05', other: '#52647d', unknown: '#737780',
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Map } from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { LocationLayer } from './LocationLayer'
+import { providerColors, providerLabels } from '../locations/types'
 import type { LocationCollection } from '../locations/types'
 import './map.css'
 
@@ -10,14 +11,16 @@ const accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN?.trim()
 interface KindergartenMapProps {
   collection?: LocationCollection | null
   onSelect?: (id: string) => void
+  selectedId?: string | null
 }
 
-export function KindergartenMap({ collection = null, onSelect }: KindergartenMapProps) {
+export function KindergartenMap({ collection = null, onSelect, selectedId = null }: KindergartenMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Map | null>(null)
   const layerRef = useRef<LocationLayer | null>(null)
   const collectionRef = useRef(collection)
   const onSelectRef = useRef(onSelect)
+  const selectedIdRef = useRef(selectedId)
   const [status, setStatus] = useState('Karta se učitava…')
 
   useEffect(() => {
@@ -42,6 +45,7 @@ export function KindergartenMap({ collection = null, onSelect }: KindergartenMap
       layer = new LocationLayer(map, (id) => onSelectRef.current?.(id))
       layerRef.current = layer
       layer.update(collectionRef.current)
+      layer.select(selectedIdRef.current)
       map.addControl(new mapboxgl.NavigationControl(), 'top-right')
       map.on('load', () => { if (!disposed) setStatus('') })
       map.on('style.load', () => { if (!disposed) setStatus('') })
@@ -75,18 +79,24 @@ export function KindergartenMap({ collection = null, onSelect }: KindergartenMap
   }, [collection])
 
   useEffect(() => { onSelectRef.current = onSelect }, [onSelect])
+  useEffect(() => {
+    selectedIdRef.current = selectedId
+    layerRef.current?.select(selectedId)
+  }, [selectedId])
 
   return (
     <div className="kindergarten-map">
       <div className="map-canvas" ref={containerRef} />
       {accessToken && !status && <div className="map-legend" aria-label="Legenda karte">
-        <span className="legend-dot" /> Objekt <span className="legend-cluster">2</span> Skupina objekata
+        {Object.entries(providerColors).map(([kind, color]) => <span className="legend-entry" key={kind}><span className="legend-dot" style={{ background: color }} />{providerLabels[kind as keyof typeof providerLabels]}</span>)}
+        <span className="legend-entry"><span className="legend-cluster">2</span>Skupina objekata</span>
+        <span className="legend-entry"><span className="legend-selected" />Odabrani objekt</span>
       </div>}
       {accessToken && !status && collection?.metadata.mapped === 0 && <p className="map-data-message" role="status">Rezultati nemaju potvrđene koordinate. Pregledajte ih na popisu.</p>}
       {(!accessToken || status) && (
         <div className="map-message" role="status">
           <span className="map-message-marker" aria-hidden="true">↗</span>
-          <h2>{accessToken ? 'Karta Zagreba' : 'Karta još nije dostupna'}</h2>
+          <h2>{accessToken ? 'Karta lokacija' : 'Karta još nije dostupna'}</h2>
           <p>{accessToken ? status : 'Karta trenutačno nije dostupna. Objekte možete pregledati na popisu.'}</p>
         </div>
       )}
