@@ -1,3 +1,7 @@
+import { ArrowUpRight, Building2 } from 'lucide-react'
+import { Badge } from '../ui/badge'
+import { Button } from '../ui/button'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card'
 import { providerLabels } from './types'
 import type { LocationFeature } from './types'
 
@@ -12,18 +16,36 @@ interface LocationCardProps {
 // LocationCard keeps selection and source details as separate actions.
 export function LocationCard({ feature, selected, detailsOpen, onSelect, onDetails }: LocationCardProps) {
   const location = feature.properties
-  return <article className="location-card" data-selected={selected}>
-    <div className="location-thumbnail" aria-hidden="true">
-      <svg viewBox="0 0 80 80" fill="none"><path d="M15 65V30L40 14l25 16v35H15Z" /><path d="M33 65V47h14v18M25 33h8v8h-8zm22 0h8v8h-8zM9 65h62" /></svg>
+  const address = location.address ?? 'Adresa nije poznata'
+  const coordinateNote = location.location_role === 'seat'
+    ? 'Sjedište ustanove — lokacija pružanja usluge nije potvrđena'
+    : 'Koordinate nisu poznate — nema prikaza na karti'
+
+  return <Card className="location-card flex-row items-center gap-3 rounded-2xl p-3" data-selected={selected} role="article">
+    <div className="location-thumbnail bg-muted text-muted-foreground" aria-hidden="true">
+      <Building2 />
     </div>
-    <div className="min-w-0 flex-1">
-      <button type="button" className="block w-full border-0 bg-transparent p-0 text-left text-ink" aria-pressed={selected} onClick={() => onSelect(feature.id)}>
-        <span className="location-name">{location.location_name}</span>{' '}
-        <span className="location-address">{location.address ?? 'Adresa nije poznata'}</span>
-      </button>
-      <p className="location-context">{providerLabels[location.provider_kind]}{location.district ? ` · ${location.district}` : ''}</p>
-      {!feature.geometry && <small className="location-coordinate-note">{location.location_role === 'seat' ? 'Sjedište ustanove — lokacija pružanja usluge nije potvrđena' : 'Koordinate nisu poznate — nema prikaza na karti'}</small>}
-      <button type="button" className="location-details-button" aria-label={`Detalji i izvori: ${location.location_name}`} aria-expanded={detailsOpen} aria-controls={detailsOpen ? `details-${feature.id}` : undefined} onClick={(event) => onDetails(feature, event.currentTarget)}>Detalji i izvori <span aria-hidden="true">↗</span></button>
+    <div className="flex min-w-0 flex-1 flex-col justify-between self-stretch">
+      <CardHeader className="gap-0 p-0">
+        <CardTitle className="min-w-0">
+          <Button type="button" variant="ghost" size="sm" className="h-6 w-full min-w-0 justify-start px-0" aria-label={`${location.location_name} ${address}`} aria-pressed={selected} onClick={() => onSelect(feature.id)}>
+            <span className="truncate" title={location.location_name}>{location.location_name}</span>
+          </Button>
+        </CardTitle>
+        <CardDescription className="truncate" title={address}>{address}</CardDescription>
+      </CardHeader>
+      <CardContent className="min-w-0 p-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <Badge variant="secondary" className="max-w-full"><span className="truncate">{providerLabels[location.provider_kind]}</span></Badge>
+          {location.district && <span className="truncate text-xs text-muted-foreground" title={location.district}>{location.district}</span>}
+        </div>
+        {!feature.geometry && <small className="block truncate text-xs text-muted-foreground" title={coordinateNote}>{coordinateNote}</small>}
+      </CardContent>
+      <CardFooter className="p-0">
+        <Button type="button" variant="link" size="xs" className="justify-start px-0" aria-label={`Detalji i izvori: ${location.location_name}`} aria-expanded={detailsOpen} aria-controls={detailsOpen ? `details-${feature.id}` : undefined} onClick={(event) => onDetails(feature, event.currentTarget)}>
+          Detalji i izvori <ArrowUpRight data-icon="inline-end" />
+        </Button>
+      </CardFooter>
     </div>
-  </article>
+  </Card>
 }

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { Button } from '../ui/button'
 import { LocationCard } from './LocationCard'
 import type { LocationFeature } from './types'
 
@@ -59,8 +61,8 @@ export function LocationCarousel({ features, selectedId, detailsId, reveal, onSe
   }
   return <section className="location-carousel" aria-label="Popis objekata">
     <div className="carousel-controls">
-      <button type="button" aria-label="Prethodni vrtić" disabled={edges.start} onClick={() => move(-1)}>←</button>
-      <button type="button" aria-label="Sljedeći vrtić" disabled={edges.end} onClick={() => move(1)}>→</button>
+      <Button type="button" variant="outline" size="icon-lg" className="rounded-full" aria-label="Prethodni vrtić" disabled={edges.start} onClick={() => move(-1)}><ChevronLeft data-icon="inline-start" /></Button>
+      <Button type="button" variant="outline" size="icon-lg" className="rounded-full" aria-label="Sljedeći vrtić" disabled={edges.end} onClick={() => move(1)}><ChevronRight data-icon="inline-end" /></Button>
     </div>
     <ul ref={trackRef} className="location-track" aria-label="Vrtićki objekti">
       {features.map((feature) => <li className="location-slide" key={feature.id}><LocationCard feature={feature} selected={feature.id === selectedId} detailsOpen={feature.id === detailsId} onSelect={onSelect} onDetails={onDetails} /></li>)}
