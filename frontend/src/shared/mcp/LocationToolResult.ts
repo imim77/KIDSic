@@ -4,6 +4,10 @@ function record(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
+function areaKey(value: string): string {
+  return value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replaceAll('đ', 'd').replace(/^mjesni odbor /, '')
+}
+
 // LocationToolResult validates host data before it reaches map and card components.
 export class LocationToolResult {
   static async fromResult(result: { structuredContent?: unknown; _meta?: Record<string, unknown> }) {
@@ -16,7 +20,7 @@ export class LocationToolResult {
       const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
       locations = await new Response(stream).json()
     }
-    const parsed = this.parse({ city: summary.city, name: summary.name, provider_kind: summary.provider_kind, locations })
+    const parsed = this.parse({ city: summary.city, name: summary.name, provider_kind: summary.provider_kind, area: summary.area, locations })
     const metadata = summary.metadata
     if (!record(metadata) || metadata.total !== parsed.locations.metadata.total
       || metadata.mapped !== parsed.locations.metadata.mapped || metadata.unmapped !== parsed.locations.metadata.unmapped
@@ -24,10 +28,12 @@ export class LocationToolResult {
     return parsed
   }
 
-  static parse(value: unknown): { city: string; name?: string; provider_kind?: ProviderKind | null; locations: LocationCollection } {
+  static parse(value: unknown): { city: string; name?: string; provider_kind?: ProviderKind | null; area?: string; locations: LocationCollection } {
     if (!record(value) || typeof value.city !== 'string' || !value.city.trim()) throw new Error('Missing city')
     if (value.name !== undefined && (typeof value.name !== 'string' || value.name.trim().length > 200)) throw new Error('Invalid search name')
     if (value.provider_kind !== undefined && value.provider_kind !== null && !isProviderKind(value.provider_kind)) throw new Error('Invalid provider kind')
+    if (value.area !== undefined && (typeof value.area !== 'string' || value.area.trim().length > 200)) throw new Error('Invalid search area')
+    const area = typeof value.area === 'string' ? value.area.trim() : ''
     const data = value.locations
     if (!record(data) || data.type !== 'FeatureCollection' || !Array.isArray(data.features)
       || !record(data.metadata) || data.metadata.complete !== true || data.metadata.scope !== 'city'
@@ -44,6 +50,8 @@ export class LocationToolResult {
         || !isProviderKind(p.provider_kind)
         || !Array.isArray(p.sources)) throw new Error('Invalid properties')
       if (value.provider_kind != null && p.provider_kind !== value.provider_kind) throw new Error('Mismatched provider kind')
+      if (p.areas !== undefined && (!Array.isArray(p.areas) || !p.areas.every((name) => typeof name === 'string' && name.trim()))) throw new Error('Invalid areas')
+      if (area && (!Array.isArray(p.areas) || !p.areas.some((name: string) => areaKey(name) === areaKey(area)))) throw new Error('Mismatched area')
       if (['website_url', 'email', 'phone'].some((field) =>
         p[field] != null && typeof p[field] !== 'string')) throw new Error('Invalid contact')
       if (feature.geometry !== null) {
@@ -57,6 +65,7 @@ export class LocationToolResult {
     if (data.metadata.mapped !== mapped || data.metadata.unmapped !== data.features.length - mapped) throw new Error('Invalid counts')
     return { city: value.city.trim(), ...(value.name !== undefined ? { name: (value.name as string).trim() } : {}),
       ...(value.provider_kind !== undefined ? { provider_kind: value.provider_kind as ProviderKind | null } : {}),
+      ...(value.area !== undefined ? { area } : {}),
       locations: data as unknown as LocationCollection }
   }
 }

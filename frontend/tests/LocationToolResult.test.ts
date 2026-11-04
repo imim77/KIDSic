@@ -60,3 +60,23 @@ it('validates applied type and rejects results from a different category', () =>
   expect(() => LocationToolResult.parse({ city: 'Zagreb', provider_kind: 'private', locations: collection(facility('municipal')) }))
     .toThrow('Mismatched provider kind')
 })
+
+it('validates attested areas, matching diacritics and the optional administrative prefix', async () => {
+  const item = facility('area')
+  item.properties.areas = ['Mjesni odbor Pećine', 'Vulkan']
+  const locations = collection(item)
+  for (const area of [' pecine ', 'Mjesni odbor PEĆINE', 'Vulkan']) {
+    const parsed = await LocationToolResult.fromResult({ structuredContent: { city: 'Rijeka', area, metadata: locations.metadata }, _meta: { locations } })
+    expect(parsed.area).toBe(area.trim())
+  }
+  for (const area of [null, 1, [], {}, 'x'.repeat(201)]) {
+    expect(() => LocationToolResult.parse({ city: 'Rijeka', area, locations })).toThrow('Invalid search area')
+  }
+  for (const area of ['Peć', 'Missing', '%']) {
+    expect(() => LocationToolResult.parse({ city: 'Rijeka', area, locations })).toThrow('Mismatched area')
+  }
+  delete item.properties.areas
+  expect(() => LocationToolResult.parse({ city: 'Rijeka', area: 'Pećine', locations })).toThrow('Mismatched area')
+  Object.assign(item.properties, { areas: ['Pećine', 1] })
+  expect(() => LocationToolResult.parse({ city: 'Rijeka', locations })).toThrow('Invalid areas')
+})

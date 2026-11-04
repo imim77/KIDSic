@@ -16,7 +16,7 @@ class LocationQueryTests(unittest.TestCase):
     def test_invalid_queries_are_rejected(self):
         for values in ({'city': 'Split'}, {'city': 'Osijek'}, {'city': 'Sesvete'},
                        {'city': ' '}, {'city': 'x' * 101}, {'q': 'x' * 201},
-                       {'provider_kind': 'city'}, {'limit': 1},
+                       {'provider_kind': 'city'}, {'area': None}, {'area': ['Banfica']}, {'area': 'x' * 201}, {'limit': 1},
                        {'bbox': [15, 45, 16]}, {'bbox': [16, 45, 15, 46]},
                        {'bbox': [15, 46, 16, 45]}, {'bbox': [-181, 45, 16, 46]},
                        {'bbox': [15, -91, 16, 46]}, {'bbox': [15, 45, float('inf'), 46]},

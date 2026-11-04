@@ -35,6 +35,7 @@ class LocationService(LocationServiceInterface):
                     }, location_id=location_id, kindergarten_id=kindergarten_id,
                         website_url=dict(row).get('website_url'), email=dict(row).get('email'),
                         phone=dict(row).get('phone'),
+                        areas=dict(row).get('areas', []),
                         subsidy_policies=[self._subsidies.present(policy)
                             for policy in dict(row).get('subsidy_policies', [])],
                         field_sources=dict(row).get('field_sources', {})),

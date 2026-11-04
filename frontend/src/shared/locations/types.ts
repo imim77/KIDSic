@@ -45,6 +45,7 @@ export interface LocationProperties {
   email?: string | null
   phone?: string | null
   district: string | null
+  areas?: string[]
   location_role: 'facility' | 'seat'
   sources: LocationSource[]
   field_sources?: Record<string, LocationSource & { active_snapshot: boolean }>

@@ -50,6 +50,7 @@ Nakon povezivanja odabrati KIDSic aplikaciju u chatu i pokušati:
 - „Prikaži vrtić Bajka u Zagrebu.” → `{"city":"Zagreb","name":"Bajka"}`.
 - „Samo gradski vrtići u Zagrebu.” → `{"city":"Zagreb","provider_kind":"municipal"}`.
 - „Privatni vrtić Bajka u Varaždinu.” → `{"city":"Varaždin","name":"Bajka","provider_kind":"private"}`.
+- „Vrtići na Banfici u Varaždinu.” → `{"city":"Varaždin","area":"Banfica"}`.
 - „Tražim Čarobnu kućicu.” → pitati za grad, bez pretrage po pretpostavljenom gradu.
 - „Prikaži mi vrtiće u Splitu.” → poruka da su podržani Zagreb, Varaždin i Rijeka, bez čitanja baze.
 - „Prikaži mi vrtiće.” → AI pita „U kojem gradu želiš prikaz vrtića?” prije poziva.
@@ -74,16 +75,34 @@ Više vrsta u jednom pozivu nije podržano: prvo razjasniti koju korisnik želi,
 a ne prešutno odabrati samo jednu. Vrsta se kombinira s gradom i nazivom logikom
 AND, bez promjene razvrstavanja podataka ili boja oznaka na karti.
 
-Uspješan rezultat uvijek vraća primijenjeni `city`, `name` i `provider_kind`. UI ih prikazuje
+Opcionalni `area` je jedan naziv četvrti, predjela ili naselja (triman, najviše
+200 znakova). Izostavljeno ili `""` znači sva područja; `null` i popis nisu
+podržani. Podudaranje je točno, bez razlikovanja velikih slova i hrvatskih
+dijakritika; prefiks `Mjesni odbor ` je opcionalan, pa `Zamet` podudara
+`Mjesni odbor Zamet`. AI klijent pretvara padež u nominativ, npr. „na Banfici”
+u `Banfica`. Ne pretražuju se naziv ni adresa vrtića kao zamjena za područje.
+Filter koristi aktualne zapise područja, uključujući geokodirana sjedišta s
+važećim dokazom i nepromijenjenom adresom. Nepoznato područje se ne pretpostavlja.
+OSM nazivi ne potvrđuju službene granice; pokrivenost je nepotpuna i nula
+rezultata ne dokazuje da u području nema vrtića.
+
+Svaki poziv sadrži sve odabrane kriterije. Na nastavak „A sada samo u Centru”
+klijent zadržava prethodno izričito utvrđen grad, naziv i vrstu ako ih korisnik
+želi zadržati, a šalje `area: "Centar"`. Na „Ukloni područje” izostavlja `area`
+ili šalje `""`. Server ne čuva razgovorno stanje. Ako grad ili željena promjena
+nisu jasni, klijent traži pojašnjenje. Promjena kriterija prikazuje novi skup
+rezultata i briše stari odabir kartice.
+
+Uspješan rezultat uvijek vraća primijenjeni `city`, `name`, `provider_kind` i `area`. UI ih prikazuje
 iznad karte, čuva ih pri ponovnom pokušaju i briše prethodni odabir pri novom
 upitu. Nula rezultata prikazuje praznu kartu s pozivom da se naziv provjeri ili
 skrati; server i UI ne proširuju pretragu automatski. Za sve vrste izostaviti `provider_kind` ili poslati `null`; za sve nazive
-izostaviti `name`. Novi poziv bez vrste ne nasljeđuje vrstu prethodne pretrage.
+izostaviti `name`. Novi poziv bez vrste ili područja ne nasljeđuje te filtre prethodne pretrage.
 
 Tumačenje prirodnog jezika i pitanje za nedostajući grad obavlja AI klijent
 prema opisu alata i uputama servera. Python server validira strukturirane
 argumente i izvršava determinističku pretragu; nema zasebnog LLM poziva ni
-novog chat polja u web aplikaciji. Dob, područje, RAG, usporedba i
+novog chat polja u web aplikaciji. Dob, RAG, usporedba i
 vodič za upis nisu parametri ovog koraka.
 
 Upute servera i opis alata zahtijevaju ovaj alat za prikaz vrtića. Svaki poziv je
@@ -94,9 +113,9 @@ pročitati rezultat, ali ne može prikazati interaktivnu kartu.
 
 ## Ugovor UI-ja i provjera
 
-Resurs `ui://kidsic/map-v11.html` ima MIME `text/html;profile=mcp-app`. Moderni
+Resurs `ui://kidsic/map-v12.html` ima MIME `text/html;profile=mcp-app`. Moderni
 `_meta.ui.resourceUri` i kompatibilni `openai/outputTemplate` povezuju ga s alatom.
-Uspješan rezultat ima sažetak `structuredContent: {city, name, provider_kind, metadata}`, uz deklarirani
+Uspješan rezultat ima sažetak `structuredContent: {city, name, provider_kind, area, metadata}`, uz deklarirani
 `outputSchema`. Potpuni GeoJSON prenosi se bez gubitka u `_meta.locations` kao
 `{encoding: "gzip+base64", data: "…"}`. UI ga dekodira preko pregledničkog
 `DecompressionStream` API-ja prije validacije. Time veliki gradski skupovi s
@@ -118,7 +137,7 @@ visinu dodijeljenog prozora. Klik na karticu traži fullscreen i otvara popis,
 detalje i kartu u stupcima (ispod 1100 px detalji prekrivaju popis, ispod 700 px
 kartu). Detalji prikazuju samo podatke iz izvora i navode što nije poznato;
 vanjske poveznice otvaraju se kroz `ui/open-link`. Nakon nadogradnje ponovno
-povezati konektor kako bi host preuzeo URI resursa v11 te pokrenuti novi poziv
+povezati konektor kako bi host preuzeo URI resursa v12 te pokrenuti novi poziv
 alata.
 Resurs deklarira CSP za Mapbox API, događaje, tiles i blob/data resurse. Host mora
 dopustiti Mapbox blob worker i WebGL; u suprotnom ostaju dostupne kartice. UI je
@@ -160,3 +179,6 @@ potvrditi podlogu, odabir kartica i izlazak iz fullscreena.
 
 Reference: [MCP Apps](https://modelcontextprotocol.io/extensions/apps/overview),
 [UI povezivanje u ChatGPT-u](https://developers.openai.com/plugins/build/chatgpt-ui).
+
+Scenariji za provjeru filtra područja i nastavaka razgovora nalaze se u
+[conversational_area.md](tests/fixtures/conversational_area.md).
