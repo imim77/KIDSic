@@ -27,8 +27,7 @@ are held in React state for this preview. Typography uses the system font stack 
 No device touch, screen reader session, native MCP host or reduced-motion browser
 emulation was checked. Existing production location rendering is unchanged.
 
-Screenshots: `frontend/design-preview/desktop.jpg` and
-`frontend/design-preview/mobile.jpg`. Open `/design.html` on the Vite dev server.
+Open `/design.html` on the Vite dev server.
 
 ## Typography and imagery revision
 
