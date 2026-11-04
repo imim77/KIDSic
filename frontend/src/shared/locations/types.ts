@@ -45,6 +45,23 @@ export interface LocationProperties {
   sources: LocationSource[]
   field_sources?: Record<string, LocationSource & { active_snapshot: boolean }>
   age_groups: null
+  subsidy_policies?: SubsidyPolicy[]
+}
+
+export interface SubsidyPolicy {
+  policy_key: string
+  title: string
+  summary: string
+  verification_status: 'verified' | 'partial'
+  verified_on: string
+  valid_from: string | null
+  valid_until: string | null
+  amount_kind: 'city_subsidy' | 'parent_fee'
+  rates: { label: string; city_subsidy_cents: number | null; parent_fee_cents: number | null }[]
+  conditions: string[]
+  reliefs: string[]
+  notes: string[]
+  sources: { title: string; url: string }[]
 }
 
 export type LocationFeature = Feature<Point | null, LocationProperties> & { id: string }

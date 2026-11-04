@@ -3,6 +3,56 @@ import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import { LocationDetails } from '../src/shared/locations/LocationDetails'
 import { facility } from './fixtures'
+import type { SubsidyPolicy } from '../src/shared/locations/types'
+
+const policy: SubsidyPolicy = {
+  policy_key: 'rijeka-private', title: 'Rijeka – vrtići drugih osnivača',
+  summary: 'Gradski udio: 335 € za jaslice i 275 € za vrtić.', verification_status: 'verified',
+  verified_on: '2026-11-04', valid_from: '2026-09-01', valid_until: '2027-08-31', amount_kind: 'city_subsidy',
+  rates: [{ label: 'Cjelodnevne jaslice', city_subsidy_cents: 33500, parent_fee_cents: null }],
+  conditions: ['Prebivalište u Rijeci.'], reliefs: [], notes: [],
+  sources: [{ title: 'Službeni program', url: 'https://sn.rijeka.hr/program/' }],
+}
+
+it('shows the selected policy, expands rates and opens the official source through the host', async () => {
+  const location = facility('subsidy')
+  location.properties.subsidy_policies = [policy]
+  const openLink = vi.fn()
+  render(<LocationDetails feature={location} onClose={() => {}} openLink={openLink} />)
+  expect(screen.getByText(policy.summary)).toBeVisible()
+  expect(screen.getByText(/Gradski udio · mjesečno po djetetu/)).toBeVisible()
+  expect(screen.getByText('Cjelodnevne jaslice')).not.toBeVisible()
+  await userEvent.click(screen.getByText('Tarife, olakšice i uvjeti'))
+  expect(screen.getByText('Cjelodnevne jaslice')).toBeVisible()
+  expect(screen.getByText('Prebivalište u Rijeci.')).toBeVisible()
+  await userEvent.click(screen.getByRole('link', { name: /Službeni program/ }))
+  expect(openLink).toHaveBeenLastCalledWith('https://sn.rijeka.hr/program/')
+})
+
+it('keeps unconfirmed amounts distinct from free care and replaces policy when selection changes', () => {
+  const location = facility('partial')
+  location.properties.subsidy_policies = [{ ...policy, title: 'Varaždin – dadilje',
+    summary: 'Aktualni iznos nije potvrđen.', verification_status: 'partial', rates: [] }]
+  const { rerender } = render(<LocationDetails feature={location} onClose={() => {}} />)
+  expect(screen.getByText('Iznos nije potvrđen')).toBeVisible()
+  expect(screen.queryByText(/0,00/)).toBeNull()
+  const other = facility('other')
+  other.properties.provider_kind = 'unknown'
+  rerender(<LocationDetails feature={other} onClose={() => {}} />)
+  expect(screen.queryByText('Aktualni iznos nije potvrđen.')).toBeNull()
+  expect(screen.getByText(/nema potvrđenog podatka o gradskom sufinanciranju/)).toBeVisible()
+})
+
+it('labels a public tariff as a parent fee rather than a city subsidy', async () => {
+  const location = facility('municipal')
+  location.properties.subsidy_policies = [{ ...policy, amount_kind: 'parent_fee',
+    rates: [{ label: 'Cjelodnevni', city_subsidy_cents: null, parent_fee_cents: 1991 }] }]
+  render(<LocationDetails feature={location} onClose={() => {}} />)
+  expect(screen.getByText(/Roditeljska cijena · mjesečno po djetetu/)).toBeVisible()
+  await userEvent.click(screen.getByText('Tarife, olakšice i uvjeti'))
+  expect(screen.getByText(/Roditelj: 19,91/)).toBeVisible()
+  expect(screen.queryByText(/Grad:/)).toBeNull()
+})
 
 it('shows published contacts, removes directions and sources, and closes on Escape', async () => {
   const location = facility('unmapped', false)

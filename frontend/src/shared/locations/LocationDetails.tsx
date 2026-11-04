@@ -1,6 +1,8 @@
 import { useEffect, useRef, type MouseEvent } from 'react'
 import { Building2, MapPin, X } from 'lucide-react'
 import { providerLabels, type LocationFeature } from './types'
+import { websiteHref } from './links'
+import { SubsidyDetails } from './SubsidyDetails'
 
 interface LocationDetailsProps {
   feature: LocationFeature
@@ -8,14 +10,6 @@ interface LocationDetailsProps {
   openLink?: (url: string) => void
 }
 
-function websiteHref(value: string | null | undefined) {
-  const text = value?.trim()
-  if (!text || !/^(https?:\/\/|[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?::\d+)?(?:[/?#]|$))/i.test(text)) return undefined
-  try {
-    const url = new URL(text.includes('://') ? text : `https://${text}`)
-    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : undefined
-  } catch { return undefined }
-}
 
 function phoneHref(value: string) {
   const digits = value.replace(/\D/g, '')
@@ -73,13 +67,15 @@ export function LocationDetails({ feature, onClose, openLink }: LocationDetailsP
           </dl>
         </>}
 
+        <SubsidyDetails policies={location.subsidy_policies ?? []} openLink={openLink} />
+
         <h3>O ovom objektu</h3>
         <dl>
           <dt>Vrsta</dt><dd>{providerLabels[location.provider_kind]}</dd>
           <dt>Četvrt</dt><dd>{location.district ?? 'Nije navedena'}</dd>
           <dt>Grad</dt><dd>{location.city}</dd>
         </dl>
-        <p className="location-details-note">Dobne skupine, slobodna mjesta i cijene nisu dio otvorenih podataka. Provjerite ih izravno kod vrtića.</p>
+        <p className="location-details-note">Dobne skupine, slobodna mjesta i konačnu cijenu za svoju obitelj provjerite izravno kod vrtića.</p>
 
       </div>
     </div>
