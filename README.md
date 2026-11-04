@@ -146,6 +146,12 @@ postoje, a objekti bez koordinata dostupni su u popisu bez oznake na karti.
 Skup ima starije objekte; datum izmjene resursa ne potvrđuje aktualnost
 svakog retka. Uvoz ne provodi geokodiranje.
 
+Jednokratno pregledana geografija za 27 riječkih objekata nalazi se u
+lokalnoj snimci opisanoj u [data-enrichment/README.md](data-enrichment/README.md#riječki-objekti-vrtića).
+Za ostala 23 objekta nije prihvaćeno dovoljno precizno OSM podudaranje.
+Upis čuva postojeće identitete i kontakte, a promjena CSV adrese poništava
+primjenjivost starog geografskog dokaza do novog pregleda.
+
 ### Varaždinski obrti za dadilje
 
 Skup iz CKAN API-ja (`package_show`) vodi do CSV datoteke: DataStore nije uključen. CSV se čita kao UTF-8 s mogućim BOM-om, razdjelnikom `;` i navodnicima. Prazni retci se preskaču, a neispravan broj stupaca, kodiranje ili obvezna polja prekidaju uvoz prije upisa. Vrijede isto ograničenje veličine odgovora i obrada HTTP pogrešaka kao za JSON izvore.

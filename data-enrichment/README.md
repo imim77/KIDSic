@@ -120,3 +120,62 @@ ignoriraju je ako se adresa promijeni ili geografski izvor postane neaktivan.
 MCP prikaz nakon ovoga vraća 33 lokacije s koordinatama: 19 objekata vrtića i
 14 sjedišta obrta. Sjedišta zadržavaju identitet `seat:<kindergarten_id>` i
 na kartici imaju jasnu oznaku „Sjedište”.
+
+## Riječki objekti vrtića
+
+`rijeka-nominatim-cache.json` čuva jednokratne serijske adresne i imenovane
+OSM pretrage; `rijeka-reviewed-geography.json` čuva pregledane odluke i
+odbačene kandidate za svih 50 objekata izvora `rijeka-kindergartens`.
+Obje datoteke su lokalne generirane snimke, izuzete iz Gita. Uvoz nema
+mrežnih zahtjeva i nije ovisnost aplikacije tijekom korištenja.
+
+```sh
+uv run python data-enrichment/import_rijeka_geography.py
+uv run python data-enrichment/import_rijeka_geography.py --apply
+```
+
+Pregled od 2026-11-04 potvrđuje 27 lokacija: točne adresne točke/zgrade i
+imenovane vrtićke POI-je. Za preostala 23 objekta nema dovoljno preciznog
+podudaranja; središta ulica i susjedni kućni brojevi nisu prihvaćeni.
+Svih 27 potvrđenih lokacija ima OSM `suburb`, a 11 `neighbourhood`.
+`quarter` nije izmišljen; oznake poput `Mjesni odbor Zamet` čuvaju se kao
+OSM `suburb`, bez proglašavanja službenih granica ili zamjene `district`.
+
+Školske zgrade na objavljenim adresama Topolina, Gabbiana, Kozale i Vala
+predstavljaju adresno podudaranje, bez tvrdnje o zasebnom ulazu. Za Žirafu
+Ante Mandića 50 označava kompleks Islamskog centra; rad vrtića na toj adresi
+potvrđuje [službeni godišnji plan](https://zirafa-vrtic.com/wp-content/uploads/2024/10/GPP-DV-Zirafa-2024-2025.pdf).
+To ne mijenja privatni tip pružatelja. Za Gardelin i Vežicu korišten je
+imenovani vrtićki POI: OSM navodi obližnju ulicu bez broja, a službena CSV
+adresa ostaje sačuvana. Drenova je imenovana OSM vrtićka zgrada u ulici
+Stanka Frankovića, bez OSM broja. Krnjevo je prihvaćeno prema adresi Karasova
+4, uz zabilježenu razliku naziva (`Vrtić Turnić`) u OSM-u.
+
+Dodatni pregled koristi OSM izvadak od 5898 adresnih/vrtićkih elemenata
+(`rijeka-osm-addresses-cache.json`) te pretragu naziva neovisno o kategoriji
+(`rijeka-osm-names-cache.json`). Pronađena je imenovana zgrada `Vrtić
+Podmurvice` u Cavtatskoj ulici, OSM way `1088777755`, pa je dodana 27. točka.
+Mavrica sada koristi imenovani vrtićki POI `1118773461`, umjesto adresne
+zgrade u istom kompleksu. Prethodni kandidat ostaje sačuvan u snimci.
+Za svaki neriješeni objekt spremljen je konkretan razlog odbijanja:
+primjerice Bujska ima 11/15/15a, ali ne 17; Braće Fučak ima 5a, ali ne 5c;
+Rastočine imaju stambenu zgradu 5 bez potvrđenog vrtićkog ulaza 5/A.
+Nema automatskog preslikavanja susjednih brojeva niti središta ulica.
+
+Uvoz zahtijeva postojeću aktivnu CSV vezu, nepromijenjeni naziv/adresu i
+identitete objekta/ustanove. Ne stvara ustanove ni lokacije. Koristi isti
+advisory lock kao CKAN sinkronizacija, transakcijsku aktivaciju snimke,
+izvorne odgovore i provenijenciju svakog geografskog polja. Ručne ispravke
+područja i postojeći kontakti ostaju očuvani. Geografski RAG dokumenti ne
+potvrđuju dobne uvjete, programe ili slobodna mjesta.
+
+Ako kasniji CSV promijeni adresu, prethodni geografski `source_record` s
+`reviewed_address` postaje kandidat za novi pregled: API tada ne prikazuje
+staru točku, a područja i RAG ne koriste taj dokaz. Ponavljanje istog CSV-a
+čuva pregledanu geografiju i identitete.
+
+GIS/WMS nije korišten, u skladu s korisnikovim odabirom OSM izvora.
+CSV zapis KBC Kantrida
+ostaje za provjeru jer Grad sada govori o bivšoj bolnici na tom lokalitetu.
+Izvori: [GIS katalog](https://data.rijeka.hr/dataset/gis-grad-rijeka),
+[bivša bolnica Kantrida](https://www.rijeka.hr/rezultati-visekruznog-savjetovanja-o-buducoj-namjeni-kompleksa-bivse-djecje-bolnice-kantrida/).

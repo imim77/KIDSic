@@ -178,6 +178,15 @@ class AsyncpgSourceRepository(SourceRepository):
                     ''', owner, row.location_name, row.settlement, settlement_key, row.address)
                     counts['locations_added'] += 1
                     locations.append({'id': location, 'kindergarten_id': owner})
+                # Reviewed address geography cannot follow a moved facility.
+                # Demotion also removes its area/RAG evidence from active reads.
+                await self._connection.execute('''
+                    UPDATE source_record SET match_status='candidate',
+                        match_note='Address changed; geography requires another review.'
+                    WHERE location_id=$1 AND match_status='accepted'
+                      AND raw_data ? 'reviewed_address'
+                      AND raw_data->>'reviewed_address' IS DISTINCT FROM $2
+                ''', location, row.address)
                 await self._connection.execute('''
                     UPDATE location SET name=$2,settlement=$3,settlement_key=$4,address=$5,
                         kind=CASE WHEN $6='unknown' THEN kind ELSE $6 END,
