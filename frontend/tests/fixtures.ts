@@ -1,4 +1,11 @@
-import type { LocationCollection, LocationFeature } from '../src/shared/locations/types'
+import type { HistoricalEvidence, LocationCollection, LocationFeature, LocationProgram } from '../src/shared/locations/types'
+
+export function historicalEvidence(overrides: Partial<HistoricalEvidence> = {}): HistoricalEvidence {
+  return { reference_date: '2025-01-01', date_kind: 'observed', scope: 'institution', programs: [],
+    vacancies: [{ age_label: 'od 1 do 2 godine', program: 'REDOVITI PROGRAM', free_places: 0 }],
+    source_title: 'Synthetic open snapshot', source_url: 'https://example.invalid/historical.csv',
+    license: 'Otvorena dozvola (OD)', ...overrides }
+}
 
 // These deliberately synthetic fixtures must never be presented as real facilities.
 export function facility(id: string, located = true): LocationFeature {
@@ -36,8 +43,16 @@ export function collection(...features: LocationFeature[]): LocationCollection {
   return {
     type: 'FeatureCollection',
     features,
-    metadata: { total: features.length, mapped, unmapped: features.length - mapped, scope: 'city', complete: true },
+    metadata: { total: features.length, mapped, unmapped: features.length - mapped, scope: 'city', complete: true,
+      confirmed: features.filter((f) => f.properties.suitability_status === 'confirmed').length,
+      unknown: features.filter((f) => f.properties.suitability_status === 'unknown').length },
   }
+}
+
+export function programEvidence(overrides: Partial<LocationProgram> = {}): LocationProgram {
+  return { program_id: 'synthetic-program', name: 'Montessori', min_age_months: 12, max_age_months_exclusive: 36,
+    verified_on: '2026-11-04', valid_until: null, source_record_id: 'synthetic-record',
+    source_url: 'https://example.invalid/program', source_title: 'Synthetic program source', scope: 'facility', ...overrides }
 }
 
 export function deferred<T>() {

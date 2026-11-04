@@ -6,7 +6,7 @@ import { KindergartenMap } from '../map/KindergartenMap'
 import { LocationCarousel } from '../locations/LocationCarousel'
 import { LocationDetails } from '../locations/LocationDetails'
 import { LocationList } from '../locations/LocationList'
-import { providerLabels, type LocationCollection, type ProviderKind } from '../locations/types'
+import type { LocationCollection } from '../locations/types'
 
 interface KindergartenExplorerProps {
   data: LocationCollection | null
@@ -17,22 +17,14 @@ interface KindergartenExplorerProps {
   hostFullscreen?: HostFullscreen
   notice?: string
   emptyNotice?: string
-  criteria?: { city: string; name?: string; provider_kind?: ProviderKind | null; area?: string }
   openLink?: (url: string) => void
 }
 
 // KindergartenExplorer keeps every map overlay in the same fullscreen frame.
 // Choosing a card expands it into list, details and map columns; narrow
 // screens keep the card deck and show details over the map instead.
-export function KindergartenExplorer({ hostFullscreen, criteria, ...props }: KindergartenExplorerProps) {
+export function KindergartenExplorer({ hostFullscreen, ...props }: KindergartenExplorerProps) {
   return <FullscreenFrame className="kindergarten-explorer" hostFullscreen={hostFullscreen}>
-    {criteria && <header className="explorer-search-summary" aria-label="Kriteriji pretrage">
-      <strong>Grad: {criteria.city}</strong>
-      {criteria.name && <span>Naziv: „{criteria.name}”</span>}
-      <span>Vrsta: {criteria.provider_kind ? providerLabels[criteria.provider_kind] : 'Sve vrste'}</span>
-      <span>Područje: {criteria.area || 'Sva područja'}</span>
-      {criteria.area && <span>Prikaz prema potvrđenim nazivima područja. Pokrivenost je nepotpuna; OSM nazivi nisu službene granice.</span>}
-    </header>}
     <ExplorerLayout {...props} />
   </FullscreenFrame>
 }
@@ -53,7 +45,7 @@ function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emp
   }
 
   const panels = expanded && roomy && !!data?.features.length
-  return <div ref={layoutRef} className="explorer-layout" data-layout={panels ? 'panels' : 'map'} data-details={expanded && selected ? '' : undefined}>
+  return <div ref={layoutRef} className="explorer-layout" data-suitability={data?.features.some((feature) => feature.properties.suitability_status === 'confirmed') ? '' : undefined} data-layout={panels ? 'panels' : 'map'} data-details={expanded && selected ? '' : undefined}>
     {panels && <LocationList collection={data!} selectedId={selectedId} onSelect={onSelect} />}
     {expanded && selected && <LocationDetails key={selected.id} feature={selected} onClose={closeDetails} openLink={openLink} />}
     <div className="explorer-map">

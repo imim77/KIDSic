@@ -3,6 +3,8 @@ import { Building2, MapPin, X } from 'lucide-react'
 import { providerLabels, type LocationFeature } from './types'
 import { websiteHref } from './links'
 import { SubsidyDetails } from './SubsidyDetails'
+import { ProgramDetails } from './ProgramDetails'
+import { HistoricalDetails } from './HistoricalDetails'
 
 interface LocationDetailsProps {
   feature: LocationFeature
@@ -67,6 +69,8 @@ export function LocationDetails({ feature, onClose, openLink }: LocationDetailsP
           </dl>
         </>}
 
+        <ProgramDetails location={location} openLink={openLink} />
+        <HistoricalDetails records={location.historical_data ?? []} openLink={openLink} />
         <SubsidyDetails policies={location.subsidy_policies ?? []} openLink={openLink} />
 
         <h3>O ovom objektu</h3>

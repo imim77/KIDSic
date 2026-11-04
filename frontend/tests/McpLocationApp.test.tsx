@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { McpLocationApp } from '../src/views/mcp/McpLocationApp'
-import { collection, deferred, facility } from './fixtures'
+import { collection, deferred, facility, programEvidence } from './fixtures'
 import { LocationToolResult } from '../src/shared/mcp/LocationToolResult'
 
 const host = vi.hoisted(() => ({
@@ -38,6 +38,14 @@ async function result(city: string, id?: string, name?: string) {
   const locations = collection(...(id ? [facility(id)] : []))
   if (locations.features[0]) locations.features[0].properties.website_url = 'https://example.invalid/kindergarten'
   await act(async () => host.instance.ontoolresult({ structuredContent: { city, name, metadata: locations.metadata }, _meta: { locations } }))
+}
+
+async function expectRetry(criteria: Record<string, unknown>) {
+  await act(async () => host.instance.ontoolresult({ isError: true }))
+  const locations = collection()
+  host.call.mockResolvedValueOnce({ structuredContent: { ...criteria, metadata: locations.metadata }, _meta: { locations } })
+  await userEvent.click(screen.getByRole('button', { name: 'Pokušaj ponovno' }))
+  expect(host.call).toHaveBeenLastCalledWith({ name: 'prikazi_vrtice', arguments: criteria })
 }
 
 it('asks for a city and never fetches default Zagreb from the embedded UI', async () => {
@@ -92,7 +100,6 @@ it('rejects malformed results, and a chosen card opens host fullscreen details',
   expect(screen.getByRole('button', { name: 'Vrati prikaz' })).toBeVisible()
   expect(screen.getByRole('list', { name: 'Svi vrtići' })).toBeVisible()
   expect(screen.getByRole('region', { name: 'Detalji: Synthetic facility first' })).toBeVisible()
-  expect(screen.getByText('Grad: Zagreb')).toBeVisible()
   // Sandboxed hosts block navigation, so outbound links go through the bridge.
   await userEvent.click(screen.getByRole('link', { name: 'Web stranica vrtića' }))
   expect(host.link).toHaveBeenCalledWith({ url: 'https://example.invalid/kindergarten' })
@@ -117,11 +124,9 @@ it('ignores decompression finishing after results for another city', async () =>
   expect(screen.queryByText('Synthetic facility old')).toBeNull()
 })
 
-it('shows applied name and city, preserves both on retry and explains empty name matches', async () => {
+it('preserves city and name on retry and explains empty name matches', async () => {
   render(<McpLocationApp />)
   await act(async () => host.instance.ontoolinput({ arguments: { city: 'Rijeka', name: ' Zamet ' } }))
-  expect(screen.getByText('Grad: Rijeka')).toBeVisible()
-  expect(screen.getByText('Naziv: „Zamet”')).toBeVisible()
   await act(async () => host.instance.ontoolresult({ isError: true }))
   const locations = collection()
   host.call.mockResolvedValueOnce({ structuredContent: { city: 'Rijeka', name: 'Zamet', metadata: locations.metadata }, _meta: { locations } })
@@ -130,15 +135,13 @@ it('shows applied name and city, preserves both on retry and explains empty name
   expect(screen.getByText(/Nema rezultata za grad Rijeka, naziv „Zamet”/)).toBeVisible()
   expect(screen.queryByRole('alert')).toBeNull()
   await result('Rijeka', 'bajka', 'Bajka')
-  expect(screen.getByText('Naziv: „Bajka”')).toBeVisible()
-  expect(screen.queryByText('Naziv: „Zamet”')).toBeNull()
+  await expectRetry({ city: 'Rijeka', name: 'Bajka' })
   expect(fetch).not.toHaveBeenCalled()
 })
 
 it('keeps all three filters on retry and clears the type when the next search omits it', async () => {
   render(<McpLocationApp />)
   await act(async () => host.instance.ontoolinput({ arguments: { city: 'Rijeka', name: 'Bajka', provider_kind: 'private' } }))
-  expect(screen.getByText('Vrsta: Privatni vrtić')).toBeVisible()
   await act(async () => host.instance.ontoolresult({ isError: true }))
   const locations = collection()
   host.call.mockResolvedValueOnce({ structuredContent: {
@@ -149,17 +152,13 @@ it('keeps all three filters on retry and clears the type when the next search om
   expect(screen.getByText(/Nema rezultata za grad Rijeka, naziv „Bajka”, vrstu „Privatni vrtić”/)).toBeVisible()
   await act(async () => host.instance.ontoolinput({ arguments: { city: 'Rijeka' } }))
   await result('Rijeka', 'any')
-  expect(screen.getByText('Vrsta: Sve vrste')).toBeVisible()
-  expect(screen.queryByText('Vrsta: Privatni vrtić')).toBeNull()
-  expect(screen.queryByText('Naziv: „Bajka”')).toBeNull()
+  await expectRetry({ city: 'Rijeka' })
 })
 
 it('preserves the area with all filters on retry, replaces it on a follow-up and clears it when omitted', async () => {
   render(<McpLocationApp />)
   const criteria = { city: 'Varaždin', name: 'Bajka', provider_kind: 'private', area: 'Banfica' }
   await act(async () => host.instance.ontoolinput({ arguments: criteria }))
-  expect(screen.getByText('Područje: Banfica')).toBeVisible()
-  expect(screen.getByText(/Pokrivenost je nepotpuna/)).toBeVisible()
   await act(async () => host.instance.ontoolresult({ isError: true }))
   const locations = collection()
   host.call.mockResolvedValueOnce({ structuredContent: { ...criteria, metadata: locations.metadata }, _meta: { locations } })
@@ -167,12 +166,41 @@ it('preserves the area with all filters on retry, replaces it on a follow-up and
   expect(host.call).toHaveBeenLastCalledWith({ name: 'prikazi_vrtice', arguments: criteria })
   expect(screen.getByText(/područje „Banfica”.*to ne znači da ondje nema vrtića/)).toBeVisible()
   await act(async () => host.instance.ontoolinput({ arguments: { ...criteria, area: 'Centar' } }))
-  expect(screen.getByText('Područje: Centar')).toBeVisible()
-  expect(screen.queryByText('Područje: Banfica')).toBeNull()
-  expect(screen.getByText('Naziv: „Bajka”')).toBeVisible()
+  await expectRetry({ ...criteria, area: 'Centar' })
   await act(async () => host.instance.ontoolinput({ arguments: { city: 'Varaždin' } }))
   await result('Varaždin', 'all')
-  expect(screen.getByText('Područje: Sva područja')).toBeVisible()
-  expect(screen.queryByText('Područje: Centar')).toBeNull()
-  expect(screen.queryByText(/Pokrivenost je nepotpuna/)).toBeNull()
+  await expectRetry({ city: 'Varaždin' })
+})
+
+it('preserves age, program and confirmed-only choice with other criteria on retry and clears them in a new search', async () => {
+  render(<McpLocationApp />)
+  const criteria = { city: 'Varaždin', name: 'Bajka', area: 'Centar', provider_kind: 'private',
+    age_months: 0, program: 'Montessori', include_unknown: false }
+  await act(async () => host.instance.ontoolinput({ arguments: criteria }))
+  await act(async () => host.instance.ontoolresult({ isError: true }))
+  const locations = collection()
+  host.call.mockResolvedValueOnce({ structuredContent: { ...criteria, metadata: locations.metadata }, _meta: { locations } })
+  await userEvent.click(screen.getByRole('button', { name: 'Pokušaj ponovno' }))
+  expect(host.call).toHaveBeenLastCalledWith({ name: 'prikazi_vrtice', arguments: criteria })
+  expect(screen.getByText(/Nema podataka koji potvrđuju zadane uvjete/)).toBeVisible()
+  await act(async () => host.instance.ontoolinput({ arguments: { city: 'Rijeka' } }))
+  await result('Rijeka', 'new')
+  await expectRetry({ city: 'Rijeka' })
+})
+
+it('shows confirmed badges and sourced program details without unknown-condition labels', async () => {
+  render(<McpLocationApp />)
+  const confirmed = facility('eligible')
+  Object.assign(confirmed.properties, { suitability_status: 'confirmed', programs: [programEvidence()] })
+  const unknown = facility('unconfirmed', false)
+  unknown.properties.suitability_status = 'unknown'
+  const locations = collection(confirmed, unknown)
+  await act(async () => host.instance.ontoolresult({ structuredContent: {
+    city: 'Zagreb', age_months: 24, program: 'Montessori', include_unknown: true, metadata: locations.metadata }, _meta: { locations } }))
+  expect(screen.queryByText('Uvjeti nisu potvrđeni')).toBeNull()
+  await userEvent.click(screen.getByRole('button', { name: /Synthetic facility eligible.*Synthetic address/ }))
+  expect(screen.queryByText('Uvjeti nisu potvrđeni')).toBeNull()
+  expect(screen.getByRole('region', { name: 'Programi i dobni uvjeti' })).toBeVisible()
+  await userEvent.click(screen.getByRole('link', { name: /Synthetic program source/ }))
+  expect(host.link).toHaveBeenLastCalledWith({ url: 'https://example.invalid/program' })
 })

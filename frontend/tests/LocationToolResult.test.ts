@@ -2,9 +2,20 @@ import { Blob } from 'node:buffer'
 import { gzipSync } from 'node:zlib'
 import { afterEach, expect, it, vi } from 'vitest'
 import { LocationToolResult } from '../src/shared/mcp/LocationToolResult'
-import { collection, facility } from './fixtures'
+import { collection, facility, historicalEvidence, programEvidence } from './fixtures'
 
 afterEach(() => vi.unstubAllGlobals())
+
+it('validates historical snapshots independently of current eligibility', () => {
+  const data = collection(facility('history'))
+  data.features[0].properties.historical_data = [historicalEvidence()]
+  expect(LocationToolResult.parse({ city: 'Zagreb', locations: data }).locations).toEqual(data)
+  for (const invalid of [{ reference_date: '2025-02-30' }, { scope: 'unknown' },
+    { vacancies: [{ age_label: null, program: null, free_places: -1 }] }, { programs: [123] }]) {
+    Object.assign(data.features[0].properties, { historical_data: [{ ...historicalEvidence(), ...invalid }] })
+    expect(() => LocationToolResult.parse({ city: 'Zagreb', locations: data })).toThrow('Invalid historical data')
+  }
+})
 
 function compressed(data: unknown) {
   return { encoding: 'gzip+base64', data: gzipSync(JSON.stringify(data)).toString('base64') }
@@ -79,4 +90,39 @@ it('validates attested areas, matching diacritics and the optional administrativ
   expect(() => LocationToolResult.parse({ city: 'Rijeka', area: 'Pećine', locations })).toThrow('Mismatched area')
   Object.assign(item.properties, { areas: ['Pećine', 1] })
   expect(() => LocationToolResult.parse({ city: 'Rijeka', locations })).toThrow('Invalid areas')
+})
+
+it('requires one sourced program matching both age and requested program before confirming suitability', () => {
+  const item = facility('confirmed')
+  Object.assign(item.properties, { suitability_status: 'confirmed', programs: [programEvidence()] })
+  const criteria = { city: 'Zagreb', age_months: 24, program: ' montessori ', include_unknown: false }
+  expect(LocationToolResult.parse({ ...criteria, locations: collection(item) }).program).toBe('montessori')
+  item.properties.programs = [programEvidence({ max_age_months_exclusive: 24 })]
+  expect(() => LocationToolResult.parse({ ...criteria, locations: collection(item) })).toThrow('Missing matching program evidence')
+  item.properties.programs = [programEvidence({ name: 'General' }), programEvidence({ min_age_months: 36, max_age_months_exclusive: 84 })]
+  expect(() => LocationToolResult.parse({ ...criteria, locations: collection(item) })).toThrow('Missing matching program evidence')
+  item.properties.programs = [programEvidence({ source_url: '' })]
+  expect(() => LocationToolResult.parse({ ...criteria, locations: collection(item) })).toThrow('Invalid programs')
+  item.properties.programs = [programEvidence({ scope: 'facility' })]
+  item.properties.location_role = 'seat'
+  expect(() => LocationToolResult.parse({ ...criteria, locations: collection(item) })).toThrow('Invalid seat program scope')
+})
+
+it('rejects invalid age and program criteria, missing suitability and misleading counts', () => {
+  for (const age_months of [-1,217,24.5,'24',true,[]]) {
+    expect(() => LocationToolResult.parse({ city: 'Zagreb', age_months, locations: collection() })).toThrow('Invalid child age')
+  }
+  for (const program of [null,[],true,'x'.repeat(201)]) {
+    expect(() => LocationToolResult.parse({ city: 'Zagreb', program, locations: collection() })).toThrow('Invalid search program')
+  }
+  expect(() => LocationToolResult.parse({ city: 'Zagreb', include_unknown: 'false', locations: collection() })).toThrow('Invalid unknown filter')
+  const item = facility('unknown')
+  const criteria = { city: 'Zagreb', age_months: 0 }
+  expect(() => LocationToolResult.parse({ ...criteria, locations: collection(item) })).toThrow('Missing suitability')
+  item.properties.suitability_status = 'unknown'
+  expect(LocationToolResult.parse({ ...criteria, locations: collection(item) }).age_months).toBe(0)
+  expect(() => LocationToolResult.parse({ ...criteria, include_unknown: false, locations: collection(item) })).toThrow('Unexpected unknown result')
+  const locations = collection(item)
+  locations.metadata.confirmed = 1
+  expect(() => LocationToolResult.parse({ ...criteria, locations })).toThrow('Invalid suitability counts')
 })

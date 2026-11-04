@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import { LocationDetails } from '../src/shared/locations/LocationDetails'
-import { facility } from './fixtures'
+import { facility, historicalEvidence, programEvidence } from './fixtures'
 import type { SubsidyPolicy } from '../src/shared/locations/types'
 
 const policy: SubsidyPolicy = {
@@ -13,6 +13,54 @@ const policy: SubsidyPolicy = {
   conditions: ['Prebivalište u Rijeci.'], reliefs: [], notes: [],
   sources: [{ title: 'Službeni program', url: 'https://sn.rijeka.hr/program/' }],
 }
+
+it('presents historical dates, institution scope and zero vacancies and routes source links through the host', async () => {
+  const item = facility('history')
+  item.properties.historical_data = [historicalEvidence(), historicalEvidence({ reference_date: '2019-10-09',
+    date_kind: 'published', scope: 'facility', vacancies: [], programs: ['Montessori', 'engleski jezik'],
+    source_url: 'https://example.invalid/programs.xlsx' })]
+  const openLink = vi.fn()
+  const { rerender } = render(<LocationDetails feature={item} onClose={() => {}} openLink={openLink} />)
+  expect(screen.getByText('Povijesni otvoreni podaci')).toBeVisible()
+  expect(screen.getByText('Slobodna mjesta: 0')).toBeVisible()
+  expect(screen.getByText(/Stanje na dan 01\. 01\. 2025\./)).toBeVisible()
+  expect(screen.getByText(/Objavljeno 09\. 10\. 2019\./)).toBeVisible()
+  expect(screen.getByText(/Podatak za cijelu ustanovu\/obrt/)).toBeVisible()
+  expect(screen.getByText('Montessori')).toBeVisible()
+  expect(screen.queryByText('Potvrđeno podudaranje')).toBeNull()
+  await userEvent.click(screen.getByText('Mjesta prema dobi i programu'))
+  expect(screen.getByText(/od 1 do 2 godine · redoviti program:/)).toBeVisible()
+  await userEvent.click(screen.getAllByRole('link', { name: /izvorni otvoreni skup/ })[0])
+  expect(openLink).toHaveBeenCalledWith('https://example.invalid/historical.csv')
+  rerender(<LocationDetails feature={facility('other')} onClose={() => {}} />)
+  expect(screen.queryByText('Povijesni otvoreni podaci')).toBeNull()
+})
+
+it('does not present a missing historical vacancy count as zero', async () => {
+  const item = facility('partial-history')
+  item.properties.historical_data = [historicalEvidence({ vacancies: [{ age_label: null, program: null, free_places: null }] })]
+  render(<LocationDetails feature={item} onClose={() => {}} />)
+  expect(screen.getByText('Slobodna mjesta: nepotpuni podaci')).toBeVisible()
+  expect(screen.queryByText('Slobodna mjesta: 0')).toBeNull()
+  await userEvent.click(screen.getByText('Mjesta prema dobi i programu'))
+  expect(screen.getByText('nije objavljeno')).toBeVisible()
+})
+
+it('shows evidence scope, explicit age bounds and missing-program notice without promising enrolment', () => {
+  const item = facility('program')
+  item.properties.suitability_status = 'confirmed'
+  item.properties.programs = [programEvidence({ scope: 'institution' })]
+  const { rerender } = render(<LocationDetails feature={item} onClose={() => {}} />)
+  expect(screen.getByText('Montessori')).toBeVisible()
+  expect(screen.getByText(/od 12 mjeseci; manje od 36 mjeseci/)).toBeVisible()
+  expect(screen.getByText(/Podatak za ustanovu; provedbu u ovom objektu treba provjeriti/)).toBeVisible()
+  expect(screen.getByText(/nije potvrda slobodnog mjesta ni jamstvo upisa/)).toBeVisible()
+  item.properties.programs = []
+  item.properties.suitability_status = 'unknown'
+  rerender(<LocationDetails feature={item} onClose={() => {}} />)
+  expect(screen.queryByText('Montessori')).toBeNull()
+  expect(screen.getByText(/To ne znači da program nije dostupan/)).toBeVisible()
+})
 
 it('shows the selected policy, expands rates and opens the official source through the host', async () => {
   const location = facility('subsidy')

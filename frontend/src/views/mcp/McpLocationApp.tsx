@@ -2,10 +2,10 @@ import { App } from '@modelcontextprotocol/ext-apps'
 import { useEffect, useRef, useState } from 'react'
 import { KindergartenExplorer } from '../../shared/explorer/KindergartenExplorer'
 import { LocationToolResult } from '../../shared/mcp/LocationToolResult'
-import { isProviderKind, providerLabels, type LocationCollection, type ProviderKind } from '../../shared/locations/types'
+import { isAgeMonths, isProviderKind, providerLabels, type LocationCollection, type SearchCriteria } from '../../shared/locations/types'
 import './mcp.css'
 
-type Snapshot = { city: string | null; name?: string; area?: string; provider_kind?: ProviderKind | null; data: LocationCollection | null; status: 'loading' | 'ready' | 'error'; notice?: string }
+type Snapshot = Omit<SearchCriteria, 'city'> & { city: string | null; data: LocationCollection | null; status: 'loading' | 'ready' | 'error'; notice?: string }
 const initial: Snapshot = { city: null, data: null, status: 'loading', notice: 'U kojem gradu želiš prikaz vrtića?' }
 
 // McpLocationApp receives city results exclusively through the MCP host bridge.
@@ -32,9 +32,12 @@ export function McpLocationApp() {
       const city = typeof args?.city === 'string' ? args.city.trim() : ''
       const name = typeof args?.name === 'string' ? args.name.trim() : ''
       const area = typeof args?.area === 'string' ? args.area.trim() : ''
+      const age_months = isAgeMonths(args?.age_months) ? args.age_months : null
+      const program = typeof args?.program === 'string' ? args.program.trim() : ''
+      const include_unknown = typeof args?.include_unknown === 'boolean' ? args.include_unknown : true
       const provider_kind = isProviderKind(args?.provider_kind) ? args.provider_kind : null
       setSelection(null)
-      setSnapshot(city ? { city, name, area, provider_kind, data: null, status: 'loading' } : initial)
+      setSnapshot(city ? { city, name, area, provider_kind, age_months, program, include_unknown, data: null, status: 'loading' } : initial)
     }
     app.ontoolresult = async (result) => {
       const request = ++revision.current
@@ -46,7 +49,7 @@ export function McpLocationApp() {
       try {
         const parsed = await LocationToolResult.fromResult(result)
         if (!active || request !== revision.current) return
-        setSnapshot({ city: parsed.city, name: parsed.name ?? '', area: parsed.area ?? '', provider_kind: parsed.provider_kind ?? null, data: parsed.locations, status: 'ready' })
+        setSnapshot({ city: parsed.city, name: parsed.name ?? '', area: parsed.area ?? '', provider_kind: parsed.provider_kind ?? null, age_months: parsed.age_months ?? null, program: parsed.program ?? '', include_unknown: parsed.include_unknown ?? true, data: parsed.locations, status: 'ready' })
       } catch {
         if (active && request === revision.current) setSnapshot((previous) => ({ ...previous, data: null, status: 'error' }))
       }
@@ -67,29 +70,31 @@ export function McpLocationApp() {
     const name = snapshot.name ?? ''
     const area = snapshot.area ?? ''
     const provider_kind = snapshot.provider_kind ?? null
+    const age_months = snapshot.age_months ?? null
+    const program = snapshot.program ?? ''
+    const include_unknown = snapshot.include_unknown ?? true
     if (!app || !city) { setSnapshot(initial); return }
     const request = ++revision.current
     setSelection(null)
-    setSnapshot({ city, name, area, provider_kind, data: null, status: 'loading' })
+    setSnapshot({ city, name, area, provider_kind, age_months, program, include_unknown, data: null, status: 'loading' })
     try {
-      const result = await app.callServerTool({ name: 'prikazi_vrtice', arguments: { city, ...(name ? { name } : {}), ...(provider_kind ? { provider_kind } : {}), ...(area ? { area } : {}) } })
+      const result = await app.callServerTool({ name: 'prikazi_vrtice', arguments: { city, ...(name ? { name } : {}), ...(provider_kind ? { provider_kind } : {}), ...(area ? { area } : {}), ...(age_months != null ? { age_months } : {}), ...(program ? { program } : {}), ...(age_months != null || program || !include_unknown ? { include_unknown } : {}) } })
       if (request !== revision.current) return
       if (result.isError) throw new Error('Tool failed')
       const parsed = await LocationToolResult.fromResult(result)
       if (request !== revision.current) return
-      setSnapshot({ city: parsed.city, name: parsed.name ?? '', area: parsed.area ?? '', provider_kind: parsed.provider_kind ?? null, data: parsed.locations, status: 'ready' })
+      setSnapshot({ city: parsed.city, name: parsed.name ?? '', area: parsed.area ?? '', provider_kind: parsed.provider_kind ?? null, age_months: parsed.age_months ?? null, program: parsed.program ?? '', include_unknown: parsed.include_unknown ?? true, data: parsed.locations, status: 'ready' })
     } catch {
-      if (request === revision.current) setSnapshot({ city, name, area, provider_kind, data: null, status: 'error' })
+      if (request === revision.current) setSnapshot({ city, name, area, provider_kind, age_months, program, include_unknown, data: null, status: 'error' })
     }
   }
 
-  const emptyNotice = snapshot.name || snapshot.provider_kind || snapshot.area
-    ? `Nema rezultata za grad ${snapshot.city}${snapshot.name ? `, naziv „${snapshot.name}”` : ''}${snapshot.provider_kind ? `, vrstu „${providerLabels[snapshot.provider_kind]}”` : ''}${snapshot.area ? `, područje „${snapshot.area}”` : ''}. Provjerite ili promijenite kriterije u razgovoru.${snapshot.area ? ' Nema zapisa s potvrđenim podudaranjem područja; to ne znači da ondje nema vrtića.' : ''}`
+  const emptyNotice = snapshot.name || snapshot.provider_kind || snapshot.area || snapshot.age_months != null || snapshot.program
+    ? `Nema rezultata za grad ${snapshot.city}${snapshot.name ? `, naziv „${snapshot.name}”` : ''}${snapshot.provider_kind ? `, vrstu „${providerLabels[snapshot.provider_kind]}”` : ''}${snapshot.area ? `, područje „${snapshot.area}”` : ''}${snapshot.age_months != null ? `, dob ${snapshot.age_months} mjeseci` : ''}${snapshot.program ? `, program „${snapshot.program}”` : ''}. Provjerite ili promijenite kriterije u razgovoru.${snapshot.area ? ' Nema zapisa s potvrđenim podudaranjem područja; to ne znači da ondje nema vrtića.' : ''}${snapshot.age_months != null || snapshot.program ? ' Nema podataka koji potvrđuju zadane uvjete; to nije dokaz da program nije dostupan.' : ''}`
     : undefined
 
   return <main className="mcp-location-app w-full overflow-hidden" data-display-mode={display.expanded ? 'fullscreen' : 'inline'} aria-label={snapshot.city ? `Vrtići: ${snapshot.city}` : 'Karta vrtićkih objekata'}>
     <KindergartenExplorer data={snapshot.data} status={snapshot.status} selectedId={selection} onSelect={setSelection}
-      criteria={snapshot.city ? { city: snapshot.city, name: snapshot.name, area: snapshot.area, provider_kind: snapshot.provider_kind } : undefined}
       notice={snapshot.notice}
       emptyNotice={emptyNotice}
       retry={() => { void retry() }}

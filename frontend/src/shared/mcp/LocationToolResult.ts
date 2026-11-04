@@ -1,11 +1,43 @@
-import { isProviderKind, type LocationCollection, type ProviderKind } from '../locations/types'
+import { isAgeMonths, isProviderKind, type LocationCollection, type LocationProgram, type ProviderKind, type SearchCriteria } from '../locations/types'
 
 function record(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
-function areaKey(value: string): string {
-  return value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replaceAll('đ', 'd').replace(/^mjesni odbor /, '')
+function textKey(value: string): string {
+  return value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replaceAll('đ', 'd')
+}
+
+const areaKey = (value: string) => textKey(value).replace(/^mjesni odbor /, '')
+
+function date(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const parsed = new Date(`${value}T00:00:00Z`)
+  return Number.isFinite(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value
+}
+
+function validProgram(value: unknown): value is LocationProgram {
+  if (!record(value)) return false
+  const min = value.min_age_months, max = value.max_age_months_exclusive
+  return ['program_id', 'name', 'source_record_id', 'source_url', 'source_title'].every((key) => typeof value[key] === 'string' && !!value[key].trim())
+    && ['institution', 'facility'].includes(String(value.scope))
+    && date(value.verified_on)
+    && (value.valid_until === null || date(value.valid_until) && value.valid_until >= value.verified_on)
+    && (min === null || typeof min === 'number' && Number.isInteger(min) && min >= 0)
+    && (max === null || typeof max === 'number' && Number.isInteger(max) && max > 0)
+    && (min == null || max == null || (max as number) > (min as number))
+}
+
+function validHistory(value: unknown): boolean {
+  if (!record(value)) return false
+  return date(value.reference_date) && ['published', 'observed'].includes(String(value.date_kind))
+    && ['institution', 'facility'].includes(String(value.scope))
+    && ['source_title', 'source_url', 'license'].every((key) => typeof value[key] === 'string' && !!value[key].trim())
+    && Array.isArray(value.programs) && value.programs.every((p) => typeof p === 'string' && !!p.trim())
+    && Array.isArray(value.vacancies) && value.vacancies.every((v) => record(v)
+      && (v.age_label === null || typeof v.age_label === 'string')
+      && (v.program === null || typeof v.program === 'string')
+      && (v.free_places === null || typeof v.free_places === 'number' && Number.isInteger(v.free_places) && v.free_places >= 0))
 }
 
 // LocationToolResult validates host data before it reaches map and card components.
@@ -20,31 +52,41 @@ export class LocationToolResult {
       const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
       locations = await new Response(stream).json()
     }
-    const parsed = this.parse({ city: summary.city, name: summary.name, provider_kind: summary.provider_kind, area: summary.area, locations })
+    const parsed = this.parse({ city: summary.city, name: summary.name, provider_kind: summary.provider_kind, area: summary.area,
+      age_months: summary.age_months, program: summary.program, include_unknown: summary.include_unknown, locations })
     const metadata = summary.metadata
     if (!record(metadata) || metadata.total !== parsed.locations.metadata.total
       || metadata.mapped !== parsed.locations.metadata.mapped || metadata.unmapped !== parsed.locations.metadata.unmapped
+      || metadata.confirmed !== parsed.locations.metadata.confirmed || metadata.unknown !== parsed.locations.metadata.unknown
       || metadata.scope !== 'city' || metadata.complete !== true) throw new Error('Mismatched summary')
     return parsed
   }
 
-  static parse(value: unknown): { city: string; name?: string; provider_kind?: ProviderKind | null; area?: string; locations: LocationCollection } {
+  static parse(value: unknown): SearchCriteria & { locations: LocationCollection } {
     if (!record(value) || typeof value.city !== 'string' || !value.city.trim()) throw new Error('Missing city')
     if (value.name !== undefined && (typeof value.name !== 'string' || value.name.trim().length > 200)) throw new Error('Invalid search name')
     if (value.provider_kind !== undefined && value.provider_kind !== null && !isProviderKind(value.provider_kind)) throw new Error('Invalid provider kind')
     if (value.area !== undefined && (typeof value.area !== 'string' || value.area.trim().length > 200)) throw new Error('Invalid search area')
+    if (value.age_months != null && !isAgeMonths(value.age_months)) throw new Error('Invalid child age')
+    if (value.program !== undefined && (typeof value.program !== 'string' || value.program.trim().length > 200)) throw new Error('Invalid search program')
+    if (value.include_unknown !== undefined && typeof value.include_unknown !== 'boolean') throw new Error('Invalid unknown filter')
     const area = typeof value.area === 'string' ? value.area.trim() : ''
+    const program = typeof value.program === 'string' ? value.program.trim() : ''
+    const evaluated = value.age_months != null || !!program
     const data = value.locations
     if (!record(data) || data.type !== 'FeatureCollection' || !Array.isArray(data.features)
       || !record(data.metadata) || data.metadata.complete !== true || data.metadata.scope !== 'city'
       || data.metadata.total !== data.features.length) throw new Error('Invalid locations')
     const ids = new Set<string>()
     let mapped = 0
+    let confirmed = 0, unknown = 0
     for (const feature of data.features) {
       if (!record(feature) || feature.type !== 'Feature' || typeof feature.id !== 'string' || ids.has(feature.id)
         || !record(feature.properties)) throw new Error('Invalid feature')
       ids.add(feature.id)
       const p = feature.properties
+      if (p.historical_data !== undefined && (!Array.isArray(p.historical_data) || !p.historical_data.every(validHistory))) throw new Error('Invalid historical data')
+      if (p.location_role === 'seat' && Array.isArray(p.historical_data) && p.historical_data.some((item) => record(item) && item.scope !== 'institution')) throw new Error('Invalid seat historical scope')
       if (typeof p.name !== 'string' || typeof p.location_name !== 'string' || typeof p.city !== 'string'
         || typeof p.kindergarten_id !== 'string' || !['facility', 'seat'].includes(String(p.location_role))
         || !isProviderKind(p.provider_kind)
@@ -52,6 +94,23 @@ export class LocationToolResult {
       if (value.provider_kind != null && p.provider_kind !== value.provider_kind) throw new Error('Mismatched provider kind')
       if (p.areas !== undefined && (!Array.isArray(p.areas) || !p.areas.every((name) => typeof name === 'string' && name.trim()))) throw new Error('Invalid areas')
       if (area && (!Array.isArray(p.areas) || !p.areas.some((name: string) => areaKey(name) === areaKey(area)))) throw new Error('Mismatched area')
+      if (p.programs !== undefined && (!Array.isArray(p.programs) || !p.programs.every(validProgram))) throw new Error('Invalid programs')
+      const programs = Array.isArray(p.programs) ? p.programs : []
+      if (p.location_role === 'seat' && programs.some((item) => item.scope !== 'institution')) throw new Error('Invalid seat program scope')
+      if (p.suitability_status !== undefined && !['not_evaluated', 'confirmed', 'unknown'].includes(String(p.suitability_status))) throw new Error('Invalid suitability')
+      if (evaluated && !['confirmed', 'unknown'].includes(String(p.suitability_status))) throw new Error('Missing suitability')
+      if (!evaluated && p.suitability_status != null && p.suitability_status !== 'not_evaluated') throw new Error('Unexpected suitability')
+      if (p.suitability_status === 'unknown') {
+        if (value.include_unknown === false) throw new Error('Unexpected unknown result')
+        unknown++
+      }
+      if (p.suitability_status === 'confirmed') {
+        const matches = programs.some((item) => textKey(item.name).includes(textKey(program))
+          && (value.age_months == null || typeof item.min_age_months === 'number' && typeof item.max_age_months_exclusive === 'number'
+            && item.min_age_months <= (value.age_months as number) && (value.age_months as number) < item.max_age_months_exclusive))
+        if (!matches) throw new Error('Missing matching program evidence')
+        confirmed++
+      }
       if (['website_url', 'email', 'phone'].some((field) =>
         p[field] != null && typeof p[field] !== 'string')) throw new Error('Invalid contact')
       if (feature.geometry !== null) {
@@ -63,9 +122,14 @@ export class LocationToolResult {
       }
     }
     if (data.metadata.mapped !== mapped || data.metadata.unmapped !== data.features.length - mapped) throw new Error('Invalid counts')
+    if ((evaluated || data.metadata.confirmed !== undefined || data.metadata.unknown !== undefined)
+      && (data.metadata.confirmed !== confirmed || data.metadata.unknown !== unknown)) throw new Error('Invalid suitability counts')
     return { city: value.city.trim(), ...(value.name !== undefined ? { name: (value.name as string).trim() } : {}),
       ...(value.provider_kind !== undefined ? { provider_kind: value.provider_kind as ProviderKind | null } : {}),
       ...(value.area !== undefined ? { area } : {}),
+      ...(value.age_months !== undefined ? { age_months: value.age_months as number | null } : {}),
+      ...(value.program !== undefined ? { program } : {}),
+      ...(value.include_unknown !== undefined ? { include_unknown: value.include_unknown as boolean } : {}),
       locations: data as unknown as LocationCollection }
   }
 }

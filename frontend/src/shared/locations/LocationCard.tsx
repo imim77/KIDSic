@@ -2,6 +2,7 @@ import { Building2 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import type { LocationFeature } from './types'
+import { SuitabilityBadge } from './ProgramDetails'
 
 interface LocationCardProps {
   feature: LocationFeature
@@ -27,6 +28,7 @@ export function LocationCard({ feature, selected, onSelect }: LocationCardProps)
         </CardTitle>
         <CardDescription className="truncate text-[13px]" title={address}>{address}</CardDescription>
       </CardHeader>
+      <SuitabilityBadge status={location.suitability_status} />
       {location.district && <CardContent className="min-w-0 p-0">
         <p className="truncate text-xs text-muted-foreground" title={location.district}>{location.district}</p>
       </CardContent>}

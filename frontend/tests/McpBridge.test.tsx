@@ -2,7 +2,7 @@ import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
 import { McpLocationApp } from '../src/views/mcp/McpLocationApp'
-import { collection, facility } from './fixtures'
+import { collection, facility, programEvidence } from './fixtures'
 
 vi.mock('../src/shared/map/KindergartenMap', () => ({ KindergartenMap: () => <div aria-label="Test map" /> }))
 afterEach(() => { vi.unstubAllGlobals(); Reflect.deleteProperty(Element.prototype, 'scrollTo') })
@@ -30,25 +30,25 @@ it('negotiates the real SDK postMessage bridge, receives results, and requests h
       source: window.parent, data: { jsonrpc: '2.0', id: request.id, result },
     })))
     if (request.method === 'ui/notifications/initialized') queueMicrotask(() => {
-      notify('ui/notifications/tool-input', { arguments: { city: 'Zagreb', name: 'Bajka', provider_kind: 'municipal', area: 'Črnomerec' } })
+      notify('ui/notifications/tool-input', { arguments: { city: 'Zagreb', name: 'Bajka', provider_kind: 'municipal', area: 'Črnomerec', age_months: 24, program: 'Montessori', include_unknown: false } })
       const locations = collection(facility('bridge'))
       locations.features[0].properties.areas = ['Črnomerec']
-      notify('ui/notifications/tool-result', { content: [], structuredContent: { city: 'Zagreb', name: 'Bajka', provider_kind: 'municipal', area: 'Črnomerec', metadata: locations.metadata }, _meta: { locations } })
+      locations.features[0].properties.suitability_status = 'confirmed'
+      locations.features[0].properties.programs = [programEvidence()]
+      locations.metadata.confirmed = 1
+      notify('ui/notifications/tool-result', { content: [], structuredContent: { city: 'Zagreb', name: 'Bajka', provider_kind: 'municipal', area: 'Črnomerec', age_months: 24, program: 'Montessori', include_unknown: false, metadata: locations.metadata }, _meta: { locations } })
     })
   })
   const { unmount } = render(<McpLocationApp />)
   expect(await screen.findByRole('button', { name: /Synthetic facility bridge.*Synthetic address/ })).toBeVisible()
   expect(methods).toContain('ui/initialize')
+  expect(screen.queryByLabelText('Kriteriji pretrage')).toBeNull()
   await userEvent.click(screen.getByRole('button', { name: 'Prikaži preko cijelog ekrana' }))
   expect(await screen.findByRole('button', { name: 'Vrati prikaz' })).toBeVisible()
   expect(methods).toContain('ui/request-display-mode')
-  expect(screen.getByText('Grad: Zagreb')).toBeVisible()
-  expect(screen.getByText('Naziv: „Bajka”')).toBeVisible()
-  expect(screen.getByText('Vrsta: Gradski vrtić')).toBeVisible()
-  expect(screen.getByText('Područje: Črnomerec')).toBeVisible()
+  expect(screen.queryByLabelText('Kriteriji pretrage')).toBeNull()
   await act(async () => notify('ui/notifications/tool-input', { arguments: {} }))
   expect(screen.getByText('U kojem gradu želiš prikaz vrtića?')).toBeVisible()
   expect(screen.queryByText('Synthetic facility bridge')).toBeNull()
-  expect(screen.queryByText('Naziv: „Bajka”')).toBeNull()
   unmount()
 })

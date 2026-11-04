@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Building2 } from 'lucide-react'
 import { providerLabels, type LocationCollection } from './types'
+import { SuitabilityBadge } from './ProgramDetails'
 
 interface LocationListProps {
   collection: LocationCollection
@@ -43,6 +44,7 @@ export function LocationList({ collection, selectedId, onSelect }: LocationListP
               <span className="location-thumbnail" aria-hidden="true"><Building2 /></span>
               <span className="location-row-text">
                 <span className="location-row-kind">{providerLabels[location.provider_kind]}</span>
+                <SuitabilityBadge status={location.suitability_status} />
                 <span className="location-row-name">{location.location_name}</span>
                 <span className="location-row-address">{location.address ?? 'Adresa nije poznata'}</span>
                 {location.district && <span className="location-row-district">{location.district}</span>}
