@@ -60,6 +60,9 @@ class LocationProperties(BaseModel):
     address: str | None
     city: str
     provider_kind: ProviderKind
+    website_url: str | None = None
+    email: str | None = None
+    phone: str | None = None
     district: str | None
     location_role: Literal['facility', 'seat']
     sources: list[LocationSource]

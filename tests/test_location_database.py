@@ -84,6 +84,36 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         await self.c.execute('UPDATE data_source SET import_allowed=false WHERE id=$1', self.source)
         self.assertEqual(await self.repository.list_locations(LocationQuery()), [])
 
+    async def test_contacts_prefer_the_active_facility_then_reviewed_phone_and_institution(self):
+        owner, location = await self.fixture('Contact owner')
+        await self.c.execute('''UPDATE kindergarten SET website_url='https://example.invalid/owner',
+            email='owner@example.invalid',phone='01/111-1111' WHERE id=$1''', owner)
+        await self.c.execute('UPDATE source_record SET raw_data=$2 WHERE location_id=$1', location, {
+            'Web': ' https://example.invalid/branch ', 'Email': ' branch@example.invalid ',
+            'Telefon': ' 01/222-2222 ',
+        })
+        branch = await self.c.fetchval('''INSERT INTO location
+            (kindergarten_id,name,settlement,settlement_key,attributes)
+            VALUES ($1,'Second branch','Zagreb','zagreb',$2) RETURNING id''',
+            owner, {'phone': '01/333-3333'})
+        await self.record(owner, branch)
+        rows = {r['location_id']: r for r in await self.repository.list_locations(LocationQuery())}
+        self.assertEqual(tuple(rows[location][key] for key in ('website_url','email','phone')),
+                         ('https://example.invalid/branch','branch@example.invalid','01/222-2222'))
+        self.assertEqual(tuple(rows[branch][key] for key in ('website_url','email','phone')),
+                         ('https://example.invalid/owner','owner@example.invalid','01/333-3333'))
+        # An older published contact does not override the currently available fallback.
+        await self.c.execute('UPDATE source_record SET batch_id=$2 WHERE location_id=$1', location, uuid4())
+        await self.record(owner, location)
+        rows = {r['location_id']: r for r in await self.repository.list_locations(LocationQuery())}
+        self.assertEqual(rows[location]['email'], 'owner@example.invalid')
+        seat, _ = await self.fixture('Seat contact', seat=True)
+        await self.c.execute("UPDATE kindergarten SET email='seat@example.invalid',phone=' ' WHERE id=$1", seat)
+        rows = await self.repository.list_locations(LocationQuery(q='Seat contact'))
+        self.assertEqual(rows[0]['email'], 'seat@example.invalid')
+        self.assertIsNone(rows[0]['phone'])
+        self.assertIsNone(rows[0]['website_url'])
+
     async def test_seat_geography_requires_current_address_and_approved_evidence(self):
         from KIDSic.dao.concrete.asyncpg_kindergarten import AsyncpgKindergartenRepository
         owner, _ = await self.fixture('Childminder seat', provider='childminder', seat=True)

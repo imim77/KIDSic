@@ -35,6 +35,7 @@ class LocationServiceTests(unittest.IsolatedAsyncioTestCase):
                   'reference_date': None, 'retrieved_at': datetime(2026, 11, 2, tzinfo=timezone.utc)}
         row = dict(kindergarten_id=institution, name='Synthetic', location_name='Branch',
                    address=None, city='Zagreb', provider_kind='unknown', district=None,
+                   website_url='https://example.invalid/kindergarten',email='info@example.invalid',phone='01/123-4567',
                    longitude=15.98, latitude=45.81, sources=[source])
         repository = SimpleNamespace(list_locations=AsyncMock(return_value=[
             dict(row, location_id=location, location_role='facility', field_sources={
@@ -69,3 +70,6 @@ class LocationServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload['features'][2]['id'], f'seat:{institution}')
         self.assertIsNone(payload['features'][2]['geometry'])
         self.assertIsNone(payload['features'][0]['properties']['age_groups'])
+        self.assertEqual(payload['features'][0]['properties']['website_url'], 'https://example.invalid/kindergarten')
+        self.assertEqual(payload['features'][0]['properties']['email'], 'info@example.invalid')
+        self.assertEqual(payload['features'][0]['properties']['phone'], '01/123-4567')

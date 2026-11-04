@@ -53,6 +53,11 @@ owner/location, geometry becomes null and the location is excluded from `bbox`
 results, while its list entry remains. Legacy/manual coordinates without recorded
 field provenance remain available without an invented field source.
 
+Properties also include nullable `website_url`, `email` and `phone`. Published
+contacts in an accepted, active record for that exact facility take precedence;
+a reviewed facility phone and institution contacts provide the fallback. A seat
+uses institution contacts. Empty contact strings become null.
+
 Illustrative response (identities and values below are synthetic):
 
 ```json
@@ -67,6 +72,7 @@ Illustrative response (identities and values below are synthetic):
       "kindergarten_id": "00000000-0000-0000-0000-000000000002",
       "name": "Primjer ustanove", "location_name": "Primjer objekta",
       "address": "Primjer 1", "city": "Zagreb", "provider_kind": "municipal",
+      "website_url": null, "email": null, "phone": null,
       "district": null, "location_role": "facility", "age_groups": null,
       "field_sources": {},
       "sources": [{"name": "Primjer izvora", "url": "https://example.invalid",

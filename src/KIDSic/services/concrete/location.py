@@ -31,6 +31,8 @@ class LocationService(LocationServiceInterface):
                             'district', 'location_role', 'sources',
                         )
                     }, location_id=location_id, kindergarten_id=kindergarten_id,
+                        website_url=dict(row).get('website_url'), email=dict(row).get('email'),
+                        phone=dict(row).get('phone'),
                         field_sources=dict(row).get('field_sources', {})),
                 ))
             mapped = sum(feature.geometry is not None for feature in features)
