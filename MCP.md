@@ -15,8 +15,12 @@ npm --prefix frontend ci
 # Postaviti javni pk.… token u frontend/.env.local prema frontend/.env.example.
 npm --prefix frontend run build:mcp
 export DATABASE_URL=postgresql://kidsic:kidsic_local@localhost:55432/kidsic
-uv run uvicorn KIDSic.mcp.server:create_app --factory --host 127.0.0.1 --port 8001
+uv run uvicorn KIDSic.api.mcp_server:create_app --factory --host 127.0.0.1 --port 8001
 ```
+
+`KIDSic.mcp.server:create_app` ostaje kompatibilni ulaz za postojeće postavke.
+Transport je u `api/mcp_server.py`, grupa alata u `api/location_tools.py`,
+a HTML resurs u `api/apps/map_resource.py`.
 
 Streamable HTTP endpoint je `http://127.0.0.1:8001/mcp`. Server pri pokretanju
 učitava `frontend/dist/mcp.html` i otvara jedan pool baze. Ako build nedostaje,

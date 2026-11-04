@@ -1,5 +1,6 @@
 """A request-scoped read snapshot shared by all repository calls."""
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from KIDSic.dao.interfaces.kindergarten import KindergartenRepository
 from KIDSic.dao.interfaces.location import LocationRepository
 
@@ -15,3 +16,6 @@ class UnitOfWork(ABC):
     @abstractmethod
     async def __aexit__(self, exc_type, exc, traceback):
         """Finish the transaction and release resources."""
+
+
+type UnitOfWorkFactory = Callable[[], UnitOfWork]

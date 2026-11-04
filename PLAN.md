@@ -496,3 +496,83 @@ na title atributu gumba. Dimenzije i pomicanje kartica ostaju isti.
 
 Prolazi 39 frontend testova (dopunjena provjera Space aktivacije), lint, oba
 builda i 7 MCP testova. UI resurs map-v4 osvježava host cache.
+
+## Reorganizacija Python arhitekture — 2026-11-03
+
+### Istraživanje i cilj
+
+Referenca je GitHub HEAD FOIHirelooma `8ba897db799e993aa43c7d488879efb3870218f2`
+(provjeren preko `git ls-remote`). Lokalni checkout `438886f` razlikuje se;
+referentne datoteke pregledane su i kroz `git show` na GitHub reviziji.
+Primjenjivi obrasci vidljivi su u kodu, a nisu zaseban pronađeni pravilnik:
+
+- `api/tool_provider.py`, `api/mcp_server.py`: klase grupa alata i vlasnik transporta.
+- `services/concrete/source_feed_registration.py`: odvojeni planner i servis.
+- `services/concrete/hzz_feed_parser.py`: parser s malim javnim sučeljem.
+- `factories/source_feed_registration.py`, `services/dependency.py`: sastavljanje
+  implementacija odvojeno od poslovnih odluka, uz caller-owned resurse.
+- `dao/interfaces`, `dao/concrete`, `db/uow/base.py`: ugovori repozitorija,
+  implementacije i transakcijski opseg.
+
+KIDSic već ima iste osnovne pakete. Promjena naziva svih paketa ne bi riješila
+spojene odgovornosti: normalizator bira shemu i parsira sve izvore, MCP factory
+registrira alate, čita HTML i upravlja resursima kroz zatvaranja, parser upita
+učitava kataloge iz baze, a HTTP sloj poznaje asyncpg iznimke. Ugovor i konkretna
+implementacija pisaćeg UoW-a nalaze se u istom modulu. Početno stanje: 71 Python
+test, 68 prošlo i tri opcionalna testa preskočena.
+
+### Razmotreni pristupi
+
+1. Potpuna zamjena paketa s `presentation/application/domain/infrastructure`:
+   jasna nova taksonomija, ali velika migracija importova i slabija sličnost
+   FOIHireloomu bez dodatne koristi za postojeće jednostavne tokove.
+2. Zadržati FOIHireloom raspored i razdvojiti stvarne odgovornosti klasama:
+   manji rizik, postojeći ulazi ostaju dostupni, a ovisnosti i zamjenjive
+   strategije postaju izričite. Odabran je ovaj pristup.
+
+### Odabrana implementacija
+
+- Prezentacija: `api` (HTTP/MCP) i `commands`; bez SQL-a ili upravljanja driverom.
+  MCP razdvojiti na klasu transporta, grupu lokacijskih alata i UI resurs.
+  Postojeći `KIDSic.mcp.server:create_app` zadržati kao kompatibilni ulaz.
+- Poslovni sloj: `services/interfaces` i `services/concrete`; izdvojiti planner,
+  normalizator s ubrizganim parserima za nacionalni imenik, Zagreb i dadilje,
+  te parser upita koji prima podatke kataloga umjesto repozitorija.
+- Podaci: `dao/interfaces`, `dao/concrete`, `integrations` i `db/uow`;
+  ugovor pisaćeg UoW-a odvojiti od asyncpg implementacije, a driver pogreške
+  pretvoriti u `PersistenceError` prije povratka prema servisu/API-ju.
+- `factories` sastavlja konkretne parser strategije i servise; `DependencyService`
+  upravlja životnim vijekom HTTP klijenta i poola. DTO-i ostaju podaci.
+- Sačuvati postojeće SQL upite, tablice, mapiranja, transakcijsku atomarnost,
+  filtriranje RAG-a, city-required MCP ugovor, kompresiju i UI metapodatke.
+  Nisu potrebne migracije baze ni ponovni uvoz podataka.
+
+### Otvorena pitanja i provjera
+
+Nema blokirajućih pitanja. Refaktor je ograničen na postojeće funkcionalnosti;
+referenca nije razlog za uvođenje SQLAlchemy ORM-a, FastMCP-a ili eksplicitnog
+commita koji bi mijenjao postojeće ponašanje. Čisti pomoćni izračuni mogu ostati
+funkcije; nove klase moraju imati stvarnu ulogu i mogućnost zasebne provjere.
+Provjeriti postojeće i nove testove parser zamjenjivosti, slojnih ovisnosti,
+životnog vijeka i protokola. Zatim pokrenuti puni Python skup na odvojenoj
+migriranoj testnoj bazi te stvarni read-only MCP poziv za Varaždin (33 lokacije).
+
+### Rezultat i završna provjera
+
+Implementirani su `api/mcp_server.py`, `api/location_tools.py`,
+`api/apps/map_resource.py`, `services/concrete/parsers`,
+`source_normalizer.py`, `source_planner.py` i `db/uow/asyncpg_source.py`.
+`RequestParser` prima kataloške vrijednosti; servisi/factories imaju tipizirane
+UoW ovisnosti. Stari MCP i normalizacijski ulazi ostaju kompatibilni adapteri.
+PostgreSQL iznimke pri otvaranju, radu i zatvaranju transakcije pretvaraju se
+u `PersistenceError`, uz rollback/release i očuvan uzrok.
+
+Završni skup: 79 testova, 76 prošlo, tri postojeća opcionalna HTTP simulation
+testa preskočena. Provjereno je dodavanje novog parsera bez izmjene servisa,
+smjer importova po slojevima i oslobađanje konekcije nakon driver grešaka.
+Stvarni `prikazi_vrtice` odgovor na privremenom refaktoriranom MCP serveru bio
+je identičan cijelom odgovoru postojećeg servera za Varaždin: 33/33 mapirane
+lokacije, uključujući GeoJSON i izvore. Stvarni CSV dry-run vratio je 14 obrta,
+a pretraga Brezja iste četiri lokacije. Privremeni server je ugašen; postojeći
+server nije prekidan. `compileall` i `git diff --check` su uredni. Nema promjene
+SQL upita, migracija niti ponovnog upisa u radnu bazu.
