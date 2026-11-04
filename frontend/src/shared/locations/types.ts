@@ -2,6 +2,15 @@ import type { Feature, FeatureCollection, Point } from 'geojson'
 
 export type ProviderKind = 'municipal' | 'private' | 'religious' | 'childminder' | 'other' | 'unknown'
 
+export const providerLabels: Record<ProviderKind, string> = {
+  municipal: 'Gradski vrtić',
+  private: 'Privatni vrtić',
+  religious: 'Vjerski vrtić',
+  childminder: 'Obrt za čuvanje djece',
+  other: 'Drugi pružatelj',
+  unknown: 'Vrsta nije navedena',
+}
+
 export interface LocationSource {
   name: string
   url: string

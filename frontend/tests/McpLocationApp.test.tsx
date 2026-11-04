@@ -12,7 +12,7 @@ const host = vi.hoisted(() => ({
     onhostcontextchanged: () => void
     ontoolcancelled: () => void
   },
-  call: vi.fn(), close: vi.fn(), display: vi.fn(),
+  call: vi.fn(), close: vi.fn(), display: vi.fn(), link: vi.fn(),
   context: { availableDisplayModes: ['inline', 'fullscreen'], displayMode: 'inline' },
 }))
 vi.mock('@modelcontextprotocol/ext-apps', () => ({ App: class {
@@ -21,6 +21,7 @@ vi.mock('@modelcontextprotocol/ext-apps', () => ({ App: class {
   close = host.close
   callServerTool = host.call
   requestDisplayMode = host.display
+  openLink = host.link
   getHostContext = () => host.context
 } }))
 vi.mock('../src/shared/map/KindergartenMap', () => ({ KindergartenMap: () => <div aria-label="Test map" /> }))
@@ -79,20 +80,27 @@ it('retries failures through the explicit city tool and ignores a stale retry af
   expect(screen.getByRole('main', { name: 'Vrtići: Rijeka' })).toBeVisible()
 })
 
-it('rejects malformed results and requests host fullscreen without replacing cards', async () => {
+it('rejects malformed results, and a chosen card opens host fullscreen details', async () => {
   render(<McpLocationApp />)
   await act(async () => host.instance.ontoolresult({ structuredContent: { city: 'Zagreb', locations: {} } }))
   expect(screen.getByRole('alert')).toBeVisible()
   await result('Zagreb', 'first')
-  const track = screen.getByRole('list', { name: 'Vrtićki objekti' })
   await waitFor(() => expect(screen.getByRole('button', { name: 'Prikaži preko cijelog ekrana' })).toBeVisible())
-  await userEvent.click(screen.getByRole('button', { name: 'Prikaži preko cijelog ekrana' }))
+  await userEvent.click(screen.getByRole('button', { name: /Synthetic facility first.*Synthetic address/ }))
   expect(host.display).toHaveBeenCalledWith({ mode: 'fullscreen' })
   expect(screen.getByRole('button', { name: 'Vrati prikaz' })).toBeVisible()
-  expect(screen.getByRole('list', { name: 'Vrtićki objekti' })).toBe(track)
+  expect(screen.getByRole('list', { name: 'Svi vrtići' })).toBeVisible()
+  expect(screen.getByRole('region', { name: 'Detalji: Synthetic facility first' })).toBeVisible()
+  // Sandboxed hosts block navigation, so outbound links go through the bridge.
+  await userEvent.click(screen.getByRole('link', { name: 'Otvori u Google kartama' }))
+  expect(host.link).toHaveBeenCalledWith({ url: 'https://www.google.com/maps/search/?api=1&query=45.81%2C15.98' })
+  await userEvent.click(screen.getByRole('link', { name: 'Synthetic source' }))
+  expect(host.link).toHaveBeenLastCalledWith({ url: 'https://example.invalid/source' })
   host.context.displayMode = 'inline'
   await act(async () => host.instance.onhostcontextchanged())
   expect(screen.getByRole('button', { name: 'Prikaži preko cijelog ekrana' })).toBeVisible()
+  expect(screen.getByRole('list', { name: 'Vrtićki objekti' })).toBeVisible()
+  expect(screen.queryByRole('region', { name: /Detalji:/ })).toBeNull()
 })
 
 it('ignores decompression finishing after results for another city', async () => {

@@ -170,6 +170,13 @@ mint. Hover turns the fill lemon. Pressed: `var(--press)` and
 `box-shadow: none`, so the pill sits on its shadow. Violet is never used
 behind text.
 
+**Expanded explorer** (`LocationList`, `LocationDetails`). Choosing a card
+requests fullscreen and lays out a results column, a details column and the
+map, after Booking's fullscreen app layout. Below 1100px the details cover the
+list; below 700px they cover the map and the card deck stays. The details hero
+is a violet tile with the building icon, since sources carry no photos; there
+are no ratings or prices, and a lemon note says what the data cannot tell.
+
 **Fullscreen toggle** (`fullscreen.css`). 46px mint circle, no border,
 `--shadow-sm`, ink icon, same hover and press behaviour.
 

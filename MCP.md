@@ -62,7 +62,7 @@ pročitati rezultat, ali ne može prikazati interaktivnu kartu.
 
 ## Ugovor UI-ja i provjera
 
-Resurs `ui://kidsic/map-v5.html` ima MIME `text/html;profile=mcp-app`. Moderni
+Resurs `ui://kidsic/map-v7.html` ima MIME `text/html;profile=mcp-app`. Moderni
 `_meta.ui.resourceUri` i kompatibilni `openai/outputTemplate` povezuju ga s alatom.
 Uspješan rezultat ima sažetak `structuredContent: {city, metadata}`, uz deklarirani
 `outputSchema`. Potpuni GeoJSON prenosi se bez gubitka u `_meta.locations` kao
@@ -82,8 +82,12 @@ koji podržava fullscreen. Bez te mogućnosti ostaje postojeći browser fallback
 Inline prikaz ima vlastitu visinu 520 px (480 px na uskim ekranima), koju SDK
 prijavljuje hostu kroz automatski `size-changed`. Ne preuzima malu početnu
 visinu iframea kroz `100dvh`. MCP kartice visoke su 92 px; fullscreen koristi
-visinu dodijeljenog prozora. Nakon nadogradnje ponovno povezati konektor kako
-bi host preuzeo URI resursa v5 te pokrenuti novi poziv alata.
+visinu dodijeljenog prozora. Klik na karticu traži fullscreen i otvara popis,
+detalje i kartu u stupcima (ispod 1100 px detalji prekrivaju popis, ispod 700 px
+kartu). Detalji prikazuju samo podatke iz izvora i navode što nije poznato;
+vanjske poveznice otvaraju se kroz `ui/open-link`. Nakon nadogradnje ponovno
+povezati konektor kako bi host preuzeo URI resursa v7 te pokrenuti novi poziv
+alata.
 Resurs deklarira CSP za Mapbox API, događaje, tiles i blob/data resurse. Host mora
 dopustiti Mapbox blob worker i WebGL; u suprotnom ostaju dostupne kartice. UI je
 jedan HTML bez relativnih JS/CSS zahtjeva. Kod budućih breaking promjena resursa

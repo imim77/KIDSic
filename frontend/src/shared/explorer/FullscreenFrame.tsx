@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { FrameContext } from './frameControls'
 import './fullscreen.css'
 
 type DisplayMode = 'inline' | 'native' | 'fallback'
@@ -171,6 +172,8 @@ export function FullscreenFrame({ children, className = '', hostFullscreen }: { 
     }
   }
 
+  const expand = () => { if (!expanded) void toggle() }
+
   return (
     <div
       ref={frameRef}
@@ -183,7 +186,7 @@ export function FullscreenFrame({ children, className = '', hostFullscreen }: { 
         if (event.key === 'Escape' && !event.defaultPrevented && mode === 'native') void exitNative()
       }}
     >
-      {children}
+      <FrameContext.Provider value={{ expanded, expand }}>{children}</FrameContext.Provider>
       <button
         ref={buttonRef}
         className="fullscreen-toggle"
