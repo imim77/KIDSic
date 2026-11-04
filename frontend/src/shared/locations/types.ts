@@ -11,6 +11,16 @@ export const providerLabels: Record<ProviderKind, string> = {
   unknown: 'Vrsta nije navedena',
 }
 
+// Mirrors theme.css because Mapbox paint expressions cannot read CSS variables.
+export const providerColors: Record<ProviderKind, string> = {
+  municipal: '#82eda6',
+  private: '#c88cfd',
+  religious: '#fdc068',
+  childminder: '#fc5681',
+  other: '#82eda6',
+  unknown: '#82eda6',
+}
+
 export interface LocationSource {
   name: string
   url: string
@@ -27,6 +37,9 @@ export interface LocationProperties {
   address: string | null
   city: string
   provider_kind: ProviderKind
+  website_url?: string | null
+  email?: string | null
+  phone?: string | null
   district: string | null
   location_role: 'facility' | 'seat'
   sources: LocationSource[]

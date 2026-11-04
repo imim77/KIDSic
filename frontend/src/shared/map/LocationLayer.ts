@@ -1,13 +1,21 @@
-import type { GeoJSONSource, Map, MapLayerMouseEvent } from 'mapbox-gl'
+import type { ExpressionSpecification, GeoJSONSource, Map, MapLayerMouseEvent } from 'mapbox-gl'
 import type { FeatureCollection, Point } from 'geojson'
 import type { LocationCollection, LocationFeature, LocationProperties } from '../locations/types'
+import { providerColors } from '../locations/types'
 
 const sourceId = 'kindergarten-locations'
 const clustersId = 'kindergarten-clusters'
 const pointsId = 'kindergarten-points'
 const selectionSourceId = 'kindergarten-selection'
 // Mirrors theme.css tokens; Mapbox paint properties cannot read CSS variables.
-const palette = { ink: '#03594d', violet: '#c88cfd', orange: '#ff9124' }
+const palette = { ink: '#03594d', cream: '#f9f8f4' }
+const pointColor: ExpressionSpecification = [
+  'match', ['get', 'provider_kind'],
+  'private', providerColors.private,
+  'religious', providerColors.religious,
+  'childminder', providerColors.childminder,
+  providerColors.municipal,
+]
 
 // LocationLayer keeps one clustered source alive as directory results change.
 export class LocationLayer {
@@ -115,7 +123,7 @@ export class LocationLayer {
     this.map.addSource(sourceId, { type: 'geojson', data: this.data, cluster: true, clusterMaxZoom: 14, clusterRadius: 42 })
     this.map.addLayer({
       id: clustersId, type: 'circle', source: sourceId, filter: ['has', 'point_count'],
-      paint: { 'circle-color': palette.orange, 'circle-radius': ['step', ['get', 'point_count'], 18, 20, 23, 60, 28], 'circle-stroke-color': palette.ink, 'circle-stroke-width': 2 },
+      paint: { 'circle-color': palette.cream, 'circle-radius': ['step', ['get', 'point_count'], 18, 20, 23, 60, 28], 'circle-stroke-color': palette.ink, 'circle-stroke-width': 2 },
     })
     this.map.addLayer({
       id: 'kindergarten-cluster-count', type: 'symbol', source: sourceId, filter: ['has', 'point_count'],
@@ -124,12 +132,12 @@ export class LocationLayer {
     })
     this.map.addLayer({
       id: pointsId, type: 'circle', source: sourceId, filter: ['!', ['has', 'point_count']],
-      paint: { 'circle-color': palette.violet, 'circle-radius': 7, 'circle-stroke-color': palette.ink, 'circle-stroke-width': 2 },
+      paint: { 'circle-color': pointColor, 'circle-radius': 7, 'circle-stroke-color': palette.ink, 'circle-stroke-width': 2 },
     })
     this.map.addSource(selectionSourceId, { type: 'geojson', data: this.selection })
     this.map.addLayer({
       id: 'kindergarten-selected-point', type: 'circle', source: selectionSourceId,
-      paint: { 'circle-color': palette.violet, 'circle-radius': 11, 'circle-stroke-color': palette.ink, 'circle-stroke-width': 4 },
+      paint: { 'circle-color': pointColor, 'circle-radius': 11, 'circle-stroke-color': palette.ink, 'circle-stroke-width': 4 },
     })
   }
 }

@@ -3,7 +3,7 @@ from pathlib import Path
 from mcp import types
 from mcp.server.lowlevel.helper_types import ReadResourceContents
 
-UI_URI = 'ui://kidsic/map-v7.html'
+UI_URI = 'ui://kidsic/map-v8.html'
 UI_MIME = 'text/html;profile=mcp-app'
 SERVER_INSTRUCTIONS = (
     'When the user asks to show or find kindergartens in a city, ALWAYS call '

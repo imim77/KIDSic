@@ -664,3 +664,53 @@ Zagreb 461, Varaždin 33 i Rijeka 13 rezultata ostali su identični. Završno
 ili objekta u podržanim gradovima. Puni Python skup: 89 testova, 86 prošlo,
 tri postojeća opcionalna HTTP simulation testa preskočena. Migracija je
 provjerena i kroz Alembic nad odvojenom bazom; git diff --check prolazi.
+
+## Kontakti u detaljima i boje tipova — 2026-11-04
+
+Istraživanje: `kindergarten` već ima `website_url`, `email` i `phone`, ali ih
+lokacijski DAO/DTO/servis ne vraćaju. Zagrebački izvor također čuva kontakt
+pojedinog objekta u aktivnom `source_record.raw_data` (`Web`, `Email`,
+`Telefon`); grupiranje tih kontakata samo na ustanovi može prikazati broj
+sestranskog objekta. Ručno provjereni varaždinski objekti imaju telefon u
+`location.attributes.phone`. Detalji trenutačno pokazuju Google pretragu
+lokacije i izvore, a Mapbox svim točkama daje istu ljubičastu boju.
+
+Pristupi: samo promijeniti frontend ne može prikazati kontakte koji nedostaju
+u odgovoru. Odabrano je proširiti postojeći lokacijski ugovor nullable
+kontaktima, prvo uzeti objavljeni kontakt aktivnog objekta, a zatim kontakt
+ustanove. Nema nove tablice, uvoza ni izmišljanja podataka. Kartica prikazuje
+samo raspoložive kontakte, s HTTP(S) poveznicom na web, mailto i tel za
+jednoznačne kontakte; tekst s više brojeva ostaje čitljiv bez proizvoljnog
+odabira broja. Vanjske poveznice u MCP-u koriste postojeći host bridge.
+
+Vizualno: zadržati Titan One naslove, Helvetica kontaktni tekst i postojeću
+krem podlogu. Javni/ostali su mint #82eda6, privatni violet #c88cfd,
+vjerski apricot #fdc068, dadilje rose #fc5681, uz zajednički ink #03594d
+obrub. Mapbox `match` izraz koristi provider_kind; odabrana točka zadržava
+boju kategorije i povećava se obrubom/radijusom. Mješoviti klaster ostaje
+neutralan jer ne predstavlja jedan tip. Mala legenda objašnjava četiri boje.
+Ne mijenjati tipografiju ili raspored postojećih kartica.
+
+Iz detalja ukloniti Google gumb i cijeli prikaz izvora, uključujući mrtve
+pomoćne funkcije/stilove. Zadržati podatke o izvorima u API-ju. Provjeriti
+kontakte objekta/sjedišta i fallback u PostgreSQL-u, HTTP/MCP prijenos,
+nevažeće URL-ove i nedostajuće kontakte, host otvaranje te kategorijske boje
+nakon style reload/odabira. Pokrenuti Python i frontend testove, lint i oba
+builda, a zatim provjeriti stvarni lokalni prikaz u pregledniku, uključujući
+usku širinu. Nema otvorenih pitanja koja blokiraju promjenu.
+
+Završeno: kontakti su preneseni kroz lokacijski DAO/DTO/servis i oba klijenta;
+provjeren je prioritet aktivnog objekta, ručno objavljenog telefona i ustanove.
+Kartica prikazuje samo raspoložive kontakte, a Google akcija i vizualni izvori
+su uklonjeni. Četiri boje i legenda koriste zajedničku paletu; odabrana točka
+čuva tip, a ostali/nepoznati koriste javnu boju. MCP UI resurs je map-v8 radi
+osvježavanja host cachea. Nema nove migracije baze ni promjene podataka.
+
+Provjere: 90 Python testova, 87 prošlo i tri opcionalna simulation testa
+preskočena; dodatnih osam MCP testova prolazi nakon promjene URI-ja. Svih
+48 frontend testova, lint, standalone i MCP build prolaze. Stvarni preglednik
+potvrdio je uklonjene sekcije, web/e-mail/telefon za DV Baltazar, kontakte
+DAD Bajka i boje točaka/odabira. Na širini 390 px detalji imaju širinu 390 px
+bez vodoravnog overflowa; legenda se prelama. Snimka:
+`/Users/mislavvusic/.codex/visualizations/2026/11/04/01a1a699-e2ac-7212-9a57-eba0d0dbd558/kindergarten-contacts-and-colors.jpg`.
+Lokalni API na 8010 i MCP na 8001 ponovno su pokrenuti s novim kodom.

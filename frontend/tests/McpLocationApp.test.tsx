@@ -36,6 +36,7 @@ afterEach(() => { vi.unstubAllGlobals(); Reflect.deleteProperty(Element.prototyp
 
 async function result(city: string, id?: string) {
   const locations = collection(...(id ? [facility(id)] : []))
+  if (locations.features[0]) locations.features[0].properties.website_url = 'https://example.invalid/kindergarten'
   await act(async () => host.instance.ontoolresult({ structuredContent: { city, metadata: locations.metadata }, _meta: { locations } }))
 }
 
@@ -92,10 +93,10 @@ it('rejects malformed results, and a chosen card opens host fullscreen details',
   expect(screen.getByRole('list', { name: 'Svi vrtići' })).toBeVisible()
   expect(screen.getByRole('region', { name: 'Detalji: Synthetic facility first' })).toBeVisible()
   // Sandboxed hosts block navigation, so outbound links go through the bridge.
-  await userEvent.click(screen.getByRole('link', { name: 'Otvori u Google kartama' }))
-  expect(host.link).toHaveBeenCalledWith({ url: 'https://www.google.com/maps/search/?api=1&query=45.81%2C15.98' })
-  await userEvent.click(screen.getByRole('link', { name: 'Synthetic source' }))
-  expect(host.link).toHaveBeenLastCalledWith({ url: 'https://example.invalid/source' })
+  await userEvent.click(screen.getByRole('link', { name: 'Web stranica vrtića' }))
+  expect(host.link).toHaveBeenCalledWith({ url: 'https://example.invalid/kindergarten' })
+  expect(screen.queryByText('Izvori podataka')).toBeNull()
+  expect(screen.queryByRole('link', { name: 'Otvori u Google kartama' })).toBeNull()
   host.context.displayMode = 'inline'
   await act(async () => host.instance.onhostcontextchanged())
   expect(screen.getByRole('button', { name: 'Prikaži preko cijelog ekrana' })).toBeVisible()

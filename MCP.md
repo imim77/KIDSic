@@ -63,7 +63,7 @@ pročitati rezultat, ali ne može prikazati interaktivnu kartu.
 
 ## Ugovor UI-ja i provjera
 
-Resurs `ui://kidsic/map-v7.html` ima MIME `text/html;profile=mcp-app`. Moderni
+Resurs `ui://kidsic/map-v8.html` ima MIME `text/html;profile=mcp-app`. Moderni
 `_meta.ui.resourceUri` i kompatibilni `openai/outputTemplate` povezuju ga s alatom.
 Uspješan rezultat ima sažetak `structuredContent: {city, metadata}`, uz deklarirani
 `outputSchema`. Potpuni GeoJSON prenosi se bez gubitka u `_meta.locations` kao

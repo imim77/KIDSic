@@ -3,6 +3,7 @@ import type { Map } from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { LocationLayer } from './LocationLayer'
 import type { LocationCollection } from '../locations/types'
+import { providerColors } from '../locations/types'
 import './map.css'
 
 const accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN?.trim()
@@ -86,6 +87,14 @@ export function KindergartenMap({ collection = null, onSelect, selectedId = null
   return (
     <div className="kindergarten-map">
       <div className="map-canvas" ref={containerRef} />
+      {accessToken && !status && !!collection?.metadata.mapped && <ul className="map-provider-legend" aria-label="Vrste pružatelja na karti">
+        {([
+          ['municipal', 'Javni i ostali'], ['private', 'Privatni'],
+          ['religious', 'Vjerski'], ['childminder', 'Dadilje'],
+        ] as const).map(([kind, label]) => <li key={kind}>
+          <span aria-hidden="true" style={{ backgroundColor: providerColors[kind] }} />{label}
+        </li>)}
+      </ul>}
       {accessToken && !status && collection?.metadata.mapped === 0 && <p className="map-data-message" role="status">Rezultati nemaju potvrđene koordinate. Pregledajte ih na popisu.</p>}
       {(!accessToken || status) && (
         <div className="map-message" role="status">

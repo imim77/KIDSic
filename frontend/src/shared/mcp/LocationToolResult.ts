@@ -41,6 +41,8 @@ export class LocationToolResult {
         || typeof p.kindergarten_id !== 'string' || !['facility', 'seat'].includes(String(p.location_role))
         || !['municipal', 'private', 'religious', 'childminder', 'other', 'unknown'].includes(String(p.provider_kind))
         || !Array.isArray(p.sources)) throw new Error('Invalid properties')
+      if (['website_url', 'email', 'phone'].some((field) =>
+        p[field] != null && typeof p[field] !== 'string')) throw new Error('Invalid contact')
       if (feature.geometry !== null) {
         const g = feature.geometry
         if (!record(g) || g.type !== 'Point' || !Array.isArray(g.coordinates) || g.coordinates.length !== 2

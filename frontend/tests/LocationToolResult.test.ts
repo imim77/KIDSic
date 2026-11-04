@@ -28,3 +28,9 @@ it('rejects damaged compression and mismatched summary counts', async () => {
   await expect(LocationToolResult.fromResult({ structuredContent, _meta: { locations: compressed(locations) } })).rejects.toThrow('Mismatched summary')
   await expect(LocationToolResult.fromResult({ structuredContent, _meta: { locations: { encoding: 'gzip+base64', data: 'broken' } } })).rejects.toThrow()
 })
+
+it('rejects malformed contact values before rendering host results', () => {
+  const locations = collection(facility('contact'))
+  Object.assign(locations.features[0].properties, { phone: { unexpected: true } })
+  expect(() => LocationToolResult.parse({ city: 'Zagreb', locations })).toThrow('Invalid contact')
+})

@@ -56,7 +56,9 @@ field provenance remain available without an invented field source.
 Properties also include nullable `website_url`, `email` and `phone`. Published
 contacts in an accepted, active record for that exact facility take precedence;
 a reviewed facility phone and institution contacts provide the fallback. A seat
-uses institution contacts. Empty contact strings become null.
+uses institution contacts. Empty contact strings become null. The detail card
+shows available contacts and keeps source records out of its visual content;
+source metadata remains in the API response.
 
 Illustrative response (identities and values below are synthetic):
 

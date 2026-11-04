@@ -1,6 +1,6 @@
 import { useEffect, useRef, type MouseEvent } from 'react'
 import { Building2, MapPin, X } from 'lucide-react'
-import { providerLabels, type LocationFeature, type LocationSource } from './types'
+import { providerLabels, type LocationFeature } from './types'
 
 interface LocationDetailsProps {
   feature: LocationFeature
@@ -8,42 +8,23 @@ interface LocationDetailsProps {
   openLink?: (url: string) => void
 }
 
-function formatDate(value: string | null) {
-  if (!value) return null
-  const date = new Date(value)
-  return Number.isNaN(date.valueOf()) ? null : new Intl.DateTimeFormat('hr-HR', { dateStyle: 'medium', timeZone: 'UTC' }).format(date)
-}
-
-function safeHref(value: string) {
+function websiteHref(value: string | null | undefined) {
+  const text = value?.trim()
+  if (!text || !/^(https?:\/\/|[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?::\d+)?(?:[/?#]|$))/i.test(text)) return undefined
   try {
-    const url = new URL(value)
-    return ['http:', 'https:'].includes(url.protocol) ? url.href : undefined
+    const url = new URL(text.includes('://') ? text : `https://${text}`)
+    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : undefined
   } catch { return undefined }
 }
 
-// Coordinates are exact; the address search is the fallback for seats.
-function directionsHref(feature: LocationFeature) {
-  const { address, city } = feature.properties
-  const query = feature.geometry
-    ? `${feature.geometry.coordinates[1]},${feature.geometry.coordinates[0]}`
-    : [address, city].filter(Boolean).join(', ')
-  return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : undefined
+function phoneHref(value: string) {
+  const digits = value.replace(/\D/g, '')
+  // Multiple published numbers remain readable; do not dial a concatenation.
+  return /^\+?[\d\s()./-]+$/.test(value) && digits.length >= 3 && digits.length <= 15
+    ? `tel:${value.startsWith('+') ? '+' : ''}${digits}` : undefined
 }
 
-function Source({ source, open }: { source: LocationSource; open: (event: MouseEvent<HTMLAnchorElement>) => void }) {
-  const href = safeHref(source.url)
-  const retrieved = formatDate(source.retrieved_at)
-  const reference = formatDate(source.reference_date)
-  return <li>
-    {href ? <a href={href} target="_blank" rel="noreferrer" onClick={open}>{source.name}</a> : <span>{source.name}</span>}
-    <span className="source-meta">
-      {[source.license ?? 'Licenca nije navedena', reference && `stanje ${reference}`, retrieved && `dohvaćeno ${retrieved}`].filter(Boolean).join(' · ')}
-    </span>
-  </li>
-}
-
-// LocationDetails shows everything the open data says about one location,
-// and states what it cannot say instead of filling gaps.
+// LocationDetails presents published contacts and leaves missing facts unfilled.
 export function LocationDetails({ feature, onClose, openLink }: LocationDetailsProps) {
   const location = feature.properties
   const sectionRef = useRef<HTMLElement>(null)
@@ -51,7 +32,12 @@ export function LocationDetails({ feature, onClose, openLink }: LocationDetailsP
     // A card that expanded the frame may have unmounted with keyboard focus.
     if (!document.activeElement || document.activeElement === document.body) sectionRef.current?.focus({ preventScroll: true })
   }, [])
-  const directions = directionsHref(feature)
+  const website = websiteHref(location.website_url)
+  const email = location.email?.trim()
+  const phone = location.phone?.trim()
+  const emailUrl = email && /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(email)
+    ? `mailto:${encodeURIComponent(email).replace('%40', '@')}` : undefined
+  const phoneUrl = phone ? phoneHref(phone) : undefined
   // Sandboxed MCP hosts block plain navigation, so links go through the host.
   const open = (event: MouseEvent<HTMLAnchorElement>) => {
     if (!openLink) return
@@ -77,7 +63,15 @@ export function LocationDetails({ feature, onClose, openLink }: LocationDetailsP
         </p>
         {location.location_role === 'seat' && <p className="location-details-note">Ovo je adresa sjedišta ustanove; lokacija objekta nije potvrđena.</p>}
         {!feature.geometry && location.location_role !== 'seat' && <p className="location-details-note">Koordinate nisu poznate, pa objekt nije na karti.</p>}
-        {directions && <a className="location-details-action" href={directions} target="_blank" rel="noreferrer" onClick={open}>Otvori u Google kartama</a>}
+
+        {(website || email || phone) && <>
+          <h3>Kontakt</h3>
+          <dl className="location-details-contacts">
+            {website && <><dt>Web</dt><dd><a href={website} target="_blank" rel="noreferrer" onClick={open}>Web stranica vrtića</a></dd></>}
+            {email && <><dt>E-mail</dt><dd>{emailUrl ? <a href={emailUrl} onClick={open}>{email}</a> : email}</dd></>}
+            {phone && <><dt>Telefon</dt><dd>{phoneUrl ? <a href={phoneUrl} onClick={open}>{phone}</a> : phone}</dd></>}
+          </dl>
+        </>}
 
         <h3>O ovom objektu</h3>
         <dl>
@@ -87,10 +81,6 @@ export function LocationDetails({ feature, onClose, openLink }: LocationDetailsP
         </dl>
         <p className="location-details-note">Dobne skupine, slobodna mjesta i cijene nisu dio otvorenih podataka. Provjerite ih izravno kod vrtića.</p>
 
-        <h3>Izvori podataka</h3>
-        {location.sources.length
-          ? <ul className="location-details-sources">{location.sources.map((source, index) => <Source key={`${source.url}-${index}`} source={source} open={open} />)}</ul>
-          : <p>Podrijetlo podatka nije dostupno.</p>}
       </div>
     </div>
   </section>
