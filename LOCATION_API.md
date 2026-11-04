@@ -103,3 +103,21 @@ A missing/invalid database setting or unreachable database during pool startup
 fails server startup clearly. Once started, database query/connection failures
 return the sanitized HTTP 503 above. The server never runs migrations. Development
 frontend traffic uses the Vite `/api` proxy; no permissive CORS policy is needed.
+
+## Gradsko sufinanciranje u detaljima
+
+`properties.subsidy_policies` sadrži aktualna pravila za grad fizičkog objekta
+i `provider_kind` ustanove. Sjedište se koristi samo za rezultat vrste `seat`.
+Nepoznati i ostali pružatelji ne nasljeđuju pravila gradskih vrtića. Pravila izvan
+razdoblja važenja i ona provjerena tek u budućnosti ne vraćaju se.
+
+Svako pravilo sadrži sažetak, razdoblje i datum provjere, službene poveznice,
+`rates`, `conditions`, `reliefs` i `notes`. `amount_kind` razlikuje gradski udio
+od roditeljske cijene; novčane vrijednosti u tarifama izražene su u eurocentima
+mjesečno po djetetu. Status `partial` ne znači besplatnu uslugu. Predložene
+promjene ne postaju važeće tarife. Pravilo ne potvrđuje individualno pravo ili
+ugovor konkretne ustanove s Gradom. Prazna lista znači da podatak nije potvrđen.
+
+Potrebna je migracija `0006_municipal_subsidies` i primjena provjerene snimke
+iz [uputa za podatke](src/KIDSic/db/seeds/README.md). Isti odgovor koristi se
+u web aplikaciji i MCP kartici; obje prikazuju odjeljak „Gradsko sufinanciranje”.

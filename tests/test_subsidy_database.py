@@ -5,8 +5,11 @@ import unittest
 from urllib.parse import urlparse
 
 import asyncpg
+from uuid import uuid4
 
 from KIDSic.db.database import database_pool
+from KIDSic.dao.concrete.asyncpg_location import AsyncpgLocationRepository
+from KIDSic.dto.location import LocationQuery
 
 
 @unittest.skipUnless(os.getenv('KIDSIC_TEST_DATABASE_URL'), 'Set KIDSIC_TEST_DATABASE_URL')
@@ -68,3 +71,32 @@ class SubsidyDatabaseTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(asyncpg.CheckViolationError):
             async with self.c.transaction():
                 await self.c.execute("UPDATE municipality_subsidy_policy SET provider_kinds=ARRAY['unknown']")
+
+    async def test_location_uses_facility_city_and_type_and_excludes_inactive_periods(self):
+        await self.c.execute(self.seed)
+        cities = {r['key']: r['id'] for r in await self.c.fetch('SELECT key,id FROM municipality')}
+        batch = uuid4()
+        source = await self.c.fetchval("""INSERT INTO data_source
+            (dataset_key,title,publisher,url,import_allowed,active_batch_id)
+            VALUES ('subsidy-test','Test','Test','https://example.invalid',true,$1) RETURNING id""", batch)
+        for kind in ('private', 'unknown'):
+            owner = await self.c.fetchval("""INSERT INTO kindergarten
+                (name,provider_kind,seat_municipality_id) VALUES ('Test',$1,$2) RETURNING id""",
+                kind, cities['zagreb'])
+            location = await self.c.fetchval("""INSERT INTO location
+                (kindergarten_id,name,settlement,settlement_key,municipality_id)
+                VALUES ($1,'Rijeka branch','Rijeka','rijeka',$2) RETURNING id""", owner, cities['rijeka'])
+            await self.c.execute("""INSERT INTO source_record
+                (source_id,batch_id,raw_data,kindergarten_id,location_id,match_status,match_method)
+                VALUES ($1,$2,'{}',$3,$4,'accepted','manual')""", source, batch, owner, location)
+        repo = AsyncpgLocationRepository(self.c)
+        rows = await repo.list_locations(LocationQuery(city='Rijeka'))
+        private = next(r for r in rows if r['provider_kind'] == 'private')
+        self.assertEqual([p['policy_key'] for p in private['subsidy_policies']], ['rijeka-private-20261104'])
+        self.assertEqual(next(r for r in rows if r['provider_kind'] == 'unknown')['subsidy_policies'], [])
+        await self.c.execute("""UPDATE municipality_subsidy_policy
+            SET valid_until=CURRENT_DATE-1 WHERE policy_key='rijeka-private-20261104'""")
+        self.assertTrue(all(not r['subsidy_policies'] for r in await repo.list_locations(LocationQuery(city='Rijeka'))))
+        await self.c.execute("""UPDATE municipality_subsidy_policy
+            SET valid_from=CURRENT_DATE+1,valid_until=NULL WHERE policy_key='rijeka-private-20261104'""")
+        self.assertTrue(all(not r['subsidy_policies'] for r in await repo.list_locations(LocationQuery(city='Rijeka'))))

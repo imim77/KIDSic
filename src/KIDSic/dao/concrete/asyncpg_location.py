@@ -51,6 +51,14 @@ class AsyncpgLocationRepository(LocationRepository):
                      NULLIF(btrim(k.phone),'')) AS phone,
             pl.longitude,pl.latitude,pl.location_role,pl.sources,
             COALESCE(fields.field_sources,'{}') AS field_sources,
+            COALESCE((SELECT jsonb_agg(to_jsonb(p) ORDER BY p.valid_from DESC,p.policy_key)
+              FROM municipality_subsidy_policy p
+              WHERE p.municipality_id=pl.municipality_id
+                AND k.provider_kind=ANY(p.provider_kinds)
+                AND p.verified_on<=CURRENT_DATE
+                AND (p.valid_from IS NULL OR p.valid_from<=CURRENT_DATE)
+                AND (p.valid_until IS NULL OR p.valid_until>=CURRENT_DATE)), '[]'::jsonb)
+              AS subsidy_policies,
             NOT ((pl.field_provenance ? 'longitude' AND NOT
                   COALESCE(fields.field_sources ? 'longitude',false)) OR
                  (pl.field_provenance ? 'latitude' AND NOT
@@ -83,7 +91,7 @@ class AsyncpgLocationRepository(LocationRepository):
             AND ($3::text IS NULL OR k.provider_kind=$3)
           )
           SELECT location_id,kindergarten_id,name,location_name,address,city,
-            provider_kind,district,website_url,email,phone,location_role,sources,field_sources,
+            provider_kind,district,website_url,email,phone,location_role,sources,field_sources,subsidy_policies,
             CASE WHEN geometry_valid THEN longitude END AS longitude,
             CASE WHEN geometry_valid THEN latitude END AS latitude
           FROM candidate
