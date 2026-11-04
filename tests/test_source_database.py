@@ -322,6 +322,58 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
             city='zagreb', age_months=24, include_unknown=True)
         self.assertEqual({r['scope'] for r in rows}, {'location'})
 
+    async def test_rijeka_csv_links_national_parents_preserves_contacts_and_reimports(self):
+        from KIDSic.dao.concrete.asyncpg_location import AsyncpgLocationRepository
+        from KIDSic.dto.location import LocationQuery
+        from test_rijeka import rijeka_records, rijeka_source
+        records = rijeka_records()
+        parents = ['Dječji vrtić Rijeka', 'Dječji vrtić "Mala Vila", waldorfski',
+                   'Dječji vrtić "Nazaret"', 'Dječji vrtić "Pinokio"']
+        national = [{**NATIONAL, 'Naziv': name, 'Mjesto': 'Rijeka',
+                     'Zupanija': 'Primorsko-goranska županija', 'Adresa': f'Sjedište {i}',
+                     'Telefon': '051/000001', 'ePosta': 'test@example.invalid'}
+                    for i, name in enumerate(parents)]
+        await self.repo.import_snapshot(self.snapshot(national))
+        owners = await self.c.fetch('SELECT id,name,seat_address FROM kindergarten ORDER BY id')
+        source = rijeka_source()
+        first = await self.repo.import_snapshot(self.snapshot(records, source, 'rijeka-kindergartens'))
+        self.assertEqual((first['accepted'], first['kindergartens_added'], first['locations_added']), (8, 0, 8))
+        self.assertEqual(await self.c.fetch('SELECT id,name,seat_address FROM kindergarten ORDER BY id'), owners)
+        locations = await self.c.fetch('SELECT id,kindergarten_id FROM location ORDER BY id')
+        api = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Rijeka'))
+        self.assertEqual(len(api), 8)
+        self.assertEqual({r['phone'] for r in api}, {'051/000001'})
+        self.assertEqual({r['location_role'] for r in api}, {'facility'})
+        self.assertTrue(all(r['longitude'] is None and r['latitude'] is None for r in api))
+        self.assertEqual({r['provider_kind'] for r in api}, {'municipal', 'private', 'religious'})
+        self.assertTrue(all(r['sources'] and r['field_sources'].get('address') for r in api))
+        changed = [{**r, 'RBR': str(i + 100)} for i, r in enumerate(reversed(records))]
+        changed[-1]['Adresa'] = 'Nova adresa 99'
+        second = await self.repo.import_snapshot(self.snapshot(changed, source, 'rijeka-kindergartens'))
+        self.assertEqual((second['kindergartens_added'], second['locations_added']), (0, 0))
+        self.assertEqual(await self.c.fetch('SELECT id,kindergarten_id FROM location ORDER BY id'), locations)
+        self.assertEqual(await self.c.fetchval("SELECT count(*) FROM location WHERE address='Nova adresa 99'"), 1)
+        # The national refresh must preserve the facility category and parent identity.
+        await self.repo.import_snapshot(self.snapshot(national))
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM kindergarten'), 4)
+        self.assertEqual(await self.c.fetchval("SELECT count(*) FROM kindergarten WHERE provider_kind='unknown'"), 0)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 24)
+
+    async def test_rijeka_csv_can_precede_national_import_without_duplicate_parents(self):
+        from test_rijeka import rijeka_records, rijeka_source
+        records = rijeka_records()
+        await self.repo.import_snapshot(self.snapshot(records, rijeka_source(), 'rijeka-kindergartens'))
+        owners = await self.c.fetch('SELECT id FROM kindergarten ORDER BY id')
+        self.assertEqual(len(owners), 4)
+        national = [{**NATIONAL, 'Naziv': name, 'Mjesto': 'Rijeka',
+                     'Zupanija': 'Primorsko-goranska županija'} for name in (
+                         'Dječji vrtić Rijeka', 'Dječji vrtić "Mala Vila", waldorfski',
+                         'Dječji vrtić Nazaret', 'Dječji vrtić Pinokio')]
+        result = await self.repo.import_snapshot(self.snapshot(national))
+        self.assertEqual(result['kindergartens_added'], 0)
+        self.assertEqual(await self.c.fetch('SELECT id FROM kindergarten ORDER BY id'), owners)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM location'), 8)
+
     async def test_zagreb_settlement_suffix_links_to_national_settlement(self):
         await self.repo.import_snapshot(self.snapshot([{**NATIONAL, 'Mjesto': 'Sesvete',
                                                          'Adresa': 'Sjedište 3', 'Zupanija': 'Grad Zagreb'}]))

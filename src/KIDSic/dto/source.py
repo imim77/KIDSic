@@ -20,6 +20,8 @@ class SourceDefinition:
     parser: str
     resource_format: str = 'json'
     resource_id: str | None = None
+    license_id: str = 'open-license'
+    csv_encoding: str = 'utf-8-sig'
 
 
 @dataclass(frozen=True)

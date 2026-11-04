@@ -14,4 +14,4 @@ class CkanClientInterface(ABC):
 
     @abstractmethod
     async def download_records(self, resource: CkanResource) -> list[dict]:
-        """Read bounded JSON or UTF-8 semicolon CSV; metadata is not a DataStore guarantee."""
+        """Read bounded JSON or configured semicolon CSV; do not assume DataStore."""

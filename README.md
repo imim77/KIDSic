@@ -99,24 +99,52 @@ Početni izvori:
 - `zagreb-municipal`: [Gradski vrtići — kontakt podaci](https://data.zagreb.hr/dataset/gradski_vrtici_grada_zagreba), matični i područni objekti.
 - `zagreb-other`: [Privatni/vjerski vrtići i obrti](https://data.zagreb.hr/dataset/privatni-vjerski-obrti-gz-kontakt-podaci), uz zasebno označene obrte dadilja.
 - `varazdin-childminders`: [Grad Varaždin — dadilje](https://data.gov.hr/ckan/dataset/grad-varazdin-dadilje/resource/2bde0eae-1d20-41c5-aec4-711f2a485439), CSV popis obrta za dadilje.
+- `rijeka-kindergartens`: [Grad Rijeka — dječji vrtići](https://data.rijeka.hr/dataset/djecji-vrtici), CSV pojedinačnih objekata i njihovih ustanova/osnivača.
 
 ```sh
 # Bez DATABASE_URL i bez pristupa bazi:
 uv run kidsic-register-sources --dry-run
 uv run kidsic-sync-kindergartens --dry-run
 
-# Odabir jednog ili više izvora; bez --source koriste se sva četiri:
+# Odabir jednog ili više izvora; bez --source koristi se svih pet:
 uv run kidsic-sync-kindergartens --source national
 uv run kidsic-sync-kindergartens --source zagreb-municipal --source zagreb-other
 uv run kidsic-sync-kindergartens --source varazdin-childminders --dry-run
 uv run kidsic-sync-kindergartens --source varazdin-childminders
+uv run kidsic-sync-kindergartens --source rijeka-kindergartens --dry-run
+uv run kidsic-sync-kindergartens --source rijeka-kindergartens
 ```
 
-Registracija poziva `package_show`, traži aktivan resurs zadanog formata (JSON ili CSV) i provjerava `open-license` (Otvorena dozvola). Metapodatke sprema u `data_source`; ponovljena registracija čuva `import_allowed`, aktivnu snimku i povijest. Ne uvozi sadržaj. Sync registrira izvore po potrebi i zasebno preuzima njihove JSON/CSV datoteke; ne pretpostavlja uključen DataStore. Nazivi portala, ID-jevi skupova, timeout i ograničenje veličine odgovora konfiguriraju se `CKAN_*` varijablama iz `.env.example`. Mapiranja su namijenjena ovim četirima shemama. Za varaždinske dadilje dodatno se provjerava točan ID korisnikova CSV resursa; drugi CSV nije automatska zamjena.
+Registracija poziva `package_show`, traži aktivan resurs zadanog formata (JSON ili CSV) i provjerava očekivanu licencu po izvoru: `open-license` (Otvorena dozvola), odnosno `cc-by` za Rijeku. Metapodatke sprema u `data_source`; ponovljena registracija čuva `import_allowed`, aktivnu snimku i povijest. Ne uvozi sadržaj. Sync registrira izvore po potrebi i zasebno preuzima njihove JSON/CSV datoteke; ne pretpostavlja uključen DataStore. Nazivi portala, ID-jevi skupova, timeout i ograničenje veličine odgovora konfiguriraju se `CKAN_*` varijablama iz `.env.example`. Mapiranja su namijenjena ovim pet shemama. Za varaždinske dadilje i riječke objekte dodatno se provjerava točan ID CSV resursa; drugi CSV nije automatska zamjena.
 
-Sync provjerava sve odabrane resurse prije transakcije. Sprema izvorne retke u `source_record`, normalizirane ustanove i objekte te podrijetlo polja. MZOM-ov redak opisuje pravnu osobu: njegova adresa sprema se kao sjedište ustanove, a ne kao objekt. Objekte daju zagrebački skupovi; ustanova bez poznatog objekta u pretrazi se prikazuje sa sjedištem (`scope=seat`). Spajanje koristi prethodni identitet izvora, OIB kada postoji te normalizirane nazive, grad/mjesto i adresu; ne koristi neprovjerene približne podudarnosti. Način odluke sprema se u `source_record.match_method`. Višeznačni zapisi ostaju `candidate` za pregled. Sve odabrane snimke aktiviraju se atomarno, a neuspjeh čuva prethodnu aktivnu snimku. Stari retci ostaju u povijesti. Ponovljeni uvoz istih identiteta čuva ID-jeve ustanova i lokacija; pisci se serijaliziraju transakcijskim advisory lockom.
+Sync provjerava sve odabrane resurse prije transakcije. Sprema izvorne retke u `source_record`, normalizirane ustanove i objekte te podrijetlo polja. MZOM-ov redak opisuje pravnu osobu: njegova adresa sprema se kao sjedište ustanove, a ne kao objekt. Objekte daju zagrebački i riječki skupovi; ustanova bez poznatog objekta u pretrazi se prikazuje sa sjedištem (`scope=seat`). Spajanje koristi prethodni identitet izvora, OIB kada postoji te normalizirane nazive, grad/mjesto i adresu; ne koristi neprovjerene približne podudarnosti. Način odluke sprema se u `source_record.match_method`. Višeznačni zapisi ostaju `candidate` za pregled. Sve odabrane snimke aktiviraju se atomarno, a neuspjeh čuva prethodnu aktivnu snimku. Stari retci ostaju u povijesti. Ponovljeni uvoz istih identiteta čuva ID-jeve ustanova i lokacija; pisci se serijaliziraju transakcijskim advisory lockom.
 
 Ovi skupovi nemaju potvrđene dobne uvjete, slobodna mjesta ni upisne upute. Uvoz ih ne izmišlja i ne stvara programe ni RAG dokumente iz kontaktnih podataka. Rezultati zato imaju dobni status `unknown`. Datum preuzimanja i izmjene resursa spremaju se odvojeno; ne proglašavaju se datumom stvarnog stanja podataka.
+
+### Riječki objekti vrtića
+
+Primarni katalog Grada Rijeke daje CSV resurs
+`7fe927d4-16e5-4255-b255-249f7ced3c2c` pod licencom CC-BY. CSV koristi
+Windows-1250 i `;`; kodiranje je izričito zadano samo ovom izvoru, bez
+nagađanja ili promjene UTF-8 pravila varaždinskog izvora. Konfiguracija je u
+`CKAN_RIJEKA_BASE_URL`, `CKAN_RIJEKA_DATASET_ID` i `CKAN_RIJEKA_RESOURCE_ID`.
+
+Stupci `Vrtić` i `Adresa` opisuju objekt, a `Centar` njegovu ustanovu.
+`Osnivač` određuje pregledani tip pružatelja: gradski, privatni ili vjerski;
+novi nepoznati osnivač ostaje `unknown`. Cijeli redak, uključujući adresu
+centra, ostaje u `source_record.raw_data`; uvoz objekta ne mijenja sjedište
+iz MZOM-a. Lokalni naziv Mala vila povezuje se s punim MZOM nazivom
+`Dječji vrtić "Mala Vila", waldorfski`. KBC Rijeka povezuje se s Dječjim
+vrtićem Rijeka prema [službenom opisu Grada](https://www.rijeka.hr/gradska-uprava/ustanove/ustanove-odgoju-skolstvu/djecji-vrtici/),
+bez stvaranja zasebne vrtićke ustanove KBC.
+
+Identitet retka računa se iz normaliziranih naziva ustanove i objekta;
+`RBR` je redni broj, pa promjena redoslijeda ili adrese ne stvara novi objekt.
+CSV trenutačno sadrži 50 objekata. Nema koordinate, kontakte ni oznaku
+matičnog/područnog objekta: kontakti se prikazuju iz postojeće ustanove ako
+postoje, a objekti bez koordinata dostupni su u popisu bez oznake na karti.
+Skup ima starije objekte; datum izmjene resursa ne potvrđuje aktualnost
+svakog retka. Uvoz ne provodi geokodiranje.
 
 ### Varaždinski obrti za dadilje
 
