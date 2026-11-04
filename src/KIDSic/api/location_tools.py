@@ -41,8 +41,8 @@ class LocationTools:
             name='prikazi_vrtice', title='Prikaži vrtiće na karti',
             description=(
                 'ALWAYS use this tool when the user asks to show or find '
-                'kindergartens by city, optionally institution/facility name and provider type. '
-                'Returns a map, cards, applied city/name/provider_kind and complete result counts. '
+                'kindergartens by city, optionally institution/facility name, provider type and area. '
+                'Returns a map, cards, applied city/name/provider_kind/area and complete result counts. '
                 'REQUIRES a city supplied explicitly by the user. If no city '
                 'is given, ask "U kojem gradu želiš prikaz vrtića?" first. '
                 'Never assume Zagreb or any other city. '
@@ -55,8 +55,17 @@ class LocationTools:
                 'Use other or unknown only when explicitly requested. '
                 'Omit provider_kind or use null for all types. Select one type per call; '
                 'ask which one if the user requests multiple types, do not silently drop any. '
+                'Put one district, neighbourhood or settlement name in area, in nominative form '
+                '(e.g. "na Banfici" -> "Banfica"). Area matching is exact, ignoring case and Croatian diacritics; '
+                'the optional administrative prefix "Mjesni odbor " is ignored. '
+                'Only attested area fields match, never addresses or facility names. Coverage is incomplete; '
+                'zero matches do not mean there are no kindergartens in that area. Omit area or use "" for all areas. '
+                'For a follow-up, send all criteria the user wants to retain, changing or clearing only '
+                'what they requested. Reuse an explicitly established city only when unambiguous; '
+                'ask otherwise. Each call is a full search, not a patch of the previous call. '
                 'Example: "Prikaži vrtić Bajka u Zagrebu" -> {"city":"Zagreb","name":"Bajka"}. '
                 'Example: "Samo gradski vrtići u Zagrebu" -> {"city":"Zagreb","provider_kind":"municipal"}. '
+                'Example: "Vrtići na Banfici u Varaždinu" -> {"city":"Varaždin","area":"Banfica"}. '
                 'If zero results are returned, report all applied criteria and ask which to change; '
                 'do not silently remove any filter or change the city.'
             ),
@@ -73,6 +82,12 @@ class LocationTools:
                     'description': 'Jedna vrsta: municipal=javni/gradski, private=privatni, religious=vjerski, '
                                    'childminder=dadilje, other=ostali, unknown=nepoznata vrsta. '
                                    'Izostavljeno ili null znači sve vrste.',
+                }, 'area': {
+                    **LocationQuery.model_json_schema()['properties']['area'],
+                    'description': 'Jedna četvrt, predio ili naselje u nominativu, npr. Banfica, '
+                                   'Trešnjevka-Jug ili Zamet. Točan naziv, bez razlikovanja slova i dijakritika; '
+                                   'Mjesni odbor je opcionalni prefiks. Prazno ili izostavljeno znači sva područja. '
+                                   'Samo zapisi s potvrđenim područjem; pokrivenost nije potpuna.',
                 }}, 'required': ['city'], 'additionalProperties': False,
             },
             outputSchema={
@@ -80,8 +95,9 @@ class LocationTools:
                     'city': {'type': 'string'},
                     'name': {'type': 'string'},
                     'provider_kind': provider_schema,
+                    'area': {'type': 'string'},
                     'metadata': LocationMetadata.model_json_schema(),
-                }, 'required': ['city', 'name', 'provider_kind', 'metadata'], 'additionalProperties': False,
+                }, 'required': ['city', 'name', 'provider_kind', 'area', 'metadata'], 'additionalProperties': False,
             },
             annotations=types.ToolAnnotations(
                 readOnlyHint=True, destructiveHint=False, idempotentHint=True,
@@ -97,13 +113,18 @@ class LocationTools:
             return self._error_result('Nepoznat alat.')
         if not isinstance(arguments, dict) or 'city' not in arguments:
             return self._error_result('Grad je obavezan. Pitaj korisnika: U kojem gradu želiš prikaz vrtića?')
-        if set(arguments) - {'city', 'name', 'provider_kind'}:
-            return self._error_result('Za pretragu su podržani samo city (grad), name (naziv) i provider_kind (vrsta). '
+        if set(arguments) - {'city', 'name', 'provider_kind', 'area'}:
+            return self._error_result('Za pretragu su podržani samo city (grad), name (naziv), provider_kind (vrsta) i area (područje). '
                                       'Primjer: {"city":"Zagreb","name":"Bajka"}.')
         try:
             query = LocationQuery.model_validate({'city': arguments['city'], 'q': arguments.get('name', ''),
-                                                 'provider_kind': arguments.get('provider_kind')})
+                                                 'provider_kind': arguments.get('provider_kind'),
+                                                 'area': arguments.get('area', '')})
         except ValidationError as error:
+            if any(item['loc'][0] == 'area' for item in error.errors()):
+                return self._error_result('Područje (area) mora biti jedan tekst do 200 znakova, npr. '
+                    '{"city":"Varaždin","area":"Banfica"}. Za sva područja izostavi area ili pošalji "". '
+                    'Za više područja prvo razjasni koje korisnik želi.')
             if any(item['loc'][0] == 'provider_kind' for item in error.errors()):
                 return self._error_result('Vrsta (provider_kind) mora biti jedna od: municipal (javni/gradski), '
                     'private (privatni), religious (vjerski), childminder (dadilje), other (ostali), unknown (nepoznati). '
@@ -120,19 +141,23 @@ class LocationTools:
             return self._error_result('Vrtići trenutačno nisu dostupni. Pokušaj ponovno kasnije.')
         name_notice = f' Naziv: „{query.q}”.' if query.q else ''
         provider_notice = f' Vrsta: {self._provider_labels[query.provider_kind]}.' if query.provider_kind else ''
+        area_notice = (f' Područje: „{query.area}”. Pretraga koristi samo potvrđene nazive područja; '
+                       'pokrivenost je nepotpuna. OSM nazivi nisu potvrda službenih granica.' if query.area else '')
         guidance = ('Provjeri ili skrati naziv. ' if query.q else '')
         guidance += ('Provjeri odabranu vrstu. ' if query.provider_kind else '')
+        guidance += ('Provjeri naziv područja; nula rezultata ne znači da ondje nema vrtića. ' if query.area else '')
         outcome = (guidance +
                    'Nemoj mijenjati grad ili ukloniti filter bez korisnikova odabira.'
-                   if (query.q or query.provider_kind) and locations.metadata.total == 0
+                   if (query.q or query.provider_kind or query.area) and locations.metadata.total == 0
                    else 'Prikaži povezanu kartu i kartice.')
         return types.CallToolResult(
             content=[types.TextContent(type='text', text=(
                 f'Prikaz vrtića za grad {query.city}: {locations.metadata.total} '
                 f'rezultata, {locations.metadata.mapped} s koordinatama. '
-                f'{name_notice}{provider_notice} {outcome}'
+                f'{name_notice}{provider_notice}{area_notice} {outcome}'
             ))],
             structuredContent={'city': query.city, 'name': query.q, 'provider_kind': query.provider_kind,
+                               'area': query.area,
                                'metadata': locations.metadata.model_dump(mode='json')},
             # Host size limits also apply to UI-only metadata. Keep provenance
             # lossless while fitting large cities into the tool-result budget.

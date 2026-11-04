@@ -10,6 +10,7 @@ read endpoint; the local server binds to `127.0.0.1` by default.
 | `city` | `Zagreb`, `Varaždin` or `Rijeka`, including case/diacritic variants and curated aliases, default `Zagreb`. Trimmed, 1–100 characters. Each city includes its settlements, such as Sesvete within Zagreb. Other cities return HTTP 422. |
 | `q` | Literal substring of institution or facility name, ignoring case and Croatian diacritics (č/ć/ž/š/đ), trimmed, at most 200 characters. `%` and `_` are literal characters. No address search. |
 | `provider_kind` | One of `municipal`, `private`, `religious`, `childminder`, `other`, `unknown`; omitted means all. |
+| `area` | Jedan točan naziv četvrti, predjela ili naselja, triman, do 200 znakova; izostavljeno ili prazno znači sva područja. Podudaranje zanemaruje velika slova i hrvatske dijakritike te opcionalni prefiks `Mjesni odbor `. Kombinira se s ostalim filtrima logikom AND. |
 | `bbox` | Optional `west,south,east,north` in WGS84; finite ordered longitude/latitude bounds. Antimeridian wrapping is unsupported. |
 
 There is no pagination or result cap: `metadata.complete` is always `true` and
@@ -41,7 +42,7 @@ unknown and is not an enrolment or capacity claim.
 `properties.field_sources` separately attributes stored fields to their accepted,
 still import-approved evidence, including historical records. It defaults to `{}`
 and may contain `name`, `provider_kind`, `location_name`, `address`, `district`,
-`longitude` and `latitude`. Each entry contains the same source metadata as above
+`quarter`, `suburb`, `neighbourhood`, `settlement`, `longitude` and `latitude`. Each entry contains the same source metadata as above
 plus `active_snapshot: true|false`. False means the last-known value came from an
 older snapshot; its original fetch/reference dates are preserved. Active location
 attestation in `sources` does not assert every attribute was supplied by that
@@ -52,6 +53,23 @@ coordinate provenance is rejected, disabled, missing or points to another
 owner/location, geometry becomes null and the location is excluded from `bbox`
 results, while its list entry remains. Legacy/manual coordinates without recorded
 field provenance remain available without an invented field source.
+
+`properties.areas` lists the current attested district, quarter, suburb,
+neighbourhood and non-city settlement names used by `area`. Names are not inferred
+from addresses, institution names or coordinates. The list is empty when no area
+is known. Recorded field evidence must be accepted, import-approved, active and
+belong to the exact institution and location. Reviewed legacy/manual fields
+without field provenance follow the existing read convention; no source is
+invented. Historical `district` may remain visible with its field-source date,
+but does not participate in `areas` or area filtering. Seat areas additionally
+require the current-address check in `kindergarten_seat_geography`.
+
+An area filter excludes unknown areas, including unlocated objects unless their
+area is independently known. Known areas do not require coordinates. No geographic
+boundary query is performed, and OSM labels are not asserted to be official
+administrative boundaries. Coverage is incomplete; zero results means no attested
+match, not that the area has no kindergartens. `metadata.complete` describes the
+complete result set of the applied filters, not complete area coverage.
 
 Properties also include nullable `website_url`, `email` and `phone`. Published
 contacts in an accepted, active record for that exact facility take precedence;

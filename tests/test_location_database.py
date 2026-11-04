@@ -128,6 +128,8 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         rows = await self.repository.list_locations(LocationQuery())
         self.assertEqual((rows[0]['location_id'],rows[0]['location_role'],rows[0]['longitude']), (None,'seat',15.98))
         self.assertIn('longitude', rows[0]['field_sources'])
+        self.assertIn('Banfica', rows[0]['areas'])
+        self.assertEqual(len(await self.repository.list_locations(LocationQuery(area='banfica'))), 1)
         search = AsyncpgKindergartenRepository(self.c)
         self.assertIn('Banfica', [r['name'] for r in await search.list_areas(city='Zagreb')])
         from KIDSic.services.concrete.request_parser import parse_request
@@ -139,9 +141,11 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(await search.retrieve_context(location_ids=[],kindergarten_ids=[owner],text='Banfica')), 1)
         await self.c.execute('UPDATE data_source SET import_allowed=false WHERE id=$1', geo_source)
         self.assertIsNone((await self.repository.list_locations(LocationQuery()))[0]['longitude'])
+        self.assertEqual(await self.repository.list_locations(LocationQuery(area='Banfica')), [])
         self.assertEqual(await search.list_areas(city='Zagreb'), [])
         await self.c.execute('UPDATE data_source SET import_allowed=true WHERE id=$1', geo_source)
         await self.c.execute("UPDATE kindergarten SET seat_address='New seat 2' WHERE id=$1", owner)
+        self.assertEqual(await self.repository.list_locations(LocationQuery(area='Banfica')), [])
         self.assertIsNone((await self.repository.list_locations(LocationQuery()))[0]['longitude'])
         self.assertEqual(await search.find_options(city='Zagreb',age_months=24,area='Banfica',include_unknown=True), [])
         self.assertEqual(await search.retrieve_context(location_ids=[],kindergarten_ids=[owner],text='Banfica'), [])
@@ -195,6 +199,67 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
                 LocationQuery(city='Zagreb', q='No matching name', provider_kind=kind)), [])
         rows = await self.repository.list_locations(LocationQuery(city='Zagreb', q='Bajka'))
         self.assertEqual({r['location_id'] for r in rows}, set(expected.values()))
+
+    async def test_area_filters_attested_fields_exactly_and_combines_with_other_filters(self):
+        expected = []
+        for field in ('district', 'quarter', 'suburb', 'neighbourhood', 'settlement'):
+            _, location = await self.fixture('Bajka ' + field, provider='private', coords=(None, None))
+            if field == 'district':
+                await self.c.execute("UPDATE location SET district='Črnomerec' WHERE id=$1", location)
+            elif field == 'settlement':
+                await self.c.execute("UPDATE location SET settlement='Črnomerec',settlement_key='crnomerec',municipality_id=$2 WHERE id=$1", location, self.municipality)
+            else:
+                await self.c.execute('UPDATE location SET attributes=$2 WHERE id=$1', location, {field:'Črnomerec'})
+            expected.append(location)
+        _, wrong_type = await self.fixture('Bajka municipal')
+        await self.c.execute("UPDATE location SET district='Črnomerec' WHERE id=$1", wrong_type)
+        await self.fixture('Črnomerec name only', provider='private')
+        _, address_only = await self.fixture('Bajka address', provider='private')
+        await self.c.execute("UPDATE location SET address='Črnomerec 1' WHERE id=$1", address_only)
+        _, wrong_city = await self.fixture('Bajka Rijeka', city='Rijeka', provider='private')
+        await self.c.execute("UPDATE location SET district='Črnomerec' WHERE id=$1", wrong_city)
+        for area in ('Črnomerec', ' CRNOMEREC '):
+            rows = await self.repository.list_locations(LocationQuery(city='Zagreb',q='Bajka',provider_kind='private',area=area))
+            self.assertEqual({r['location_id'] for r in rows}, set(expected))
+            self.assertTrue(all('Črnomerec' in r['areas'] and r['longitude'] is None for r in rows))
+        for area in ('Črno', '%', "' OR 1=1 --", 'Missing area'):
+            self.assertEqual(await self.repository.list_locations(LocationQuery(area=area)), [])
+        self.assertEqual(len(await self.repository.list_locations(LocationQuery(area='   '))), 8)
+        self.assertEqual(await self.repository.list_locations(LocationQuery(city='Zagrebu',area='Zagreb')), [])
+        await self.c.execute("UPDATE location SET attributes=$2 WHERE id=$1", expected[1], {'quarter':'Mjesni odbor Zamet'})
+        for area in ('Zamet','mjesni odbor ZAMET'):
+            self.assertEqual([r['location_id'] for r in await self.repository.list_locations(LocationQuery(area=area))], [expected[1]])
+
+    async def test_area_evidence_must_be_current_allowed_and_belong_to_exact_object(self):
+        owner, location = await self.fixture('Target')
+        record = await self.c.fetchval('SELECT id FROM source_record WHERE location_id=$1', location)
+        other, other_location = await self.fixture('Other')
+        other_record = await self.c.fetchval('SELECT id FROM source_record WHERE location_id=$1', other_location)
+        sibling = await self.c.fetchval("INSERT INTO location(kindergarten_id,name,settlement,settlement_key) VALUES ($1,'Sibling','Zagreb','zagreb') RETURNING id", owner)
+        await self.record(owner, sibling)
+        sibling_record = await self.c.fetchval('SELECT id FROM source_record WHERE location_id=$1', sibling)
+        alternate = await self.c.fetchval("INSERT INTO data_source(dataset_key,title,publisher,url,import_allowed,active_batch_id) VALUES ($1,'Current','Test','https://example.invalid/current',true,$2) RETURNING id", str(uuid4()), self.batch)
+        await self.record(owner, location, source=alternate)
+        await self.c.execute("UPDATE location SET district='Banfica',attributes=$2 WHERE id=$1", location, {'quarter':'Banfica','suburb':'Banfica','neighbourhood':'Banfica'})
+        for pointer, status, allowed, batch in (
+            (record, 'accepted', True, self.batch),
+            (record, 'rejected', True, self.batch),
+            (record, 'candidate', True, self.batch),
+            (record, 'accepted', False, self.batch),
+            (record, 'accepted', True, uuid4()),
+            (other_record, 'accepted', True, self.batch),
+            (sibling_record, 'accepted', True, self.batch),
+            (uuid4(), 'accepted', True, self.batch),
+        ):
+            await self.c.execute('UPDATE source_record SET match_status=$2,batch_id=$3 WHERE id=$1', record, status, batch)
+            await self.c.execute('UPDATE data_source SET import_allowed=$2 WHERE id=$1', self.source, allowed)
+            await self.c.execute('UPDATE location SET provenance=$2 WHERE id=$1', location,
+                {key:{'source_record_id':str(pointer)} for key in ('district','quarter','suburb','neighbourhood')})
+            rows = await self.repository.list_locations(LocationQuery(q='Target', area='Banfica'))
+            valid = pointer == record and status == 'accepted' and allowed and batch == self.batch
+            self.assertEqual([r['location_id'] for r in rows], [location] if valid else [])
+            unfiltered = await self.repository.list_locations(LocationQuery(q='Target'))
+            self.assertIn(location, [r['location_id'] for r in unfiltered])
 
     async def test_name_search_matches_parent_and_branch_with_croatian_letters_and_city_scope(self):
         _, branch = await self.fixture('Dječji vrtić Čarobna kućica')

@@ -55,7 +55,7 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
             tool = tools[0]
             self.assertEqual(tool.inputSchema['required'], ['city'])
             self.assertNotIn('default', tool.inputSchema['properties']['city'])
-            self.assertEqual(set(tool.inputSchema['properties']), {'city', 'name', 'provider_kind'})
+            self.assertEqual(set(tool.inputSchema['properties']), {'city', 'name', 'provider_kind', 'area'})
             self.assertEqual(set(tool.inputSchema['properties']['provider_kind']['anyOf'][0]['enum']),
                              {'municipal', 'private', 'religious', 'childminder', 'other', 'unknown'})
             self.assertEqual(tool.inputSchema['properties']['name']['maxLength'], 200)
@@ -115,7 +115,7 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result.meta['locations']['encoding'], 'gzip+base64')
             self.assertEqual(decoded_locations(result), payload.model_dump(mode='json'))
             self.assertEqual(result.structuredContent, {
-                'city': 'Rijeka', 'name': '', 'provider_kind': None, 'metadata': payload.metadata.model_dump(mode='json'),
+                'city': 'Rijeka', 'name': '', 'provider_kind': None, 'area': '', 'metadata': payload.metadata.model_dump(mode='json'),
             })
             self.assertNotIn('Synthetic', str(result.structuredContent))
 
@@ -181,6 +181,42 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
                     result = await session.call_tool('prikazi_vrtice', {'city': 'Rijeka', 'provider_kind': kind})
                     self.assertTrue(result.isError)
                     self.assertIn('Vrsta (provider_kind)', result.content[0].text)
+        service.list_locations.assert_not_awaited()
+
+    async def test_area_and_follow_ups_send_full_criteria_without_server_side_inheritance(self):
+        service = SimpleNamespace(list_locations=AsyncMock(return_value=empty_collection()))
+        calls = [
+            {'city':'Varaždinu','name':' Bajka ','provider_kind':'private','area':' Banfica '},
+            {'city':'Varaždin','name':'Bajka','provider_kind':'private','area':'Centar'},
+            {'city':'Varaždin','name':'Bajka','provider_kind':'private','area':''},
+            {'city':'Rijeka','area':'Zamet'},
+            {'city':'Zagreb'},
+        ]
+        async with connected(service) as (session, _):
+            for arguments in calls:
+                service.list_locations.reset_mock()
+                result = await session.call_tool('prikazi_vrtice', arguments)
+                self.assertFalse(result.isError)
+                service.list_locations.assert_awaited_once()
+                query = service.list_locations.await_args.args[0]
+                self.assertEqual(query.area, arguments.get('area', '').strip())
+                self.assertEqual(query.q, arguments.get('name', '').strip())
+                self.assertEqual(query.provider_kind, arguments.get('provider_kind'))
+                self.assertEqual(result.structuredContent['area'], query.area)
+                if query.area:
+                    self.assertIn('nula rezultata ne znači', result.content[0].text)
+                    self.assertIn('Nemoj', result.content[0].text)
+
+    async def test_invalid_areas_and_area_without_city_never_read_database(self):
+        service = SimpleNamespace(list_locations=AsyncMock())
+        async with connected(service) as (session, _):
+            missing = await session.call_tool('prikazi_vrtice', {'area':'Banfica'})
+            self.assertTrue(missing.isError)
+            self.assertIn('U kojem gradu', missing.content[0].text)
+            for area in (None, 123, True, [], ['Banfica','Centar'], {}, 'x'*201):
+                result = await session.call_tool('prikazi_vrtice', {'city':'Varaždin','area':area})
+                self.assertTrue(result.isError)
+                self.assertIn('Područje (area)', result.content[0].text)
         service.list_locations.assert_not_awaited()
 
     async def test_service_errors_are_sanitized_without_false_empty_map(self):

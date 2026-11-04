@@ -15,10 +15,11 @@ class LocationQuery(BaseModel):
 
     city: str = Field(default='Zagreb', min_length=1, max_length=100)
     q: str = Field(default='', max_length=200)
+    area: str = Field(default='', max_length=200)
     provider_kind: ProviderKind | None = None
     bbox: tuple[float, float, float, float] | None = None
 
-    @field_validator('city', 'q', mode='before')
+    @field_validator('city', 'q', 'area', mode='before')
     @classmethod
     def strip_text(cls, value):
         return value.strip() if isinstance(value, str) else value
@@ -65,6 +66,7 @@ class LocationProperties(BaseModel):
     email: str | None = None
     phone: str | None = None
     district: str | None
+    areas: list[str] = Field(default_factory=list)
     location_role: Literal['facility', 'seat']
     sources: list[LocationSource]
     field_sources: dict[str, LocationFieldSource] = Field(default_factory=dict)
