@@ -6,6 +6,8 @@ const sourceId = 'kindergarten-locations'
 const clustersId = 'kindergarten-clusters'
 const pointsId = 'kindergarten-points'
 const selectionSourceId = 'kindergarten-selection'
+// Mirrors theme.css tokens; Mapbox paint properties cannot read CSS variables.
+const palette = { ink: '#03594d', violet: '#c88cfd', orange: '#ff9124' }
 
 // LocationLayer keeps one clustered source alive as directory results change.
 export class LocationLayer {
@@ -113,21 +115,21 @@ export class LocationLayer {
     this.map.addSource(sourceId, { type: 'geojson', data: this.data, cluster: true, clusterMaxZoom: 14, clusterRadius: 42 })
     this.map.addLayer({
       id: clustersId, type: 'circle', source: sourceId, filter: ['has', 'point_count'],
-      paint: { 'circle-color': '#bf0e23', 'circle-radius': ['step', ['get', 'point_count'], 18, 20, 23, 60, 28], 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 },
+      paint: { 'circle-color': palette.orange, 'circle-radius': ['step', ['get', 'point_count'], 18, 20, 23, 60, 28], 'circle-stroke-color': palette.ink, 'circle-stroke-width': 2 },
     })
     this.map.addLayer({
       id: 'kindergarten-cluster-count', type: 'symbol', source: sourceId, filter: ['has', 'point_count'],
       layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 12 },
-      paint: { 'text-color': '#fff' },
+      paint: { 'text-color': palette.ink },
     })
     this.map.addLayer({
       id: pointsId, type: 'circle', source: sourceId, filter: ['!', ['has', 'point_count']],
-      paint: { 'circle-color': '#bf0e23', 'circle-radius': 7, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 },
+      paint: { 'circle-color': palette.violet, 'circle-radius': 7, 'circle-stroke-color': palette.ink, 'circle-stroke-width': 2 },
     })
     this.map.addSource(selectionSourceId, { type: 'geojson', data: this.selection })
     this.map.addLayer({
       id: 'kindergarten-selected-point', type: 'circle', source: selectionSourceId,
-      paint: { 'circle-color': '#6e0714', 'circle-radius': 11, 'circle-stroke-color': '#fff', 'circle-stroke-width': 4 },
+      paint: { 'circle-color': palette.violet, 'circle-radius': 11, 'circle-stroke-color': palette.ink, 'circle-stroke-width': 4 },
     })
   }
 }
