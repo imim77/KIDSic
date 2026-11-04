@@ -3,6 +3,10 @@ import csv
 import io
 import json
 import math
+import zipfile
+from xml.etree.ElementTree import ParseError
+from openpyxl import load_workbook
+from openpyxl.utils.exceptions import InvalidFileException
 
 import httpx
 from pydantic import ValidationError
@@ -87,3 +91,29 @@ class CkanClient(CkanClientInterface):
         if not isinstance(payload, list) or any(not isinstance(row, dict) for row in payload):
             raise CkanResponseError('The JSON resource must contain an array of objects.')
         return payload
+
+    async def download_table(self, resource: CkanResource) -> list[list[str]]:
+        content = await self._read_bytes(str(resource.url))
+        resource_format = (resource.format or '').strip().casefold()
+        try:
+            if resource_format in {'csv', 'text/csv'}:
+                return list(csv.reader(io.StringIO(content.decode(self._csv_encoding), newline=''),
+                                       delimiter=';', strict=True))
+            if resource_format not in {'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}:
+                raise CkanResponseError('Expected a CSV or XLSX table.')
+            with zipfile.ZipFile(io.BytesIO(content)) as archive:
+                if sum(item.file_size for item in archive.infolist()) > self._max_bytes * 20:
+                    raise CkanResponseError('Expanded XLSX exceeds the configured size limit.')
+            workbook = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+            try:
+                rows = []
+                for values in workbook.worksheets[0].iter_rows(values_only=True):
+                    if len(rows) >= 100_000 or len(values) > 256:
+                        raise CkanResponseError('XLSX table exceeds the configured cell limits.')
+                    rows.append(['' if value is None else str(value) for value in values])
+                return rows
+            finally:
+                workbook.close()
+        except (UnicodeError, csv.Error, zipfile.BadZipFile, ValueError, KeyError,
+                IndexError, ParseError, InvalidFileException) as error:
+            raise CkanResponseError('CKAN did not return a readable CSV/XLSX table.') from error

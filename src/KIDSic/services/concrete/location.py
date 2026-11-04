@@ -36,6 +36,9 @@ class LocationService(LocationServiceInterface):
                         website_url=dict(row).get('website_url'), email=dict(row).get('email'),
                         phone=dict(row).get('phone'),
                         areas=dict(row).get('areas', []),
+                        suitability_status=dict(row).get('suitability_status', 'not_evaluated'),
+                        programs=dict(row).get('programs', []),
+                        historical_data=dict(row).get('historical_data', []),
                         subsidy_policies=[self._subsidies.present(policy)
                             for policy in dict(row).get('subsidy_policies', [])],
                         field_sources=dict(row).get('field_sources', {})),
@@ -44,4 +47,6 @@ class LocationService(LocationServiceInterface):
             return LocationCollection(features=features, metadata=LocationMetadata(
                 total=len(features), mapped=mapped, unmapped=len(features) - mapped,
                 scope='bbox' if query.bbox is not None else 'city',
+                confirmed=sum(feature.properties.suitability_status == 'confirmed' for feature in features),
+                unknown=sum(feature.properties.suitability_status == 'unknown' for feature in features),
             ))

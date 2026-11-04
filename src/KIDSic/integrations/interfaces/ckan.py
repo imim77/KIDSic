@@ -15,3 +15,7 @@ class CkanClientInterface(ABC):
     @abstractmethod
     async def download_records(self, resource: CkanResource) -> list[dict]:
         """Read bounded JSON or configured semicolon CSV; do not assume DataStore."""
+
+    @abstractmethod
+    async def download_table(self, resource: CkanResource) -> list[list[str]]:
+        """Read bounded CSV/XLSX cells, preserving multi-row headers and empty cells."""

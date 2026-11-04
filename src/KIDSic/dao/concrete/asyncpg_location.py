@@ -12,7 +12,7 @@ class AsyncpgLocationRepository(LocationRepository):
     async def list_locations(self, query: LocationQuery):
         return await self._connection.fetch('''
           WITH approved_record AS (
-            SELECT r.id::text AS record_id,r.kindergarten_id,r.location_id,r.raw_data,r.fetched_at,
+            SELECT r.id::text AS record_id,r.source_id,r.kindergarten_id,r.location_id,r.raw_data,r.fetched_at,
               COALESCE(s.active_batch_id=r.batch_id,false) AS active_snapshot,
               jsonb_build_object('name',s.title,'url',s.url,'license',s.license,
                 'reference_date',r.observed_on,'retrieved_at',r.fetched_at) AS evidence
@@ -20,6 +20,15 @@ class AsyncpgLocationRepository(LocationRepository):
             WHERE r.match_status='accepted' AND s.import_allowed
           ), active_record AS (
             SELECT * FROM approved_record WHERE active_snapshot
+          ), valid_program AS (
+            SELECT p.*,r.location_id AS evidence_location,s.url AS source_url,
+              s.title AS source_title
+            FROM program p JOIN active_record r ON r.record_id=p.source_record_id::text
+            JOIN data_source s ON s.id=r.source_id
+            WHERE r.kindergarten_id=p.kindergarten_id
+              AND p.verified_on<=CURRENT_DATE
+              AND (p.valid_until IS NULL OR p.valid_until>=CURRENT_DATE)
+              AND (s.stale_after_days IS NULL OR p.verified_on>=CURRENT_DATE-s.stale_after_days)
           ), place AS (
             SELECT l.id AS location_id,l.kindergarten_id,l.name AS location_name,
               l.address,l.settlement,l.settlement_key,l.municipality_id,l.district,
@@ -54,6 +63,12 @@ class AsyncpgLocationRepository(LocationRepository):
           SELECT pl.location_id,pl.kindergarten_id,k.name,pl.location_name,
             pl.address,pl.settlement AS city,k.provider_kind,pl.district,
             COALESCE(areas.names,'[]'::jsonb) AS areas,
+            COALESCE(program_data.programs,'[]'::jsonb) AS programs,
+            COALESCE(history.records,'[]'::jsonb) AS historical_data,
+            CASE WHEN $6::int IS NULL AND $7='' THEN 'not_evaluated'
+              WHEN program_data.matches THEN 'confirmed'
+              WHEN program_data.programs IS NULL OR program_data.unknown_age THEN 'unknown'
+              ELSE 'excluded' END AS suitability_status,
             COALESCE(NULLIF(btrim(contact.raw_data->>'Web'),''),NULLIF(btrim(k.website_url),'')) AS website_url,
             COALESCE(NULLIF(btrim(contact.raw_data->>'Email'),''),NULLIF(btrim(k.email),'')) AS email,
             COALESCE(NULLIF(btrim(contact.raw_data->>'Telefon'),''),NULLIF(btrim(pl.facility_phone),''),
@@ -74,6 +89,33 @@ class AsyncpgLocationRepository(LocationRepository):
                   COALESCE(fields.field_sources ? 'latitude',false))) AS geometry_valid
           FROM place pl JOIN kindergarten k ON k.id=pl.kindergarten_id
           LEFT JOIN municipality m ON m.id=pl.municipality_id
+          LEFT JOIN LATERAL (
+            SELECT jsonb_agg(jsonb_build_object('reference_date',h.reference_date,
+              'date_kind',h.date_kind,'scope',h.scope,'programs',h.programs,'vacancies',h.vacancies,
+              'source_title',s.title,'source_url',COALESCE(s.metadata->>'resource_url',s.url),
+              'license',s.license) ORDER BY h.reference_date DESC,s.dataset_key,h.source_key) AS records
+            FROM historical_record h JOIN data_source s ON s.id=h.source_id
+              AND s.active_batch_id=h.batch_id
+            WHERE s.import_allowed AND h.match_status='accepted'
+              AND h.kindergarten_id=pl.kindergarten_id
+              AND ((h.scope='institution' AND h.location_id IS NULL)
+                OR (h.scope='facility' AND h.location_id=pl.location_id))
+              AND (cardinality(h.programs)>0 OR jsonb_array_length(h.vacancies)>0)
+          ) history ON true
+          LEFT JOIN LATERAL (
+            SELECT jsonb_agg(jsonb_build_object('program_id',p.id,'name',p.name,
+              'min_age_months',p.min_age_months,'max_age_months_exclusive',p.max_age_months_exclusive,
+              'verified_on',p.verified_on,'valid_until',p.valid_until,
+              'source_record_id',p.source_record_id,'source_url',p.source_url,'source_title',p.source_title,
+              'scope',CASE WHEN p.location_id IS NULL AND p.evidence_location IS NULL
+                THEN 'institution' ELSE 'facility' END) ORDER BY p.name,p.id) AS programs,
+              bool_or($6::int IS NULL OR (p.min_age_months<=$6 AND $6<p.max_age_months_exclusive)) AS matches,
+              bool_or(p.min_age_months IS NULL OR p.max_age_months_exclusive IS NULL) AS unknown_age
+            FROM valid_program p WHERE p.kindergarten_id=pl.kindergarten_id
+              AND (p.location_id IS NULL OR p.location_id=pl.location_id)
+              AND (p.evidence_location IS NULL OR p.evidence_location=pl.location_id)
+              AND ($7='' OR strpos(translate(lower(p.name),'čćžšđ','cczsd'),$7)>0)
+          ) program_data ON true
           -- Area filters use current attestation; historical labels stay in district only.
           LEFT JOIN LATERAL (
             SELECT jsonb_agg(DISTINCT btrim(area.value) ORDER BY btrim(area.value)) AS names
@@ -115,7 +157,8 @@ class AsyncpgLocationRepository(LocationRepository):
             AND ($3::text IS NULL OR k.provider_kind=$3)
           )
           SELECT location_id,kindergarten_id,name,location_name,address,city,
-            provider_kind,district,areas,website_url,email,phone,location_role,sources,field_sources,subsidy_policies,
+            provider_kind,district,areas,programs,historical_data,suitability_status,
+            website_url,email,phone,location_role,sources,field_sources,subsidy_policies,
             CASE WHEN geometry_valid THEN longitude END AS longitude,
             CASE WHEN geometry_valid THEN latitude END AS latitude
           FROM candidate
@@ -125,7 +168,10 @@ class AsyncpgLocationRepository(LocationRepository):
             AND ($5='' OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(areas) area(name)
               WHERE regexp_replace(translate(lower(btrim(area.name)),'čćžšđ','cczsd'),
                 '^mjesni odbor ','')=$5))
-          ORDER BY name,location_name,kindergarten_id,location_id
+            AND suitability_status<>'excluded'
+            AND ($8::boolean OR suitability_status<>'unknown')
+          ORDER BY suitability_status='confirmed' DESC,name,location_name,kindergarten_id,location_id
         ''', supported_city_key(query.city), normalize(query.q), query.provider_kind,
             list(query.bbox) if query.bbox is not None else None,
-            normalize(query.area).removeprefix('mjesni odbor '))
+            normalize(query.area).removeprefix('mjesni odbor '),
+            query.age_months, normalize(query.program), query.include_unknown)

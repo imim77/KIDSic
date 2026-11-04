@@ -24,6 +24,7 @@ class LocationHttpTests(unittest.TestCase):
             response = client.get('/api/locations', params={
                 'city': ' Zagreb ', 'q': 'Medo', 'provider_kind': 'private',
                 'bbox': '15,45,16,46', 'area': ' Banfica ',
+                'age_months':'24', 'program':' Montessori ', 'include_unknown':'false',
             })
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers['content-type'], 'application/geo+json')
@@ -31,13 +32,17 @@ class LocationHttpTests(unittest.TestCase):
         query = service.list_locations.await_args.args[0]
         self.assertEqual((query.city, query.q, query.provider_kind), ('Zagreb', 'Medo', 'private'))
         self.assertEqual(query.area, 'Banfica')
+        self.assertEqual((query.age_months,query.program,query.include_unknown),(24,'Montessori',False))
         self.assertEqual(query.bbox, (15, 45, 16, 46))
 
     def test_invalid_queries_never_access_persistence(self):
         service = SimpleNamespace(list_locations=AsyncMock())
         with TestClient(create_app(service)) as client:
             for suffix in ('city=Split', 'city=Osijek', 'city=', 'provider_kind=city', 'bbox=bad', 'bbox=nan,45,16,46',
-                           'city=Zagreb&city=Split', 'limit=1', 'q=' + 'a' * 201, 'area=' + 'a' * 201, 'area=Banfica&area=Centar'):
+                           'city=Zagreb&city=Split', 'limit=1', 'q=' + 'a' * 201, 'area=' + 'a' * 201, 'area=Banfica&area=Centar',
+                           'age_months=24.0','age_months=true','age_months=-1','age_months=217',
+                           'age_months=','age_months=24&age_months=36','include_unknown=1',
+                           'include_unknown=False','program='+'a'*201):
                 with self.subTest(suffix=suffix):
                     response = client.get('/api/locations?' + suffix)
                     self.assertEqual(response.status_code, 422)

@@ -3,10 +3,12 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 
 from KIDSic.dao.interfaces.source import SourceRepository
+from KIDSic.dao.interfaces.historical import HistoricalRepository
 
 
 class SourceUnitOfWork(ABC):
     sources: SourceRepository
+    historical: HistoricalRepository
 
     @abstractmethod
     async def __aenter__(self):

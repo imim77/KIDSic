@@ -55,7 +55,7 @@ class LocationServiceTests(unittest.IsolatedAsyncioTestCase):
         repository.list_locations.assert_awaited_once_with(query)
         self.assertEqual(events, ['enter', 'exit'])
         self.assertEqual(result.metadata.model_dump(), {
-            'total': 3, 'mapped': 1, 'unmapped': 2, 'scope': 'city', 'complete': True,
+            'total': 3, 'mapped': 1, 'unmapped': 2, 'scope': 'city', 'complete': True, 'confirmed': 0, 'unknown': 0,
         })
         payload = result.model_dump(mode='json')
         self.assertEqual(payload['features'][0]['id'], str(location))
@@ -73,3 +73,19 @@ class LocationServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload['features'][0]['properties']['website_url'], 'https://example.invalid/kindergarten')
         self.assertEqual(payload['features'][0]['properties']['email'], 'info@example.invalid')
         self.assertEqual(payload['features'][0]['properties']['phone'], '01/123-4567')
+
+    async def test_suitability_counts_and_sourced_programs_survive_geojson_conversion(self):
+        row = dict(kindergarten_id=uuid4(),name='Synthetic',location_name='Synthetic',location_id=uuid4(),
+            address=None,city='Zagreb',provider_kind='private',district=None,longitude=None,latitude=None,
+            location_role='facility',sources=[],suitability_status='confirmed',programs=[{
+                'program_id':str(uuid4()),'name':'Montessori','min_age_months':12,'max_age_months_exclusive':36,
+                'verified_on':'2026-11-04','valid_until':None,'source_record_id':str(uuid4()),
+                'source_url':'https://example.invalid/program','source_title':'Synthetic source','scope':'facility',
+            }])
+        @asynccontextmanager
+        async def uow():
+            yield SimpleNamespace(locations=SimpleNamespace(list_locations=AsyncMock(return_value=[
+                row,dict(row,location_id=uuid4(),suitability_status='unknown',programs=[])])))
+        result = await LocationServiceFactory().create(uow).list_locations(LocationQuery(age_months=24))
+        self.assertEqual((result.metadata.total,result.metadata.confirmed,result.metadata.unknown),(2,1,1))
+        self.assertEqual(result.features[0].properties.programs[0].source_url,'https://example.invalid/program')

@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from KIDSic.dto.municipality import supported_city_key
 from KIDSic.dto.subsidy import SubsidyPolicy
+from KIDSic.dto.historical import HistoricalEvidence
 
 ProviderKind = Literal['municipal', 'private', 'religious', 'childminder', 'other', 'unknown']
 
@@ -16,10 +17,13 @@ class LocationQuery(BaseModel):
     city: str = Field(default='Zagreb', min_length=1, max_length=100)
     q: str = Field(default='', max_length=200)
     area: str = Field(default='', max_length=200)
+    age_months: int | None = Field(default=None, strict=True, ge=0, le=216)
+    program: str = Field(default='', max_length=200)
+    include_unknown: bool = Field(default=True, strict=True)
     provider_kind: ProviderKind | None = None
     bbox: tuple[float, float, float, float] | None = None
 
-    @field_validator('city', 'q', 'area', mode='before')
+    @field_validator('city', 'q', 'area', 'program', mode='before')
     @classmethod
     def strip_text(cls, value):
         return value.strip() if isinstance(value, str) else value
@@ -54,6 +58,19 @@ class LocationFieldSource(LocationSource):
     active_snapshot: bool
 
 
+class LocationProgram(BaseModel):
+    program_id: str
+    name: str
+    min_age_months: int | None
+    max_age_months_exclusive: int | None
+    verified_on: date
+    valid_until: date | None
+    source_record_id: str
+    source_url: str
+    source_title: str
+    scope: Literal['institution', 'facility']
+
+
 class LocationProperties(BaseModel):
     location_id: str | None
     kindergarten_id: str
@@ -71,7 +88,10 @@ class LocationProperties(BaseModel):
     sources: list[LocationSource]
     field_sources: dict[str, LocationFieldSource] = Field(default_factory=dict)
     subsidy_policies: list[SubsidyPolicy] = Field(default_factory=list)
-    # Age suitability is not evaluated by this endpoint.
+    suitability_status: Literal['not_evaluated', 'confirmed', 'unknown'] = 'not_evaluated'
+    programs: list[LocationProgram] = Field(default_factory=list)
+    historical_data: list[HistoricalEvidence] = Field(default_factory=list)
+    # Retained for older clients; the sourced programs carry explicit age bounds.
     age_groups: None = None
 
 
@@ -93,6 +113,8 @@ class LocationMetadata(BaseModel):
     unmapped: int
     scope: Literal['city', 'bbox']
     complete: Literal[True] = True
+    confirmed: int = Field(default=0, ge=0)
+    unknown: int = Field(default=0, ge=0)
 
 
 class LocationCollection(BaseModel):
