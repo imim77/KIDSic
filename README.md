@@ -121,6 +121,40 @@ Sync provjerava sve odabrane resurse prije transakcije. Sprema izvorne retke u `
 
 Ovi skupovi nemaju potvrđene dobne uvjete, slobodna mjesta ni upisne upute. Uvoz ih ne izmišlja i ne stvara programe ni RAG dokumente iz kontaktnih podataka. Rezultati zato imaju dobni status `unknown`. Datum preuzimanja i izmjene resursa spremaju se odvojeno; ne proglašavaju se datumom stvarnog stanja podataka.
 
+### Povijesni zagrebački programi i slobodna mjesta
+
+Zaseban uvoz preko istog HTTP/CKAN klijenta koristi tri resursa pod Otvorenom
+dozvolom (OD):
+
+- [Programi po objektima, XLSX objavljen 9. 10. 2019.](https://data.zagreb.hr/dataset/djecji-vrtici-grada-zagreba/resource/b94a968b-be3a-410b-84d3-2e5a857b311d)
+- [Slobodna mjesta u gradskim vrtićima, stanje 1. 1. 2025.](https://data.zagreb.hr/dataset/slobodna-mjesta-u-vrticima-i-obrtima-za-cuvanje-djece-grada-zagreba/resource/a6a9199d-eaf4-4f75-9bce-7a3a5b367d30)
+- [Slobodna mjesta kod dadilja, stanje 1. 1. 2025.](https://data.zagreb.hr/dataset/slobodna-mjesta-u-vrticima-i-obrtima-za-cuvanje-djece-grada-zagreba/resource/f1c42d5e-17c8-40e9-83a9-fba7539bd4b5)
+
+```bash
+uv run alembic -c src/KIDSic/db/alembic/alembic.ini upgrade head
+uv run kidsic-sync-historical --dry-run
+uv run kidsic-sync-historical
+# Opcionalno jedan izvor:
+uv run kidsic-sync-historical --source zagreb-programs-2019
+```
+
+Prvo uvezite postojeći imenik (`national`, `zagreb-municipal`, `zagreb-other`).
+Povijesni uvoz ne stvara nove ustanove, objekte ni koordinate. `historical_record`
+čuva izvorni redak, datum, programe i mjesta; jednoznačno povezuje nazive unutar
+Zagreba, a za programe i adresu objekta. Nepovezani i višeznačni retci ostaju
+`candidate` za pregled. `accepted` zapisi aktivne, dopuštene snimke pojavljuju se
+u detaljima odgovarajućih vrtića kroz `historical_data`. Broj mjesta odnosi se
+na cijelu ustanovu/obrt, ne pojedini objekt; ne zbraja se po podružnicama.
+Zbrojni stupci CSV-a nisu dodatne skupine. Nula ostaje nula, prazno ostaje nepoznato,
+a `/` u programima nije naziv programa ni dokaz da program ne postoji.
+
+Datumi podataka odvojeni su od datuma preuzimanja i izmjene kataloga. Promjena
+licence, datuma snimke ili zaglavlja zaustavlja uvoz za pregled. Sve datoteke
+provjeravaju se prije transakcije; pogreška zadržava prethodnu snimku. Ponovljeni
+uvoz čuva povijest, ali API prikazuje samo aktivnu snimku. Ovi povijesni zapisi
+ne potvrđuju aktualnu dobnu prikladnost, današnja slobodna mjesta ni pravo upisa.
+Iz ovog skupa nema podataka o slobodnim mjestima privatnih i vjerskih vrtića.
+
 ### Riječki objekti vrtića
 
 Primarni katalog Grada Rijeke daje CSV resurs
@@ -170,7 +204,7 @@ API se pokreće nad prethodno migriranom i popunjenom bazom iz koraka iznad:
 uv run uvicorn KIDSic.api.locations:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
-`DATABASE_URL` mora biti postavljen u istom terminalu. API drži jedan pool kroz životni vijek aplikacije; svaki zahtjev čita konzistentnu snimku kroz read-only Unit of Work. Pokretanje ne izvršava migracije ni uvoz. [Ugovor lokacija](LOCATION_API.md) opisuje `GET /api/locations`, filtre, GeoJSON, izvore, datume i pogreške. Dobno filtrirana razgovorna pretraga ostaje zaseban servis.
+`DATABASE_URL` mora biti postavljen u istom terminalu. API drži jedan pool kroz životni vijek aplikacije; svaki zahtjev čita konzistentnu snimku kroz read-only Unit of Work. Pokretanje ne izvršava migracije ni uvoz. [Ugovor lokacija](LOCATION_API.md) opisuje `GET /api/locations`, filtre, GeoJSON, izvore, datume i pogreške. MCP karta podržava dob u mjesecima i program uz zasebno označene potvrđene i nepoznate uvjete; CLI pretraga i RAG ostaju zaseban servis.
 
 Frontend pokrenuti u drugom terminalu:
 

@@ -1,8 +1,8 @@
 # KIDSic MCP app
 
 `prikazi_vrtice` je read-only MCP alat koji vraća postojeći GeoJSON za grad i
-prikazuje kartu s vodoravnim karticama. Ne procjenjuje upisne uvjete, dobnu
-prikladnost, kapacitet ili slobodna mjesta.
+prikazuje kartu s vodoravnim karticama. Dob i program provjerava samo prema
+aktualnim potvrđenim programima; ne potvrđuje pravo na upis ni slobodna mjesta.
 
 ## Pokretanje
 
@@ -51,6 +51,7 @@ Nakon povezivanja odabrati KIDSic aplikaciju u chatu i pokušati:
 - „Samo gradski vrtići u Zagrebu.” → `{"city":"Zagreb","provider_kind":"municipal"}`.
 - „Privatni vrtić Bajka u Varaždinu.” → `{"city":"Varaždin","name":"Bajka","provider_kind":"private"}`.
 - „Vrtići na Banfici u Varaždinu.” → `{"city":"Varaždin","area":"Banfica"}`.
+- „Montessori u Zagrebu za dijete od 2 godine.” → `{"city":"Zagreb","age_months":24,"program":"Montessori"}`.
 - „Tražim Čarobnu kućicu.” → pitati za grad, bez pretrage po pretpostavljenom gradu.
 - „Prikaži mi vrtiće u Splitu.” → poruka da su podržani Zagreb, Varaždin i Rijeka, bez čitanja baze.
 - „Prikaži mi vrtiće.” → AI pita „U kojem gradu želiš prikaz vrtića?” prije poziva.
@@ -86,6 +87,46 @@ važećim dokazom i nepromijenjenom adresom. Nepoznato područje se ne pretposta
 OSM nazivi ne potvrđuju službene granice; pokrivenost je nepotpuna i nula
 rezultata ne dokazuje da u području nema vrtića.
 
+Opcionalni `age_months` je cijeli broj od 0 do 216 ili `null`/izostavljeno za
+pretragu bez dobi. AI klijent pretvara izričitu dob u mjesece: 2 godine = 24,
+2 godine i 6 mjeseci = 30. Nula je valjana vrijednost, nije izostavljena dob.
+Ako dob nije jasna, klijent pita za mjesece; ne zaključuje je iz riječi „jaslice”.
+Program se može pretraživati i bez dobnog filtra, bez tvrdnje o prikladnosti za dob.
+
+Opcionalni `program` je naziv ili dio naziva programa, triman, do 200 znakova;
+prazno/izostavljeno znači bez tog filtra. Podudaranje je literalno i zanemaruje
+velika slova i hrvatske dijakritike. `name` i dalje označava ustanovu/objekt.
+Programi se ne zaključuju iz naziva ustanove, kontakata ili pravila sufinanciranja.
+
+`include_unknown` je boolean, zadano `true`. `false` se šalje samo na izričit
+zahtjev „samo potvrđeni”. Uz dob/program rezultati su podijeljeni:
+
+- `confirmed`: isti aktualni program zadovoljava traženi naziv programa i dob
+  (donja granica uključiva, gornja isključiva), za svaki zadani kriterij.
+- `unknown`: nema aktualnog dokaza za traženi program ili nedostaje njegova
+  potpuna dobna granica. Drugi objavljeni program ne dokazuje da traženi ne postoji.
+- Poznati potpuni rasponi traženog programa koji ne uključuju dob ne ulaze u
+  rezultat; jedan drugi program ne smije poslužiti kao dobni dokaz za traženi.
+
+Bez dobi i programa status je `not_evaluated`, a `include_unknown` nema učinka.
+`metadata.confirmed` i `metadata.unknown` broje vraćene skupine. UI prikazuje
+oznaku samo za potvrđena podudaranja, bez oznake nepoznatih uvjeta i naslova skupina. Gornji red
+kriterija nije prikazan; primijenjeni kriteriji i brojevi ostaju u odgovoru alata. Detalji navode raspon, datum provjere, izvor i je li dokaz za
+ustanovu ili konkretan objekt. Podatak za ustanovu ne jamči provedbu u svakom
+objektu. Potvrđeno podudaranje nije jamstvo mjesta ni upisa.
+
+Trenutačno u lokalnoj snimci imenika nema potvrđenih zapisa u tablici `program`.
+Pretraga s dobi/programom zato vraća nepoznate uvjete; `include_unknown: false`
+vraća nulu. Implementacija ne dodaje izmišljene programe. Potvrđena i rubna
+podudaranja provjeravaju se sintetičkim podacima samo u rollback testnoj bazi.
+
+Detalji zagrebačkih vrtića dodatno prikazuju `historical_data`: programe iz XLSX-a
+objavljenog 9. 10. 2019. i slobodna mjesta iz CSV snimki na dan 1. 1. 2025.
+Prikazuju datum, opseg objekt/ustanova, izvor i licencu. Institucionalni broj
+mjesta nije broj za svaki objekt i ne smije se zbrajati po podružnicama.
+Povijesne snimke ne ulaze u potvrdu današnje dobi/programa ni slobodnih mjesta.
+Uvoz i povezivanje dokumentirani su uz `kidsic-sync-historical` u README-u.
+
 Svaki poziv sadrži sve odabrane kriterije. Na nastavak „A sada samo u Centru”
 klijent zadržava prethodno izričito utvrđen grad, naziv i vrstu ako ih korisnik
 želi zadržati, a šalje `area: "Centar"`. Na „Ukloni područje” izostavlja `area`
@@ -93,16 +134,16 @@ ili šalje `""`. Server ne čuva razgovorno stanje. Ako grad ili željena promje
 nisu jasni, klijent traži pojašnjenje. Promjena kriterija prikazuje novi skup
 rezultata i briše stari odabir kartice.
 
-Uspješan rezultat uvijek vraća primijenjeni `city`, `name`, `provider_kind` i `area`. UI ih prikazuje
-iznad karte, čuva ih pri ponovnom pokušaju i briše prethodni odabir pri novom
-upitu. Nula rezultata prikazuje praznu kartu s pozivom da se naziv provjeri ili
+Uspješan rezultat uvijek vraća primijenjeni `city`, `name`, `provider_kind`, `area`, `age_months`, `program` i `include_unknown`. UI čuva kriterije
+pri ponovnom pokušaju i briše prethodni odabir pri novom upitu, bez gornjeg reda
+filtra iznad karte. Nula rezultata prikazuje praznu kartu s pozivom da se naziv provjeri ili
 skrati; server i UI ne proširuju pretragu automatski. Za sve vrste izostaviti `provider_kind` ili poslati `null`; za sve nazive
 izostaviti `name`. Novi poziv bez vrste ili područja ne nasljeđuje te filtre prethodne pretrage.
 
 Tumačenje prirodnog jezika i pitanje za nedostajući grad obavlja AI klijent
 prema opisu alata i uputama servera. Python server validira strukturirane
 argumente i izvršava determinističku pretragu; nema zasebnog LLM poziva ni
-novog chat polja u web aplikaciji. Dob, RAG, usporedba i
+novog chat polja u web aplikaciji. RAG, usporedba i
 vodič za upis nisu parametri ovog koraka.
 
 Upute servera i opis alata zahtijevaju ovaj alat za prikaz vrtića. Svaki poziv je
@@ -113,9 +154,9 @@ pročitati rezultat, ali ne može prikazati interaktivnu kartu.
 
 ## Ugovor UI-ja i provjera
 
-Resurs `ui://kidsic/map-v12.html` ima MIME `text/html;profile=mcp-app`. Moderni
+Resurs `ui://kidsic/map-v16.html` ima MIME `text/html;profile=mcp-app`. Moderni
 `_meta.ui.resourceUri` i kompatibilni `openai/outputTemplate` povezuju ga s alatom.
-Uspješan rezultat ima sažetak `structuredContent: {city, name, provider_kind, area, metadata}`, uz deklarirani
+Uspješan rezultat ima sažetak `structuredContent: {city, name, provider_kind, area, age_months, program, include_unknown, metadata}`, uz deklarirani
 `outputSchema`. Potpuni GeoJSON prenosi se bez gubitka u `_meta.locations` kao
 `{encoding: "gzip+base64", data: "…"}`. UI ga dekodira preko pregledničkog
 `DecompressionStream` API-ja prije validacije. Time veliki gradski skupovi s
@@ -132,12 +173,12 @@ UI koristi službeni `App` bridge, `ui/notifications/tool-input` i `tool-result`
 koji podržava fullscreen. Bez te mogućnosti ostaje postojeći browser fallback.
 Inline prikaz ima vlastitu visinu 520 px (480 px na uskim ekranima), koju SDK
 prijavljuje hostu kroz automatski `size-changed`. Ne preuzima malu početnu
-visinu iframea kroz `100dvh`. MCP kartice visoke su 92 px; fullscreen koristi
+visinu iframea kroz `100dvh`. MCP kartice visoke su 92 px (144 px s oznakom potvrđenog podudaranja); fullscreen koristi
 visinu dodijeljenog prozora. Klik na karticu traži fullscreen i otvara popis,
 detalje i kartu u stupcima (ispod 1100 px detalji prekrivaju popis, ispod 700 px
 kartu). Detalji prikazuju samo podatke iz izvora i navode što nije poznato;
 vanjske poveznice otvaraju se kroz `ui/open-link`. Nakon nadogradnje ponovno
-povezati konektor kako bi host preuzeo URI resursa v12 te pokrenuti novi poziv
+povezati konektor kako bi host preuzeo URI resursa v16 te pokrenuti novi poziv
 alata.
 Resurs deklarira CSP za Mapbox API, događaje, tiles i blob/data resurse. Host mora
 dopustiti Mapbox blob worker i WebGL; u suprotnom ostaju dostupne kartice. UI je
@@ -182,3 +223,5 @@ Reference: [MCP Apps](https://modelcontextprotocol.io/extensions/apps/overview),
 
 Scenariji za provjeru filtra područja i nastavaka razgovora nalaze se u
 [conversational_area.md](tests/fixtures/conversational_area.md).
+
+Scenariji za dob i programe: [conversational_age_program.md](tests/fixtures/conversational_age_program.md).

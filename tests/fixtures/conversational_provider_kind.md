@@ -29,6 +29,6 @@ pripadati odabranoj vrsti, uključujući zapise bez koordinata. Nepoznata vrsta 
 smije se tretirati kao javna samo zato što su oznake iste boje.
 
 U UI-ju provjeriti da „Pokušaj ponovno” šalje isti grad, naziv i vrstu. Novi upit
-bez vrste mora pokazati „Sve vrste”. Kriteriji ostaju vidljivi i u fullscreen
+bez vrste pretražuje sve vrste. Gornji red kriterija nije prikazan ni u fullscreen
 prikazu. Za nevaljanu vrstu ili popis vrsta server mora dati uputu za ispravak
 bez čitanja baze. Ne uklanjati filter automatski radi dobivanja više rezultata.

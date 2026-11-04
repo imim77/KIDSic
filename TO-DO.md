@@ -22,12 +22,16 @@
 - [ ] Filtrirati prema dobi djeteta i programu kada postoje potvrđeni podaci, uz zasebnu oznaku za rezultate s nepoznatim uvjetima.
 - [x] Prikazivati rezultate na listi i karti, s međusobno povezanim odabirom objekta.
 - [ ] Omogućiti sortiranje prema udaljenosti i objasniti aktivne kriterije pretrage.
+- [ ] Omogućiti pretragu „Vrtić usput do posla” odabirom lokacija doma i posla te načina putovanja, uz rangiranje objekata prema dodatnom vremenu u odnosu na izravnu rutu dom–posao.
+- [ ] Za opcije usput do posla prikazivati rutu dom–vrtić–posao i procijenjene dodatne minute putovanja za odabrani način putovanja.
 
 ## Detalji i usporedba
 
 - [ ] Prikazivati naziv ustanove, odabrani objekt, adresu, lokaciju, vrstu pružatelja, kontakte i službenu web-stranicu.
 - [ ] Prikazivati potvrđene programe, jezike i atribute objekta kada postoje u povezanim izvorima.
-- [ ] Omogućiti usporedbu do tri vrtića ili objekta prema udaljenosti, vrsti, dostupnim programima, objavljenim mjestima i postupku upisa.
+- [ ] Omogućiti usporedbu do tri vrtića ili objekta prema udaljenosti i procijenjenom vremenu putovanja kada je dostupno, vrsti pružatelja, potvrđenim programima i dobnim uvjetima, objavljenim mjestima uz dobnu skupinu i datum stanja te postupku upisa, uz prikaz telefona, e-maila i službene web-stranice kada su dostupni.
+- [ ] U usporedbi objasniti prednosti i nedostatke svake opcije prema vidljivim kriterijima roditelja i dostupnim podacima, uz poveznice na izvore i jasan sljedeći korak za provjeru ili kontakt.
+- [ ] U usporedbi jasno označiti nepoznate podatke i uvjete koje treba provjeriti; nepoznat podatak ne tumačiti kao nezadovoljavanje uvjeta, a objavljeno slobodno mjesto ne prikazivati kao jamstvo upisa.
 - [ ] Omogućiti promjenu objekta unutar iste ustanove uz očuvanje povezanih podataka ustanove.
 - [ ] Za podatke koji se razlikuju među izvorima prikazati neslaganje i podrijetlo vrijednosti.
 

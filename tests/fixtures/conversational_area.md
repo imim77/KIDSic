@@ -39,7 +39,6 @@ Automatizirano se provjerava da adresa ili naziv koji spominju područje nisu
 zamjena za potvrđeno polje, da stari/odbijeni/isključeni izvori ne filtriraju
 te da sjedište s promijenjenom adresom ne zadržava staro područje.
 
-U UI-ju provjeriti vidljivost područja i napomene o nepotpunoj pokrivenosti,
-uključujući fullscreen. „Pokušaj ponovno” šalje sva četiri ista kriterija.
-Novi poziv bez area prikazuje „Sva područja”; odsutnost filtra nije skriveno
+U UI-ju gornji red kriterija ne smije biti prikazan, uključujući fullscreen. „Pokušaj ponovno” šalje sva četiri ista kriterija.
+Novi poziv bez area pretražuje sva područja; odsutnost filtra nije skriveno
 nasljeđivanje. Nepoznate koordinate ne uklanjaju potvrđeno područje iz popisa.
