@@ -179,6 +179,23 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
             await self.fixture(f'Facility {i}')
         self.assertEqual(len(await self.repository.list_locations(LocationQuery())), 101)
 
+    async def test_all_provider_types_filter_exactly_with_city_name_and_unmapped_locations(self):
+        kinds = ('municipal', 'private', 'religious', 'childminder', 'other', 'unknown')
+        expected = {}
+        for kind in kinds:
+            _, expected[kind] = await self.fixture('Bajka ' + kind, provider=kind,
+                coords=(None, None) if kind in ('childminder', 'unknown') else (15.98, 45.81))
+        await self.fixture('Bajka outside city', city='Rijeka', provider='private')
+        await self.fixture('Other name', provider='private')
+        for kind in kinds:
+            rows = await self.repository.list_locations(LocationQuery(city='Zagreb', q='Bajka', provider_kind=kind))
+            self.assertEqual([r['location_id'] for r in rows], [expected[kind]])
+            self.assertEqual({r['provider_kind'] for r in rows}, {kind})
+            self.assertEqual(await self.repository.list_locations(
+                LocationQuery(city='Zagreb', q='No matching name', provider_kind=kind)), [])
+        rows = await self.repository.list_locations(LocationQuery(city='Zagreb', q='Bajka'))
+        self.assertEqual({r['location_id'] for r in rows}, set(expected.values()))
+
     async def test_name_search_matches_parent_and_branch_with_croatian_letters_and_city_scope(self):
         _, branch = await self.fixture('Dječji vrtić Čarobna kućica')
         await self.c.execute("UPDATE location SET name='Đački kutak' WHERE id=$1", branch)

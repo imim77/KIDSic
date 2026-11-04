@@ -55,7 +55,9 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
             tool = tools[0]
             self.assertEqual(tool.inputSchema['required'], ['city'])
             self.assertNotIn('default', tool.inputSchema['properties']['city'])
-            self.assertEqual(set(tool.inputSchema['properties']), {'city', 'name'})
+            self.assertEqual(set(tool.inputSchema['properties']), {'city', 'name', 'provider_kind'})
+            self.assertEqual(set(tool.inputSchema['properties']['provider_kind']['anyOf'][0]['enum']),
+                             {'municipal', 'private', 'religious', 'childminder', 'other', 'unknown'})
             self.assertEqual(tool.inputSchema['properties']['name']['maxLength'], 200)
             self.assertTrue(tool.annotations.readOnlyHint)
             self.assertEqual(tool.meta['ui']['resourceUri'], UI_URI)
@@ -113,7 +115,7 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result.meta['locations']['encoding'], 'gzip+base64')
             self.assertEqual(decoded_locations(result), payload.model_dump(mode='json'))
             self.assertEqual(result.structuredContent, {
-                'city': 'Rijeka', 'name': '', 'metadata': payload.metadata.model_dump(mode='json'),
+                'city': 'Rijeka', 'name': '', 'provider_kind': None, 'metadata': payload.metadata.model_dump(mode='json'),
             })
             self.assertNotIn('Synthetic', str(result.structuredContent))
 
@@ -150,6 +152,35 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
                     result = await session.call_tool('prikazi_vrtice', {'city': 'Zagreb', 'name': name})
                     self.assertTrue(result.isError)
                     self.assertIn('Naziv', result.content[0].text)
+        service.list_locations.assert_not_awaited()
+
+    async def test_provider_type_combines_with_city_and_name_without_broadening_empty_results(self):
+        service = SimpleNamespace(list_locations=AsyncMock(return_value=empty_collection()))
+        async with connected(service) as (session, _):
+            for kind in ('municipal', 'private', 'religious', 'childminder', 'other', 'unknown', None):
+                with self.subTest(kind=kind):
+                    service.list_locations.reset_mock()
+                    result = await session.call_tool('prikazi_vrtice', {
+                        'city': 'Zagrebu', 'name': ' Bajka ', 'provider_kind': kind})
+                    self.assertFalse(result.isError)
+                    self.assertEqual(result.structuredContent['provider_kind'], kind)
+                    query = service.list_locations.await_args.args[0]
+                    self.assertEqual((query.city, query.q, query.provider_kind), ('Zagreb', 'Bajka', kind))
+                    service.list_locations.assert_awaited_once()
+                    self.assertEqual(decoded_locations(result)['features'], [])
+                    self.assertIn('Nemoj', result.content[0].text)
+
+    async def test_invalid_or_multiple_types_and_missing_city_never_read_database(self):
+        service = SimpleNamespace(list_locations=AsyncMock())
+        async with connected(service) as (session, _):
+            missing = await session.call_tool('prikazi_vrtice', {'provider_kind': 'municipal'})
+            self.assertTrue(missing.isError)
+            self.assertIn('U kojem gradu', missing.content[0].text)
+            for kind in ('', 'gradski', 'MUNICIPAL', 'private,religious', ['private', 'religious'], {}, 1, True):
+                with self.subTest(kind=kind):
+                    result = await session.call_tool('prikazi_vrtice', {'city': 'Rijeka', 'provider_kind': kind})
+                    self.assertTrue(result.isError)
+                    self.assertIn('Vrsta (provider_kind)', result.content[0].text)
         service.list_locations.assert_not_awaited()
 
     async def test_service_errors_are_sanitized_without_false_empty_map(self):

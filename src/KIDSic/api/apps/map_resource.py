@@ -3,7 +3,7 @@ from pathlib import Path
 from mcp import types
 from mcp.server.lowlevel.helper_types import ReadResourceContents
 
-UI_URI = 'ui://kidsic/map-v10.html'
+UI_URI = 'ui://kidsic/map-v11.html'
 UI_MIME = 'text/html;profile=mcp-app'
 SERVER_INSTRUCTIONS = (
     'When the user asks to show or find kindergartens in a city, ALWAYS call '
@@ -15,8 +15,11 @@ SERVER_INSTRUCTIONS = (
     'this limitation for other cities. Extract an optional kindergarten/facility name '
     'into the name argument, e.g. "Bajka u Zagrebu" -> city="Zagreb", name="Bajka". '
     'Send only the name, not the whole user sentence. A city must be supplied for '
-    'each search; ask when it is missing or ambiguous. For zero name matches, '
-    'report the applied criteria and ask whether to shorten/check the name. '
+    'each search; ask when it is missing or ambiguous. Map requested provider types '
+    'to provider_kind: javni/gradski=municipal, privatni=private, vjerski=religious, '
+    'dadilje=childminder, ostali=other, nepoznati=unknown. Omit it or use null for all types. '
+    'Only one type can be selected per call; clarify a request for multiple types. '
+    'For zero matches, report the applied city, name and type and ask which criterion to change. '
     'Never broaden a failed search automatically. Explain unavailable results without inventing data.'
 )
 TOOL_META = {
