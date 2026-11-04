@@ -16,7 +16,7 @@ export function LocationCard({ feature, selected, onSelect }: LocationCardProps)
   const address = location.location_role === 'seat' ? `Sjedište: ${rawAddress}` : rawAddress
 
   return <Card className="location-card relative flex-row items-center gap-3 rounded-[20px] p-3" data-selected={selected} role="article">
-    <Button type="button" variant="ghost" className="absolute inset-0 h-full w-full rounded-[18px] p-0" aria-label={`${location.location_name} ${address}`} title={`${location.location_name}\n${address}`} aria-pressed={selected} onClick={() => onSelect(feature.id)} />
+    <Button type="button" variant="ghost" className="absolute inset-0 h-full w-full rounded-[18px] p-0" aria-label={`${location.location_name} ${address}`} title={`${location.location_name}\n${address}`} aria-pressed={selected} data-location-card={feature.id} onClick={() => onSelect(feature.id)} />
     <div className="location-thumbnail pointer-events-none relative" aria-hidden="true">
       <Building2 />
     </div>
