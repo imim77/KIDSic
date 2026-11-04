@@ -17,7 +17,7 @@ interface KindergartenExplorerProps {
   hostFullscreen?: HostFullscreen
   notice?: string
   emptyNotice?: string
-  criteria?: { city: string; name?: string; provider_kind?: ProviderKind | null }
+  criteria?: { city: string; name?: string; provider_kind?: ProviderKind | null; area?: string }
   openLink?: (url: string) => void
 }
 
@@ -30,6 +30,8 @@ export function KindergartenExplorer({ hostFullscreen, criteria, ...props }: Kin
       <strong>Grad: {criteria.city}</strong>
       {criteria.name && <span>Naziv: „{criteria.name}”</span>}
       <span>Vrsta: {criteria.provider_kind ? providerLabels[criteria.provider_kind] : 'Sve vrste'}</span>
+      <span>Područje: {criteria.area || 'Sva područja'}</span>
+      {criteria.area && <span>Prikaz prema potvrđenim nazivima područja. Pokrivenost je nepotpuna; OSM nazivi nisu službene granice.</span>}
     </header>}
     <ExplorerLayout {...props} />
   </FullscreenFrame>
