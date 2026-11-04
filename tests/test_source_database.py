@@ -48,6 +48,159 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         return SourceSnapshot(source or self.source, normalize_records(records or [NATIONAL], parser),
                               datetime.now(timezone.utc))
 
+    async def test_city_scope_filters_reimports_and_rejects_unfiltered_snapshots(self):
+        from dataclasses import replace
+        records = [{**NATIONAL, 'Mjesto': city, 'Zupanija': county} for city, county in (
+            ('Zagreb', 'Grad Zagreb'), ('Varaždin', 'Varaždinska županija'),
+            ('Rijeka', 'Primorsko-goranska županija'), ('Split', 'Splitsko-dalmatinska županija'))]
+        snapshot = self.snapshot(records)
+        await self.repo.import_snapshot(snapshot)
+        identities = await self.c.fetch('SELECT id,seat_settlement FROM kindergarten ORDER BY id')
+        self.assertEqual({r['seat_settlement'] for r in identities}, {'Zagreb', 'Varaždin', 'Rijeka'})
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 3)
+        await self.repo.import_snapshot(self.snapshot(records))
+        self.assertEqual(await self.c.fetch('SELECT id,seat_settlement FROM kindergarten ORDER BY id'), identities)
+        bad = replace(snapshot, rows=(replace(snapshot.rows[0], municipality='split'),))
+        with self.assertRaises(SourceImportError):
+            await self.repo.import_snapshot(bad)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 6)
+
+    async def test_city_cleanup_preserves_supported_branches_and_removes_dependent_data(self):
+        from uuid import uuid4
+        await self.repo.register(self.source)
+        source_id = await self.c.fetchval("SELECT id FROM data_source WHERE dataset_key='national'")
+        batch = uuid4()
+        await self.c.execute('UPDATE data_source SET active_batch_id=$2 WHERE id=$1', source_id, batch)
+        cities = {city: await self.c.fetchval('INSERT INTO municipality(key,name) VALUES ($1,$1) '
+                  'RETURNING id', city) for city in ('zagreb', 'varazdin', 'rijeka', 'split', 'osijek')}
+
+        async def place(name, city, *, owner=None, settlement=None):
+            if owner is None:
+                owner = await self.c.fetchval('''INSERT INTO kindergarten
+                    (name,seat_settlement,seat_settlement_key,seat_municipality_id)
+                    VALUES ($1,$2,$2,$3) RETURNING id''', name, city, cities[city])
+            location = await self.c.fetchval('''INSERT INTO location
+                (kindergarten_id,name,settlement,settlement_key,municipality_id)
+                VALUES ($1,$2,$3,$3,$4) RETURNING id''', owner, name, settlement or city, cities[city])
+            record = await self.c.fetchval('''INSERT INTO source_record
+                (source_id,batch_id,raw_data,kindergarten_id,location_id,match_status,match_method)
+                VALUES ($1,$2,'{}',$3,$4,'accepted','manual') RETURNING id''',
+                source_id, batch, owner, location)
+            program = await self.c.fetchval('''INSERT INTO program
+                (kindergarten_id,location_id,source_record_id,name,verified_on)
+                VALUES ($1,$2,$3,'Synthetic',CURRENT_DATE) RETURNING id''', owner, location, record)
+            await self.c.execute('''INSERT INTO availability
+                (kindergarten_id,location_id,source_record_id,program_id,observed_on)
+                VALUES ($1,$2,$3,$4,CURRENT_DATE)''', owner, location, record, program)
+            await self.c.execute('''INSERT INTO enrolment
+                (kindergarten_id,source_record_id,academic_year,application_url,channel)
+                VALUES ($1,$2,'2026/27','https://example.invalid','kindergarten')''', owner, record)
+            await self.c.execute('''INSERT INTO knowledge_chunk
+                (kindergarten_id,location_id,source_record_id,program_id,ordinal,content,source_url,content_sha256)
+                VALUES ($1,$2,$3,$4,0,'Synthetic','https://example.invalid',$5)''',
+                owner, location, record, program, 'a' * 64)
+            return owner, location, record
+
+        outside = await place('Outside only', 'split')
+        rijeka = await place('Rijeka retained', 'rijeka')
+        external = await place('External seat', 'split')
+        zagreb = await place('Zagreb branch', 'zagreb', owner=external[0], settlement='sesvete')
+        varazdin = await place('Varaždin retained', 'varazdin')
+        for city, county in (('Split', 'Splitsko-dalmatinska županija'), ('Sesvete', 'Grad Zagreb')):
+            await self.c.execute('''INSERT INTO source_record(source_id,batch_id,raw_data)
+                VALUES ($1,$2,$3)''', source_id, batch, {**NATIONAL, 'Mjesto': city, 'Zupanija': county})
+        await self.c.execute('''INSERT INTO enrolment
+            (municipality_id,source_record_id,academic_year,application_url,channel)
+            VALUES ($1,$2,'2026/27','https://example.invalid','city_system')''', cities['split'], rijeka[2])
+
+        migration = (Path(__file__).resolve().parents[1] /
+                     'src/KIDSic/db/alembic/versions/0005_supported_cities.sql').read_text()
+        await self.c.execute(migration)
+        self.assertEqual({r['id'] for r in await self.c.fetch('SELECT id FROM kindergarten')},
+                         {rijeka[0], external[0], varazdin[0]})
+        self.assertEqual({r['id'] for r in await self.c.fetch('SELECT id FROM location')},
+                         {rijeka[1], zagreb[1], varazdin[1]})
+        for table in ('program', 'availability', 'enrolment', 'knowledge_chunk'):
+            self.assertEqual(await self.c.fetchval(f'SELECT count(*) FROM {table}'), 3, table)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 4)
+        self.assertIsNone(await self.c.fetchval("SELECT id FROM municipality WHERE key='osijek'"))
+        self.assertEqual(await self.c.fetchval('SELECT active_batch_id FROM data_source WHERE id=$1', source_id), batch)
+        cities_after = await AsyncpgKindergartenRepository(self.c).list_cities()
+        self.assertEqual({r['city_key'] for r in cities_after}, {'zagreb', 'varazdin', 'rijeka'})
+        await self.c.execute(migration)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM kindergarten'), 3)
+
+    async def test_provider_types_survive_reimport_and_are_exposed_with_their_source(self):
+        from KIDSic.dao.concrete.asyncpg_location import AsyncpgLocationRepository
+        from KIDSic.dto.location import LocationQuery
+        records = [{**NATIONAL, 'Naziv': name} for name in
+                   ('DV Varaždin', 'DV Bajka', 'DV Sveta Uršula')]
+        await self.repo.import_snapshot(self.snapshot(records))
+        identities = await self.c.fetch('SELECT id,provider_kind FROM kindergarten ORDER BY name')
+        await self.repo.import_snapshot(self.snapshot(records))
+        self.assertEqual(await self.c.fetch(
+            'SELECT id,provider_kind FROM kindergarten ORDER BY name'), identities)
+        locations = AsyncpgLocationRepository(self.c)
+        for kind in ('municipal', 'private', 'religious'):
+            rows = await locations.list_locations(LocationQuery(city='Varaždin', provider_kind=kind))
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]['provider_kind'], kind)
+            self.assertIn('provider_kind', rows[0]['field_sources'])
+            self.assertEqual(await self.c.fetchval("SELECT provenance->'provider_kind'->>'source_url' "
+                'FROM kindergarten WHERE id=$1', rows[0]['kindergarten_id']),
+                'https://varazdin.hr/djecji-vrtici/')
+        options = await AsyncpgKindergartenRepository(self.c).find_options(
+            city='varazdin', age_months=24, include_unknown=True)
+        self.assertEqual({row['provider_kind'] for row in options},
+                         {'municipal', 'private', 'religious'})
+
+    async def test_provider_backfill_preserves_known_types_and_other_cities(self):
+        records = [{**NATIONAL, 'Naziv': 'DV Bajka'},
+                   {**NATIONAL, 'Naziv': 'DV Varaždin'},
+                   {**NATIONAL, 'Naziv': 'Udruga Primjer', 'Mjesto': 'Zagreb',
+                    'Zupanija': 'Grad Zagreb'}]
+        await self.repo.import_snapshot(self.snapshot(records))
+        # Simulate a legacy row without passing through the now city-limited import.
+        await self.c.execute("INSERT INTO kindergarten(name,seat_settlement,seat_settlement_key) "
+                             "VALUES ('DV Bajka','Drugi grad','drugi grad')")
+        await self.c.execute("UPDATE kindergarten SET provider_kind='unknown'")
+        await self.c.execute("UPDATE kindergarten SET provider_kind='private' WHERE name='DV Varaždin'")
+        before = await self.c.fetch('SELECT id,name,seat_settlement,provider_kind,provenance '
+                                    'FROM kindergarten ORDER BY id')
+        migration = (Path(__file__).resolve().parents[1] / 'src/KIDSic/db/alembic/versions/'
+                     '0004_provider_kinds.sql').read_text()
+        await self.c.execute(migration)
+        rows = await self.c.fetch('SELECT id,name,seat_settlement,provider_kind,provenance '
+                                  'FROM kindergarten ORDER BY id')
+        self.assertEqual({(r['name'], r['seat_settlement']): r['provider_kind'] for r in rows}, {
+            ('DV Bajka', 'Varaždin'): 'private', ('DV Varaždin', 'Varaždin'): 'private',
+            ('DV Bajka', 'Drugi grad'): 'unknown', ('Udruga Primjer', 'Zagreb'): 'other'})
+        await self.c.execute(migration)
+        self.assertEqual(await self.c.fetch('SELECT id,name,seat_settlement,provider_kind,provenance '
+                                            'FROM kindergarten ORDER BY id'), rows)
+        import importlib.util
+        from unittest.mock import patch
+        spec = importlib.util.spec_from_file_location('provider_migration',
+            Path(__file__).resolve().parents[1] / 'src/KIDSic/db/alembic/versions/'
+            '0004_provider_kinds.py')
+        revision = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(revision)
+        with patch.object(revision.op, 'execute') as execute:
+            revision.downgrade()
+        await self.c.execute(execute.call_args.args[0])
+        self.assertEqual(await self.c.fetch('SELECT id,name,seat_settlement,provider_kind,provenance '
+                                            'FROM kindergarten ORDER BY id'), before)
+
+    async def test_database_rejects_missing_or_invalid_provider_kind(self):
+        import asyncpg
+        for kind, error in ((None, asyncpg.NotNullViolationError),
+                            ('invalid', asyncpg.CheckViolationError)):
+            with self.subTest(kind=kind):
+                with self.assertRaises(error):
+                    async with self.c.transaction():
+                        await self.c.execute('INSERT INTO kindergarten(name,provider_kind) '
+                                             "VALUES ('Synthetic',$1)", kind)
+
     async def test_childminder_csv_import_preserves_identity_and_last_good_snapshot(self):
         fixtures = Path(__file__).parent / 'fixtures'
         package = json.loads((fixtures / 'ckan_childminders.json').read_text())
@@ -168,6 +321,58 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         rows = await AsyncpgKindergartenRepository(self.c).find_options(
             city='zagreb', age_months=24, include_unknown=True)
         self.assertEqual({r['scope'] for r in rows}, {'location'})
+
+    async def test_rijeka_csv_links_national_parents_preserves_contacts_and_reimports(self):
+        from KIDSic.dao.concrete.asyncpg_location import AsyncpgLocationRepository
+        from KIDSic.dto.location import LocationQuery
+        from test_rijeka import rijeka_records, rijeka_source
+        records = rijeka_records()
+        parents = ['Dječji vrtić Rijeka', 'Dječji vrtić "Mala Vila", waldorfski',
+                   'Dječji vrtić "Nazaret"', 'Dječji vrtić "Pinokio"']
+        national = [{**NATIONAL, 'Naziv': name, 'Mjesto': 'Rijeka',
+                     'Zupanija': 'Primorsko-goranska županija', 'Adresa': f'Sjedište {i}',
+                     'Telefon': '051/000001', 'ePosta': 'test@example.invalid'}
+                    for i, name in enumerate(parents)]
+        await self.repo.import_snapshot(self.snapshot(national))
+        owners = await self.c.fetch('SELECT id,name,seat_address FROM kindergarten ORDER BY id')
+        source = rijeka_source()
+        first = await self.repo.import_snapshot(self.snapshot(records, source, 'rijeka-kindergartens'))
+        self.assertEqual((first['accepted'], first['kindergartens_added'], first['locations_added']), (8, 0, 8))
+        self.assertEqual(await self.c.fetch('SELECT id,name,seat_address FROM kindergarten ORDER BY id'), owners)
+        locations = await self.c.fetch('SELECT id,kindergarten_id FROM location ORDER BY id')
+        api = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Rijeka'))
+        self.assertEqual(len(api), 8)
+        self.assertEqual({r['phone'] for r in api}, {'051/000001'})
+        self.assertEqual({r['location_role'] for r in api}, {'facility'})
+        self.assertTrue(all(r['longitude'] is None and r['latitude'] is None for r in api))
+        self.assertEqual({r['provider_kind'] for r in api}, {'municipal', 'private', 'religious'})
+        self.assertTrue(all(r['sources'] and r['field_sources'].get('address') for r in api))
+        changed = [{**r, 'RBR': str(i + 100)} for i, r in enumerate(reversed(records))]
+        changed[-1]['Adresa'] = 'Nova adresa 99'
+        second = await self.repo.import_snapshot(self.snapshot(changed, source, 'rijeka-kindergartens'))
+        self.assertEqual((second['kindergartens_added'], second['locations_added']), (0, 0))
+        self.assertEqual(await self.c.fetch('SELECT id,kindergarten_id FROM location ORDER BY id'), locations)
+        self.assertEqual(await self.c.fetchval("SELECT count(*) FROM location WHERE address='Nova adresa 99'"), 1)
+        # The national refresh must preserve the facility category and parent identity.
+        await self.repo.import_snapshot(self.snapshot(national))
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM kindergarten'), 4)
+        self.assertEqual(await self.c.fetchval("SELECT count(*) FROM kindergarten WHERE provider_kind='unknown'"), 0)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 24)
+
+    async def test_rijeka_csv_can_precede_national_import_without_duplicate_parents(self):
+        from test_rijeka import rijeka_records, rijeka_source
+        records = rijeka_records()
+        await self.repo.import_snapshot(self.snapshot(records, rijeka_source(), 'rijeka-kindergartens'))
+        owners = await self.c.fetch('SELECT id FROM kindergarten ORDER BY id')
+        self.assertEqual(len(owners), 4)
+        national = [{**NATIONAL, 'Naziv': name, 'Mjesto': 'Rijeka',
+                     'Zupanija': 'Primorsko-goranska županija'} for name in (
+                         'Dječji vrtić Rijeka', 'Dječji vrtić "Mala Vila", waldorfski',
+                         'Dječji vrtić Nazaret', 'Dječji vrtić Pinokio')]
+        result = await self.repo.import_snapshot(self.snapshot(national))
+        self.assertEqual(result['kindergartens_added'], 0)
+        self.assertEqual(await self.c.fetch('SELECT id FROM kindergarten ORDER BY id'), owners)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM location'), 8)
 
     async def test_zagreb_settlement_suffix_links_to_national_settlement(self):
         await self.repo.import_snapshot(self.snapshot([{**NATIONAL, 'Mjesto': 'Sesvete',

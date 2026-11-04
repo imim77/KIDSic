@@ -7,8 +7,8 @@ read endpoint; the local server binds to `127.0.0.1` by default.
 
 | Query | Meaning |
 | --- | --- |
-| `city` | Settlement or municipality name/curated alias, default `Zagreb`. Trimmed, 1–100 characters. A municipality includes its settlements. |
-| `q` | Literal case-insensitive substring of institution or facility name, trimmed, at most 200 characters. No address search. |
+| `city` | `Zagreb`, `Varaždin` or `Rijeka`, including case/diacritic variants and curated aliases, default `Zagreb`. Trimmed, 1–100 characters. Each city includes its settlements, such as Sesvete within Zagreb. Other cities return HTTP 422. |
+| `q` | Literal substring of institution or facility name, ignoring case and Croatian diacritics (č/ć/ž/š/đ), trimmed, at most 200 characters. `%` and `_` are literal characters. No address search. |
 | `provider_kind` | One of `municipal`, `private`, `religious`, `childminder`, `other`, `unknown`; omitted means all. |
 | `bbox` | Optional `west,south,east,north` in WGS84; finite ordered longitude/latitude bounds. Antimeridian wrapping is unsupported. |
 
@@ -53,6 +53,13 @@ owner/location, geometry becomes null and the location is excluded from `bbox`
 results, while its list entry remains. Legacy/manual coordinates without recorded
 field provenance remain available without an invented field source.
 
+Properties also include nullable `website_url`, `email` and `phone`. Published
+contacts in an accepted, active record for that exact facility take precedence;
+a reviewed facility phone and institution contacts provide the fallback. A seat
+uses institution contacts. Empty contact strings become null. The detail card
+shows available contacts and keeps source records out of its visual content;
+source metadata remains in the API response.
+
 Illustrative response (identities and values below are synthetic):
 
 ```json
@@ -67,6 +74,7 @@ Illustrative response (identities and values below are synthetic):
       "kindergarten_id": "00000000-0000-0000-0000-000000000002",
       "name": "Primjer ustanove", "location_name": "Primjer objekta",
       "address": "Primjer 1", "city": "Zagreb", "provider_kind": "municipal",
+      "website_url": null, "email": null, "phone": null,
       "district": null, "location_role": "facility", "age_groups": null,
       "field_sources": {},
       "sources": [{"name": "Primjer izvora", "url": "https://example.invalid",
@@ -95,3 +103,21 @@ A missing/invalid database setting or unreachable database during pool startup
 fails server startup clearly. Once started, database query/connection failures
 return the sanitized HTTP 503 above. The server never runs migrations. Development
 frontend traffic uses the Vite `/api` proxy; no permissive CORS policy is needed.
+
+## Gradsko sufinanciranje u detaljima
+
+`properties.subsidy_policies` sadrži aktualna pravila za grad fizičkog objekta
+i `provider_kind` ustanove. Sjedište se koristi samo za rezultat vrste `seat`.
+Nepoznati i ostali pružatelji ne nasljeđuju pravila gradskih vrtića. Pravila izvan
+razdoblja važenja i ona provjerena tek u budućnosti ne vraćaju se.
+
+Svako pravilo sadrži sažetak, razdoblje i datum provjere, službene poveznice,
+`rates`, `conditions`, `reliefs` i `notes`. `amount_kind` razlikuje gradski udio
+od roditeljske cijene; novčane vrijednosti u tarifama izražene su u eurocentima
+mjesečno po djetetu. Status `partial` ne znači besplatnu uslugu. Predložene
+promjene ne postaju važeće tarife. Pravilo ne potvrđuje individualno pravo ili
+ugovor konkretne ustanove s Gradom. Prazna lista znači da podatak nije potvrđen.
+
+Potrebna je migracija `0006_municipal_subsidies` i primjena provjerene snimke
+iz [uputa za podatke](src/KIDSic/db/seeds/README.md). Isti odgovor koristi se
+u web aplikaciji i MCP kartici; obje prikazuju odjeljak „Gradsko sufinanciranje”.

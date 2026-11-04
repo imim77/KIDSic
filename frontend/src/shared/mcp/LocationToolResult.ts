@@ -1,4 +1,4 @@
-import type { LocationCollection } from '../locations/types'
+import { isProviderKind, type LocationCollection, type ProviderKind } from '../locations/types'
 
 function record(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -16,7 +16,7 @@ export class LocationToolResult {
       const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
       locations = await new Response(stream).json()
     }
-    const parsed = this.parse({ city: summary.city, locations })
+    const parsed = this.parse({ city: summary.city, name: summary.name, provider_kind: summary.provider_kind, locations })
     const metadata = summary.metadata
     if (!record(metadata) || metadata.total !== parsed.locations.metadata.total
       || metadata.mapped !== parsed.locations.metadata.mapped || metadata.unmapped !== parsed.locations.metadata.unmapped
@@ -24,8 +24,10 @@ export class LocationToolResult {
     return parsed
   }
 
-  static parse(value: unknown): { city: string; locations: LocationCollection } {
+  static parse(value: unknown): { city: string; name?: string; provider_kind?: ProviderKind | null; locations: LocationCollection } {
     if (!record(value) || typeof value.city !== 'string' || !value.city.trim()) throw new Error('Missing city')
+    if (value.name !== undefined && (typeof value.name !== 'string' || value.name.trim().length > 200)) throw new Error('Invalid search name')
+    if (value.provider_kind !== undefined && value.provider_kind !== null && !isProviderKind(value.provider_kind)) throw new Error('Invalid provider kind')
     const data = value.locations
     if (!record(data) || data.type !== 'FeatureCollection' || !Array.isArray(data.features)
       || !record(data.metadata) || data.metadata.complete !== true || data.metadata.scope !== 'city'
@@ -39,8 +41,11 @@ export class LocationToolResult {
       const p = feature.properties
       if (typeof p.name !== 'string' || typeof p.location_name !== 'string' || typeof p.city !== 'string'
         || typeof p.kindergarten_id !== 'string' || !['facility', 'seat'].includes(String(p.location_role))
-        || !['municipal', 'private', 'religious', 'childminder', 'other', 'unknown'].includes(String(p.provider_kind))
+        || !isProviderKind(p.provider_kind)
         || !Array.isArray(p.sources)) throw new Error('Invalid properties')
+      if (value.provider_kind != null && p.provider_kind !== value.provider_kind) throw new Error('Mismatched provider kind')
+      if (['website_url', 'email', 'phone'].some((field) =>
+        p[field] != null && typeof p[field] !== 'string')) throw new Error('Invalid contact')
       if (feature.geometry !== null) {
         const g = feature.geometry
         if (!record(g) || g.type !== 'Point' || !Array.isArray(g.coordinates) || g.coordinates.length !== 2
@@ -50,6 +55,8 @@ export class LocationToolResult {
       }
     }
     if (data.metadata.mapped !== mapped || data.metadata.unmapped !== data.features.length - mapped) throw new Error('Invalid counts')
-    return { city: value.city.trim(), locations: data as unknown as LocationCollection }
+    return { city: value.city.trim(), ...(value.name !== undefined ? { name: (value.name as string).trim() } : {}),
+      ...(value.provider_kind !== undefined ? { provider_kind: value.provider_kind as ProviderKind | null } : {}),
+      locations: data as unknown as LocationCollection }
   }
 }

@@ -5,11 +5,13 @@ from KIDSic.dto.location import (
     LocationProperties, LocationQuery,
 )
 from KIDSic.services.interfaces.location import LocationServiceInterface
+from KIDSic.services.concrete.subsidy import SubsidyPolicyPresenter
 
 
 class LocationService(LocationServiceInterface):
-    def __init__(self, uow_factory: UnitOfWorkFactory):
+    def __init__(self, uow_factory: UnitOfWorkFactory, subsidies: SubsidyPolicyPresenter):
         self._uow_factory = uow_factory
+        self._subsidies = subsidies
 
     async def list_locations(self, query: LocationQuery) -> LocationCollection:
         async with self._uow_factory() as uow:
@@ -31,6 +33,10 @@ class LocationService(LocationServiceInterface):
                             'district', 'location_role', 'sources',
                         )
                     }, location_id=location_id, kindergarten_id=kindergarten_id,
+                        website_url=dict(row).get('website_url'), email=dict(row).get('email'),
+                        phone=dict(row).get('phone'),
+                        subsidy_policies=[self._subsidies.present(policy)
+                            for policy in dict(row).get('subsidy_policies', [])],
                         field_sources=dict(row).get('field_sources', {})),
                 ))
             mapped = sum(feature.geometry is not None for feature in features)

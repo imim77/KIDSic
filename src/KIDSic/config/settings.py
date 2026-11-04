@@ -17,6 +17,9 @@ class Settings:
     ckan_zagreb_other_dataset_id: str = 'privatni-vjerski-obrti-gz-kontakt-podaci'
     ckan_varazdin_childminders_dataset_id: str = 'grad-varazdin-dadilje'
     ckan_varazdin_childminders_resource_id: str = '2bde0eae-1d20-41c5-aec4-711f2a485439'
+    ckan_rijeka_base_url: str = 'https://data.rijeka.hr'
+    ckan_rijeka_dataset_id: str = 'djecji-vrtici'
+    ckan_rijeka_resource_id: str = '7fe927d4-16e5-4255-b255-249f7ced3c2c'
     ckan_timeout: float = 15.0
     ckan_max_bytes: int = 10 * 1024 * 1024
 
@@ -25,7 +28,7 @@ class Settings:
             raise ValueError('DATABASE_URL must be a PostgreSQL URL.')
         if not 1 <= self.pool_min_size <= self.pool_max_size:
             raise ValueError('Invalid database pool size.')
-        for value in (self.ckan_base_url, self.ckan_zagreb_base_url):
+        for value in (self.ckan_base_url, self.ckan_zagreb_base_url, self.ckan_rijeka_base_url):
             url = urlsplit(value)
             if url.scheme not in {'http', 'https'} or not url.hostname or url.query or url.fragment:
                 raise ValueError('Invalid CKAN base URL.')
@@ -35,7 +38,8 @@ class Settings:
             raise ValueError('CKAN_MAX_BYTES must be positive.')
         if any(not value.strip() for value in (self.ckan_dataset_id,
                 self.ckan_zagreb_municipal_dataset_id, self.ckan_zagreb_other_dataset_id,
-                self.ckan_varazdin_childminders_dataset_id, self.ckan_varazdin_childminders_resource_id)):
+                self.ckan_varazdin_childminders_dataset_id, self.ckan_varazdin_childminders_resource_id,
+                self.ckan_rijeka_dataset_id, self.ckan_rijeka_resource_id)):
             raise ValueError('CKAN dataset IDs must not be blank.')
 
     @classmethod
@@ -52,6 +56,9 @@ class Settings:
             ckan_zagreb_other_dataset_id=os.getenv('CKAN_ZAGREB_OTHER_DATASET_ID', 'privatni-vjerski-obrti-gz-kontakt-podaci'),
             ckan_varazdin_childminders_dataset_id=os.getenv('CKAN_VARAZDIN_CHILDMINDERS_DATASET_ID', 'grad-varazdin-dadilje'),
             ckan_varazdin_childminders_resource_id=os.getenv('CKAN_VARAZDIN_CHILDMINDERS_RESOURCE_ID', '2bde0eae-1d20-41c5-aec4-711f2a485439'),
+            ckan_rijeka_base_url=os.getenv('CKAN_RIJEKA_BASE_URL', 'https://data.rijeka.hr'),
+            ckan_rijeka_dataset_id=os.getenv('CKAN_RIJEKA_DATASET_ID', 'djecji-vrtici'),
+            ckan_rijeka_resource_id=os.getenv('CKAN_RIJEKA_RESOURCE_ID', '7fe927d4-16e5-4255-b255-249f7ced3c2c'),
             ckan_timeout=float(os.getenv('CKAN_TIMEOUT', '15')),
             ckan_max_bytes=int(os.getenv('CKAN_MAX_BYTES', str(10 * 1024 * 1024))),
         )

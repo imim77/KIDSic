@@ -4,6 +4,8 @@ import math
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from KIDSic.dto.municipality import supported_city_key
+from KIDSic.dto.subsidy import SubsidyPolicy
 
 ProviderKind = Literal['municipal', 'private', 'religious', 'childminder', 'other', 'unknown']
 
@@ -20,6 +22,12 @@ class LocationQuery(BaseModel):
     @classmethod
     def strip_text(cls, value):
         return value.strip() if isinstance(value, str) else value
+
+    @field_validator('city')
+    @classmethod
+    def validate_city(cls, value):
+        supported_city_key(value)
+        return value
 
     @field_validator('bbox')
     @classmethod
@@ -53,10 +61,14 @@ class LocationProperties(BaseModel):
     address: str | None
     city: str
     provider_kind: ProviderKind
+    website_url: str | None = None
+    email: str | None = None
+    phone: str | None = None
     district: str | None
     location_role: Literal['facility', 'seat']
     sources: list[LocationSource]
     field_sources: dict[str, LocationFieldSource] = Field(default_factory=dict)
+    subsidy_policies: list[SubsidyPolicy] = Field(default_factory=list)
     # Age suitability is not evaluated by this endpoint.
     age_groups: None = None
 

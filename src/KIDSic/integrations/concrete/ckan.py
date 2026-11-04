@@ -14,7 +14,8 @@ from KIDSic.integrations.interfaces.ckan import CkanClientInterface
 
 class CkanClient(CkanClientInterface):
     def __init__(self, client: httpx.AsyncClient, base_url: str = 'https://data.gov.hr/ckan',
-                 timeout: float = 15.0, max_bytes: int = 10 * 1024 * 1024):
+                 timeout: float = 15.0, max_bytes: int = 10 * 1024 * 1024, *,
+                 csv_encoding: str = 'utf-8-sig'):
         url = httpx.URL(base_url)
         if url.scheme not in {'http', 'https'} or not url.host or url.query or url.fragment:
             raise ValueError('CKAN base URL must be an HTTP(S) URL without query or fragment.')
@@ -26,6 +27,7 @@ class CkanClient(CkanClientInterface):
         self._url = f"{str(url).rstrip('/')}/api/3/action/package_show"
         self._timeout = timeout
         self._max_bytes = max_bytes
+        self._csv_encoding = csv_encoding
 
     async def _read_bytes(self, url: str, *, params=None):
         try:
@@ -66,7 +68,7 @@ class CkanClient(CkanClientInterface):
         if (resource.format or '').strip().casefold() in {'csv', 'text/csv'}:
             content = await self._read_bytes(str(resource.url))
             try:
-                reader = csv.reader(io.StringIO(content.decode('utf-8-sig'), newline=''),
+                reader = csv.reader(io.StringIO(content.decode(self._csv_encoding), newline=''),
                                     delimiter=';', strict=True)
                 headers = [field.strip() for field in next(reader, [])]
                 if not headers or not all(headers) or len(set(headers)) != len(headers):
@@ -80,7 +82,7 @@ class CkanClient(CkanClientInterface):
                     records.append(dict(zip(headers, values)))
                 return records
             except (UnicodeError, csv.Error) as error:
-                raise CkanResponseError('CKAN did not return valid UTF-8 semicolon CSV.') from error
+                raise CkanResponseError(f'CKAN did not return valid {self._csv_encoding} semicolon CSV.') from error
         payload = await self._read_json(str(resource.url))
         if not isinstance(payload, list) or any(not isinstance(row, dict) for row in payload):
             raise CkanResponseError('The JSON resource must contain an array of objects.')

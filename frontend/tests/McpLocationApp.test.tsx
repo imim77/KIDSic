@@ -34,9 +34,10 @@ beforeEach(() => {
 })
 afterEach(() => { vi.unstubAllGlobals(); Reflect.deleteProperty(Element.prototype, 'scrollTo') })
 
-async function result(city: string, id?: string) {
+async function result(city: string, id?: string, name?: string) {
   const locations = collection(...(id ? [facility(id)] : []))
-  await act(async () => host.instance.ontoolresult({ structuredContent: { city, metadata: locations.metadata }, _meta: { locations } }))
+  if (locations.features[0]) locations.features[0].properties.website_url = 'https://example.invalid/kindergarten'
+  await act(async () => host.instance.ontoolresult({ structuredContent: { city, name, metadata: locations.metadata }, _meta: { locations } }))
 }
 
 it('asks for a city and never fetches default Zagreb from the embedded UI', async () => {
@@ -91,11 +92,12 @@ it('rejects malformed results, and a chosen card opens host fullscreen details',
   expect(screen.getByRole('button', { name: 'Vrati prikaz' })).toBeVisible()
   expect(screen.getByRole('list', { name: 'Svi vrtići' })).toBeVisible()
   expect(screen.getByRole('region', { name: 'Detalji: Synthetic facility first' })).toBeVisible()
+  expect(screen.getByText('Grad: Zagreb')).toBeVisible()
   // Sandboxed hosts block navigation, so outbound links go through the bridge.
-  await userEvent.click(screen.getByRole('link', { name: 'Otvori u Google kartama' }))
-  expect(host.link).toHaveBeenCalledWith({ url: 'https://www.google.com/maps/search/?api=1&query=45.81%2C15.98' })
-  await userEvent.click(screen.getByRole('link', { name: 'Synthetic source' }))
-  expect(host.link).toHaveBeenLastCalledWith({ url: 'https://example.invalid/source' })
+  await userEvent.click(screen.getByRole('link', { name: 'Web stranica vrtića' }))
+  expect(host.link).toHaveBeenCalledWith({ url: 'https://example.invalid/kindergarten' })
+  expect(screen.queryByText('Izvori podataka')).toBeNull()
+  expect(screen.queryByRole('link', { name: 'Otvori u Google kartama' })).toBeNull()
   host.context.displayMode = 'inline'
   await act(async () => host.instance.onhostcontextchanged())
   expect(screen.getByRole('button', { name: 'Prikaži preko cijelog ekrana' })).toBeVisible()
@@ -113,4 +115,41 @@ it('ignores decompression finishing after results for another city', async () =>
   await act(async () => pending.resolve({ city: 'Zagreb', locations: collection(facility('old')) }))
   expect(screen.getByRole('main', { name: 'Vrtići: Split' })).toBeVisible()
   expect(screen.queryByText('Synthetic facility old')).toBeNull()
+})
+
+it('shows applied name and city, preserves both on retry and explains empty name matches', async () => {
+  render(<McpLocationApp />)
+  await act(async () => host.instance.ontoolinput({ arguments: { city: 'Rijeka', name: ' Zamet ' } }))
+  expect(screen.getByText('Grad: Rijeka')).toBeVisible()
+  expect(screen.getByText('Naziv: „Zamet”')).toBeVisible()
+  await act(async () => host.instance.ontoolresult({ isError: true }))
+  const locations = collection()
+  host.call.mockResolvedValueOnce({ structuredContent: { city: 'Rijeka', name: 'Zamet', metadata: locations.metadata }, _meta: { locations } })
+  await userEvent.click(screen.getByRole('button', { name: 'Pokušaj ponovno' }))
+  expect(host.call).toHaveBeenLastCalledWith({ name: 'prikazi_vrtice', arguments: { city: 'Rijeka', name: 'Zamet' } })
+  expect(screen.getByText(/Nema rezultata za grad Rijeka, naziv „Zamet”/)).toBeVisible()
+  expect(screen.queryByRole('alert')).toBeNull()
+  await result('Rijeka', 'bajka', 'Bajka')
+  expect(screen.getByText('Naziv: „Bajka”')).toBeVisible()
+  expect(screen.queryByText('Naziv: „Zamet”')).toBeNull()
+  expect(fetch).not.toHaveBeenCalled()
+})
+
+it('keeps all three filters on retry and clears the type when the next search omits it', async () => {
+  render(<McpLocationApp />)
+  await act(async () => host.instance.ontoolinput({ arguments: { city: 'Rijeka', name: 'Bajka', provider_kind: 'private' } }))
+  expect(screen.getByText('Vrsta: Privatni vrtić')).toBeVisible()
+  await act(async () => host.instance.ontoolresult({ isError: true }))
+  const locations = collection()
+  host.call.mockResolvedValueOnce({ structuredContent: {
+    city: 'Rijeka', name: 'Bajka', provider_kind: 'private', metadata: locations.metadata }, _meta: { locations } })
+  await userEvent.click(screen.getByRole('button', { name: 'Pokušaj ponovno' }))
+  expect(host.call).toHaveBeenLastCalledWith({ name: 'prikazi_vrtice', arguments: {
+    city: 'Rijeka', name: 'Bajka', provider_kind: 'private' } })
+  expect(screen.getByText(/Nema rezultata za grad Rijeka, naziv „Bajka”, vrstu „Privatni vrtić”/)).toBeVisible()
+  await act(async () => host.instance.ontoolinput({ arguments: { city: 'Rijeka' } }))
+  await result('Rijeka', 'any')
+  expect(screen.getByText('Vrsta: Sve vrste')).toBeVisible()
+  expect(screen.queryByText('Vrsta: Privatni vrtić')).toBeNull()
+  expect(screen.queryByText('Naziv: „Bajka”')).toBeNull()
 })

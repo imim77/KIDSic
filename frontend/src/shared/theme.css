@@ -72,6 +72,21 @@ button, a, input, select { touch-action: manipulation; }
 button { cursor: pointer; }
 a { color: var(--ink); }
 :focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.subsidy-policy { display: flex; flex-direction: column; gap: 12px; padding: 16px; margin-top: 12px; border: 2px solid var(--ink); border-radius: 16px; background: var(--mint); }
+.subsidy-policy-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.subsidy-policy h4 { margin: 0; font-size: 14px; }
+.subsidy-summary { font-size: 20px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.subsidy-caption, .subsidy-dates { font-size: 12px; line-height: 1.5; }
+.subsidy-policy details { background: var(--surface); border-radius: 10px; padding: 12px; font-size: 13px; line-height: 1.5; }
+.subsidy-policy summary { cursor: pointer; font-weight: 700; }
+.subsidy-policy h5 { margin: 16px 0 6px; font-size: 13px; }
+.subsidy-policy ul { margin: 8px 0 0; padding-left: 18px; }
+.subsidy-policy li + li { margin-top: 8px; }
+.subsidy-policy .subsidy-rates { list-style: none; padding: 0; }
+.subsidy-rates li { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--ink-wash); }
+.subsidy-rates strong { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.subsidy-links { display: flex; flex-direction: column; gap: 8px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.subsidy-links a { text-underline-offset: 3px; }
 h1, h2, p { margin: 0; }
 button:disabled { cursor: default; }
 @media (prefers-reduced-motion: reduce) {

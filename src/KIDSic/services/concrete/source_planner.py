@@ -7,8 +7,8 @@ from KIDSic.exceptions import SourceImportError
 class SourceRegistrationPlanner:
     def select(self, definition: SourceDefinition, package: CkanPackage) -> PlannedSource:
         # A changed/absent licence requires review, not implicit approval.
-        if package.license_id != 'open-license':
-            raise SourceImportError(f'{definition.key}: expected Otvorena dozvola (open-license).')
+        if package.license_id != definition.license_id:
+            raise SourceImportError(f'{definition.key}: expected license {definition.license_id}.')
         formats = {'json': {'json', 'application/json'}, 'csv': {'csv', 'text/csv'}}
         expected = formats[definition.resource_format]
         resources = [r for r in package.resources if r.state == 'active'

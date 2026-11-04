@@ -2,6 +2,7 @@
 import re
 from KIDSic.dto.text import normalize
 from KIDSic.dto.search import SearchCriteria
+from KIDSic.dto.municipality import SUPPORTED_CITY_MESSAGE, supported_city_key
 
 
 class RequestParser:
@@ -15,8 +16,8 @@ class RequestParser:
         found = {r['city_key'] for r in cities for alias in [r['city_key'], *r['city_aliases']]
                  if re.search(r'(?<!\w)' + re.escape(normalize(alias)) + r'(?!\w)', text)}
         if len(found) != 1:
-            raise ValueError('Navedite jedan grad; grad mora postojati u imeniku.')
-        city = found.pop()
+            raise ValueError(f'Navedite jedan grad; grad mora postojati u imeniku. {SUPPORTED_CITY_MESSAGE}')
+        city = supported_city_key(found.pop())
         return {'city': city, 'age_months': age}
 
     def parse_area(self, question: str, areas) -> str | None:

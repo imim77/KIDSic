@@ -11,7 +11,7 @@ class AsyncpgLocationRepository(LocationRepository):
     async def list_locations(self, query: LocationQuery):
         return await self._connection.fetch('''
           WITH approved_record AS (
-            SELECT r.id::text AS record_id,r.kindergarten_id,r.location_id,
+            SELECT r.id::text AS record_id,r.kindergarten_id,r.location_id,r.raw_data,r.fetched_at,
               COALESCE(s.active_batch_id=r.batch_id,false) AS active_snapshot,
               jsonb_build_object('name',s.title,'url',s.url,'license',s.license,
                 'reference_date',r.observed_on,'retrieved_at',r.fetched_at) AS evidence
@@ -23,6 +23,7 @@ class AsyncpgLocationRepository(LocationRepository):
             SELECT l.id AS location_id,l.kindergarten_id,l.name AS location_name,
               l.address,l.settlement,l.settlement_key,l.municipality_id,l.district,
               l.longitude,l.latitude,'facility' AS location_role,l.provenance AS field_provenance,
+              l.attributes->>'phone' AS facility_phone,
               (SELECT jsonb_agg(DISTINCT r.evidence ORDER BY r.evidence)
                FROM active_record r WHERE r.location_id=l.id) AS sources
             FROM location l
@@ -32,7 +33,7 @@ class AsyncpgLocationRepository(LocationRepository):
               k.seat_settlement_key,k.seat_municipality_id,NULL,sg.longitude,sg.latitude,'seat',
               jsonb_build_object('location_name',k.provenance->'name',
                 'address',k.provenance->'seat_address',
-                'longitude',k.provenance->'seat_geography','latitude',k.provenance->'seat_geography'),
+                'longitude',k.provenance->'seat_geography','latitude',k.provenance->'seat_geography'),NULL,
               (SELECT jsonb_agg(DISTINCT r.evidence ORDER BY r.evidence)
                FROM active_record r WHERE r.kindergarten_id=k.id)
             FROM kindergarten k LEFT JOIN kindergarten_seat_geography sg ON sg.kindergarten_id=k.id
@@ -44,14 +45,33 @@ class AsyncpgLocationRepository(LocationRepository):
           ), candidate AS (
           SELECT pl.location_id,pl.kindergarten_id,k.name,pl.location_name,
             pl.address,pl.settlement AS city,k.provider_kind,pl.district,
+            COALESCE(NULLIF(btrim(contact.raw_data->>'Web'),''),NULLIF(btrim(k.website_url),'')) AS website_url,
+            COALESCE(NULLIF(btrim(contact.raw_data->>'Email'),''),NULLIF(btrim(k.email),'')) AS email,
+            COALESCE(NULLIF(btrim(contact.raw_data->>'Telefon'),''),NULLIF(btrim(pl.facility_phone),''),
+                     NULLIF(btrim(k.phone),'')) AS phone,
             pl.longitude,pl.latitude,pl.location_role,pl.sources,
             COALESCE(fields.field_sources,'{}') AS field_sources,
+            COALESCE((SELECT jsonb_agg(to_jsonb(p) ORDER BY p.valid_from DESC,p.policy_key)
+              FROM municipality_subsidy_policy p
+              WHERE p.municipality_id=pl.municipality_id
+                AND k.provider_kind=ANY(p.provider_kinds)
+                AND p.verified_on<=CURRENT_DATE
+                AND (p.valid_from IS NULL OR p.valid_from<=CURRENT_DATE)
+                AND (p.valid_until IS NULL OR p.valid_until>=CURRENT_DATE)), '[]'::jsonb)
+              AS subsidy_policies,
             NOT ((pl.field_provenance ? 'longitude' AND NOT
                   COALESCE(fields.field_sources ? 'longitude',false)) OR
                  (pl.field_provenance ? 'latitude' AND NOT
                   COALESCE(fields.field_sources ? 'latitude',false))) AS geometry_valid
           FROM place pl JOIN kindergarten k ON k.id=pl.kindergarten_id
           LEFT JOIN municipality m ON m.id=pl.municipality_id
+          -- Published branch contacts take precedence over the institution fallback.
+          LEFT JOIN LATERAL (
+            SELECT r.raw_data FROM active_record r
+            WHERE r.location_id=pl.location_id AND r.kindergarten_id=pl.kindergarten_id
+              AND r.raw_data ?| ARRAY['Web','Email','Telefon']
+            ORDER BY r.fetched_at DESC,r.record_id LIMIT 1
+          ) contact ON true
           LEFT JOIN LATERAL (
             SELECT jsonb_object_agg(field.key,r.evidence ||
               jsonb_build_object('active_snapshot',r.active_snapshot)) AS field_sources
@@ -66,12 +86,12 @@ class AsyncpgLocationRepository(LocationRepository):
                                 'district','longitude','latitude')
           ) fields ON true
           WHERE (pl.settlement_key=$1 OR m.key=$1 OR $1=ANY(m.aliases))
-            AND ($2='' OR strpos(lower(k.name),lower($2))>0
-                       OR strpos(lower(pl.location_name),lower($2))>0)
+            AND ($2='' OR strpos(translate(lower(k.name),'čćžšđ','cczsd'),$2)>0
+                       OR strpos(translate(lower(pl.location_name),'čćžšđ','cczsd'),$2)>0)
             AND ($3::text IS NULL OR k.provider_kind=$3)
           )
           SELECT location_id,kindergarten_id,name,location_name,address,city,
-            provider_kind,district,location_role,sources,field_sources,
+            provider_kind,district,website_url,email,phone,location_role,sources,field_sources,subsidy_policies,
             CASE WHEN geometry_valid THEN longitude END AS longitude,
             CASE WHEN geometry_valid THEN latitude END AS latitude
           FROM candidate
@@ -79,5 +99,5 @@ class AsyncpgLocationRepository(LocationRepository):
               geometry_valid AND longitude BETWEEN $4[1] AND $4[3]
               AND latitude BETWEEN $4[2] AND $4[4]))
           ORDER BY name,location_name,kindergarten_id,location_id
-        ''', normalize(query.city), query.q, query.provider_kind,
+        ''', normalize(query.city), normalize(query.q), query.provider_kind,
             list(query.bbox) if query.bbox is not None else None)

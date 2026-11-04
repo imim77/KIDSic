@@ -1,0 +1,21 @@
+{
+  "success": true,
+  "result": {
+    "id": "30a8fcc8-3a40-4a16-9c69-7c886cc60e12",
+    "name": "djecji-vrtici",
+    "title": "Dječji vrtići (test)",
+    "organization": {"title": "Grad Rijeka"},
+    "license_id": "cc-by",
+    "license_title": "Creative Commons Attribution",
+    "license_url": "http://www.opendefinition.org/licenses/cc-by",
+    "resources": [
+      {
+        "id": "7fe927d4-16e5-4255-b255-249f7ced3c2c",
+        "url": "https://example.invalid/rijeka.csv",
+        "format": "CSV",
+        "state": "active",
+        "last_modified": "2026-04-20T10:36:48.270074"
+      }
+    ]
+  }
+}

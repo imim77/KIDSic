@@ -22,7 +22,7 @@
 .location-slide:nth-child(5n + 3) .location-thumbnail { background: var(--blush); }
 .location-slide:nth-child(5n + 4) .location-thumbnail { background: var(--lilac); }
 .location-slide:nth-child(5n + 5) .location-thumbnail { background: var(--apricot); }
-.location-card[data-selected="true"] .location-thumbnail { background: var(--violet); } /* matches the violet map pin */
+.location-card[data-selected="true"] .location-thumbnail { background: var(--violet); }
 .text-button { border: 0; background: var(--lemon); color: var(--ink); border-radius: 100px; padding: 10px 18px; font-family: var(--display); font-size: 13px; letter-spacing: .5px; text-transform: uppercase; box-shadow: var(--shadow-sm); transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
 .explorer-notice { position: absolute; z-index: 2; top: 18px; left: 18px; width: min(360px, calc(100% - 100px)); background: var(--cream); color: var(--ink); padding: 18px; border: 2px solid var(--ink); border-radius: 20px; font-size: 13px; line-height: 1.5; box-shadow: var(--shadow-md); }
 .explorer-notice button { margin-top: 12px; }
@@ -55,7 +55,7 @@
 .location-details { grid-area: list; z-index: 3; min-width: 0; min-height: 0; background: var(--surface); color: var(--ink); border-right: 2px solid var(--ink); outline: none; }
 .explorer-layout[data-layout="map"] .location-details { position: absolute; inset: 0; z-index: 9; border: 0; }
 .location-details-scroll { height: 100%; overflow-y: auto; overscroll-behavior: contain; }
-.location-details-hero { position: relative; display: grid; place-items: center; height: 180px; margin: 16px 16px 0; border: 2px solid var(--ink); border-radius: 20px; background: var(--violet); box-shadow: var(--shadow-md); } /* matches the selected pin and row */
+.location-details-hero { position: relative; display: grid; place-items: center; height: 180px; margin: 16px 16px 0; border: 2px solid var(--ink); border-radius: 20px; background: var(--violet); box-shadow: var(--shadow-md); }
 .location-details-hero > svg { width: 72px; height: 72px; stroke-width: 1.6; }
 .location-details-close { position: absolute; top: 12px; right: 12px; display: grid; place-items: center; width: 40px; height: 40px; color: var(--ink); background: var(--surface); border-radius: 50%; box-shadow: var(--shadow-sm); transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
 .location-details-close:hover { background: var(--lemon); }
@@ -68,16 +68,11 @@
 .location-details-address { display: flex; gap: 8px; margin-top: 12px; font-size: 14px; line-height: 1.4; }
 .location-details-address svg { flex: 0 0 18px; height: 18px; margin-top: 1px; }
 .location-details-note { margin-top: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.45; background: var(--lemon); border-radius: 14px; }
-.location-details-action { display: block; margin-top: 18px; padding: 14px 20px; text-align: center; text-decoration: none; font-family: var(--display); font-size: 15px; letter-spacing: .5px; text-transform: uppercase; color: var(--ink); background: var(--mint); border-radius: 100px; box-shadow: var(--shadow-sm); transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
-.location-details-action:hover { background: var(--lemon); }
-.location-details-action:active { transform: var(--press); box-shadow: none; }
 .location-details h3 { margin: 26px 0 10px; padding-top: 18px; font-family: var(--display); font-size: 18px; font-weight: 400; letter-spacing: .01em; border-top: 2px solid var(--ink-wash); }
 .location-details dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0; font-size: 14px; }
 .location-details dt { font-weight: 700; }
 .location-details dd { margin: 0; overflow-wrap: anywhere; }
-.location-details-sources { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; font-size: 14px; }
-.location-details-sources a { font-weight: 700; }
-.source-meta { display: block; margin-top: 2px; font-size: 12px; }
+.location-details-contacts a { text-underline-offset: 3px; text-decoration-thickness: 1px; }
 @media (min-width: 1100px) {
   .explorer-layout[data-layout="panels"][data-details] { grid-template: "list details map" 100% / minmax(300px, 340px) 400px 1fr; }
   .explorer-layout[data-layout="panels"] .location-details { grid-area: details; }

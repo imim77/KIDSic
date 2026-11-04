@@ -85,6 +85,26 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Mapbox lifecycle and data', () => {
+  it('colors points and selection by provider with the public color as fallback', async () => {
+    render(<KindergartenMap collection={collection(facility('public'))} selectedId="public" />)
+    await waitFor(() => expect(mock.maps).toHaveLength(1))
+    const map = mock.maps[0]
+    act(() => map.emit('style.load'))
+    const layers = map.addLayer.mock.calls.map(([layer]) => layer)
+    const points = layers.find((layer) => layer.id === 'kindergarten-points')!
+    const selection = layers.find((layer) => layer.id === 'kindergarten-selected-point')!
+    expect(points.paint['circle-color']).toEqual([
+      'match', ['get', 'provider_kind'], 'private', '#c88cfd',
+      'religious', '#fdc068', 'childminder', '#fc5681', '#82eda6',
+    ])
+    expect(selection.paint['circle-color']).toEqual(points.paint['circle-color'])
+    expect(selection.paint['circle-radius']).toBeGreaterThan(points.paint['circle-radius'])
+    expect(screen.getByRole('list', { name: 'Vrste pružatelja na karti' })).toBeVisible()
+    for (const label of ['Javni i ostali', 'Privatni', 'Vjerski', 'Dadilje']) {
+      expect(screen.getByText(label)).toBeVisible()
+    }
+  })
+
   it('mounts data arriving before the style and updates the same source without reallocating the map', async () => {
     const beforeStyle = collection(facility('first'), facility('unlocated', false))
     const { rerender, unmount } = render(<KindergartenMap collection={beforeStyle} />)

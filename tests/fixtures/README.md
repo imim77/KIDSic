@@ -21,3 +21,8 @@ leading-zero identifiers, whitespace and joint-trade OIBs. They contain no real
 proprietors or contacts. The optional legacy Postman HTTP simulation explicitly
 selects its original three JSON sources; the CSV path has separate HTTP-client
 and database tests.
+
+`ckan_rijeka.json` pins the official resource ID and CC-BY licence; its download
+URL is synthetic. `rijeka.csv` uses published parent/facility names with
+synthetic addresses. Tests encode its UTF-8 source text as Windows-1250 to
+exercise the live CSV encoding without committing an opaque binary fixture.

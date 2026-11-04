@@ -25,8 +25,9 @@ def run_cli(command_type, description, argv=None):
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--dry-run', action='store_true', help='Validate without accessing the database.')
     parser.add_argument('--source', action='append', dest='source_keys',
-                        choices=('national', 'zagreb-municipal', 'zagreb-other', 'varazdin-childminders'),
-                        help='Select a source; repeat to select several. Default: all four.')
+                        choices=('national', 'zagreb-municipal', 'zagreb-other', 'varazdin-childminders',
+                                 'rijeka-kindergartens'),
+                        help='Select a source; repeat to select several. Default: all five.')
     args = parser.parse_args(argv)
     try:
         settings = Settings.from_env(require_database=not args.dry_run)

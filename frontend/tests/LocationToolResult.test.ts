@@ -28,3 +28,35 @@ it('rejects damaged compression and mismatched summary counts', async () => {
   await expect(LocationToolResult.fromResult({ structuredContent, _meta: { locations: compressed(locations) } })).rejects.toThrow('Mismatched summary')
   await expect(LocationToolResult.fromResult({ structuredContent, _meta: { locations: { encoding: 'gzip+base64', data: 'broken' } } })).rejects.toThrow()
 })
+
+it('rejects malformed contact values before rendering host results', () => {
+  const locations = collection(facility('contact'))
+  Object.assign(locations.features[0].properties, { phone: { unexpected: true } })
+  expect(() => LocationToolResult.parse({ city: 'Zagreb', locations })).toThrow('Invalid contact')
+})
+
+it('keeps applied city and name and rejects malformed search criteria', async () => {
+  const locations = collection()
+  const parsed = await LocationToolResult.fromResult({
+    structuredContent: { city: ' Rijeka ', name: ' Zamet ', metadata: locations.metadata }, _meta: { locations },
+  })
+  expect(parsed).toEqual({ city: 'Rijeka', name: 'Zamet', locations })
+  for (const name of [null, 1, [], 'x'.repeat(201)]) {
+    expect(() => LocationToolResult.parse({ city: 'Rijeka', name, locations })).toThrow('Invalid search name')
+  }
+})
+
+it('validates applied type and rejects results from a different category', () => {
+  for (const kind of ['municipal', 'private', 'religious', 'childminder', 'other', 'unknown'] as const) {
+    const item = facility(kind)
+    item.properties.provider_kind = kind
+    const locations = collection(item)
+    expect(LocationToolResult.parse({ city: 'Zagreb', provider_kind: kind, locations }).provider_kind).toBe(kind)
+    expect(LocationToolResult.parse({ city: 'Zagreb', provider_kind: null, locations }).provider_kind).toBeNull()
+  }
+  for (const kind of ['', 'gradski', ['private'], 1, {}, '__proto__']) {
+    expect(() => LocationToolResult.parse({ city: 'Zagreb', provider_kind: kind, locations: collection() })).toThrow('Invalid provider kind')
+  }
+  expect(() => LocationToolResult.parse({ city: 'Zagreb', provider_kind: 'private', locations: collection(facility('municipal')) }))
+    .toThrow('Mismatched provider kind')
+})

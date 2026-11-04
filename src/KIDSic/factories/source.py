@@ -22,6 +22,10 @@ class SourceServiceFactory:
             SourceDefinition('varazdin-childminders', settings.ckan_base_url,
                              settings.ckan_varazdin_childminders_dataset_id, 'varazdin-childminders',
                              resource_format='csv', resource_id=settings.ckan_varazdin_childminders_resource_id),
+            SourceDefinition('rijeka-kindergartens', settings.ckan_rijeka_base_url,
+                             settings.ckan_rijeka_dataset_id, 'rijeka-kindergartens',
+                             resource_format='csv', resource_id=settings.ckan_rijeka_resource_id,
+                             license_id='cc-by', csv_encoding='cp1250'),
         )
         if source_keys is not None:
             unknown = set(source_keys) - {d.key for d in definitions}
@@ -29,7 +33,8 @@ class SourceServiceFactory:
                 raise ValueError(f'Unknown source keys: {sorted(unknown)}')
             definitions = tuple(d for d in definitions if d.key in source_keys)
         clients = {d.key: CkanClient(http, d.base_url, settings.ckan_timeout,
-                                    settings.ckan_max_bytes) for d in definitions}
+                                    settings.ckan_max_bytes, csv_encoding=d.csv_encoding)
+                   for d in definitions}
         return SourceService(clients, definitions, uow_factory,
                              normalizer=SourceRecordNormalizer(default_parsers()),
                              planner=SourceRegistrationPlanner())
