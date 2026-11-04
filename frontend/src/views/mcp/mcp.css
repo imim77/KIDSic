@@ -2,7 +2,8 @@
    reports this intrinsic inline height to the host through autoResize. */
 .mcp-location-app { height: 520px; }
 .mcp-location-app[data-display-mode="fullscreen"] { height: 100dvh; }
-.mcp-location-app .kindergarten-explorer { --card-height: 92px; border-radius: 20px; }
+/* The host already frames the iframe, so the map fills it edge to edge. */
+.mcp-location-app .kindergarten-explorer { --card-height: 92px; border: 0; border-radius: 0; box-shadow: none; }
 .mcp-location-app .location-carousel { bottom: calc(30px + env(safe-area-inset-bottom)); }
 .mcp-location-app .location-slide { flex-basis: min(268px, calc(100% - 20px)); }
 .mcp-location-app .location-thumbnail { flex-basis: 46px; height: 60px; }

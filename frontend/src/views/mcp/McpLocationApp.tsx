@@ -77,7 +77,7 @@ export function McpLocationApp() {
     }
   }
 
-  return <main className="mcp-location-app w-full overflow-hidden p-2" data-display-mode={display.expanded ? 'fullscreen' : 'inline'} aria-label={snapshot.city ? `Vrtići: ${snapshot.city}` : 'Karta vrtićkih objekata'}>
+  return <main className="mcp-location-app w-full overflow-hidden" data-display-mode={display.expanded ? 'fullscreen' : 'inline'} aria-label={snapshot.city ? `Vrtići: ${snapshot.city}` : 'Karta vrtićkih objekata'}>
     <KindergartenExplorer data={snapshot.data} status={snapshot.status} selectedId={selection} onSelect={setSelection}
       notice={snapshot.notice} retry={() => { void retry() }}
       hostFullscreen={display.available ? { expanded: display.expanded, request: async (mode) => {
