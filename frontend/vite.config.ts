@@ -11,7 +11,16 @@ export default defineConfig({
   envDir: fileURLToPath(new URL('.', import.meta.url)),
   publicDir: '../../public',
   server: { proxy: { '/api': process.env.KIDSIC_API_TARGET ?? 'http://127.0.0.1:8000' } },
-  build: { outDir: fileURLToPath(new URL('./dist', import.meta.url)), emptyOutDir: true },
+  build: {
+    outDir: fileURLToPath(new URL('./dist', import.meta.url)),
+    emptyOutDir: true,
+    rolldownOptions: {
+      input: {
+        index: fileURLToPath(new URL('./src/views/index.html', import.meta.url)),
+        design: fileURLToPath(new URL('./src/views/design.html', import.meta.url)),
+      },
+    },
+  },
   plugins: [
     tailwindcss(),
     react(),

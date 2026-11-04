@@ -1,6 +1,8 @@
 @layer theme, base, components, utilities;
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/utilities.css' layer(utilities) source('../');
+/* Bundled rather than fetched: the MCP build is one sandboxed HTML file. */
+@import '@fontsource/titan-one/400.css';
 
 @theme inline {
   --color-ink: var(--ink);
@@ -13,31 +15,50 @@
   --color-card: var(--surface);
   --color-card-foreground: var(--ink);
   --color-primary: var(--accent);
-  --color-primary-foreground: var(--surface);
+  --color-primary-foreground: var(--ink);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--ink);
   --color-muted-foreground: var(--muted);
   --color-accent-foreground: var(--ink);
   --color-input: var(--border);
-  --color-ring: var(--accent);
-  --color-destructive: var(--accent);
+  --color-ring: var(--ink);
+  --color-destructive: var(--rose);
+  --font-display: var(--display);
 }
 
+/* Palette and shape tokens follow DESIGN.md. */
 :root {
-  font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
-  color: #232625;
-  background: #fafbf9;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: var(--ink);
+  background: var(--mint);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --ink: #232625;
-  --muted: #69716b;
-  --accent: #bf0e23;
-  --border: #dfe3dd;
-  --surface: #fff;
-  --secondary: #f0f1ed;
+  --display: 'Titan One', 'Helvetica Neue', sans-serif;
+  --ink: #03594d;
+  --ink-soft: #89a9a1; /* decorative only; fails text contrast */
+  --ink-wash: #02594d33;
+  --cream: #f9f8f4;
+  --mint: #82eda6;
+  --lemon: #ffff94;
+  --sky: #aefbff;
+  --blush: #fccddc;
+  --lilac: #f6bbfd;
+  --violet: #c88cfd; /* never behind text: ink on violet is ~3.4:1 */
+  --apricot: #fdc068;
+  --orange: #ff9124;
+  --rose: #fc5681;
+  --muted: var(--ink); /* secondary text differs by size, not colour */
+  --accent: var(--violet);
+  --border: var(--ink);
+  --surface: var(--cream);
+  --secondary: var(--lemon);
   --primary: var(--accent);
-  --radius: .75rem;
+  --radius: 10px;
+  --shadow-sm: -3px 3px 0 0 var(--ink);
+  --shadow-md: -4px 4px 0 0 var(--ink);
+  --shadow-lg: -5px 6px 0 0 var(--ink);
+  --press: translate(-3px, 3px); /* moves a pill onto its shadow */
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
@@ -49,7 +70,10 @@ body { margin: 0; }
 }
 button, a, input, select { touch-action: manipulation; }
 button { cursor: pointer; }
-a { color: var(--accent); }
-:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+a { color: var(--ink); }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
 h1, h2, p { margin: 0; }
 button:disabled { cursor: default; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; }
+}
