@@ -2,10 +2,10 @@ import { App } from '@modelcontextprotocol/ext-apps'
 import { useEffect, useRef, useState } from 'react'
 import { KindergartenExplorer } from '../../shared/explorer/KindergartenExplorer'
 import { LocationToolResult } from '../../shared/mcp/LocationToolResult'
-import type { LocationCollection } from '../../shared/locations/types'
+import { isProviderKind, providerLabels, type LocationCollection, type ProviderKind } from '../../shared/locations/types'
 import './mcp.css'
 
-type Snapshot = { city: string | null; name?: string; data: LocationCollection | null; status: 'loading' | 'ready' | 'error'; notice?: string }
+type Snapshot = { city: string | null; name?: string; provider_kind?: ProviderKind | null; data: LocationCollection | null; status: 'loading' | 'ready' | 'error'; notice?: string }
 const initial: Snapshot = { city: null, data: null, status: 'loading', notice: 'U kojem gradu želiš prikaz vrtića?' }
 
 // McpLocationApp receives city results exclusively through the MCP host bridge.
@@ -31,8 +31,9 @@ export function McpLocationApp() {
       revision.current++
       const city = typeof args?.city === 'string' ? args.city.trim() : ''
       const name = typeof args?.name === 'string' ? args.name.trim() : ''
+      const provider_kind = isProviderKind(args?.provider_kind) ? args.provider_kind : null
       setSelection(null)
-      setSnapshot(city ? { city, name, data: null, status: 'loading' } : initial)
+      setSnapshot(city ? { city, name, provider_kind, data: null, status: 'loading' } : initial)
     }
     app.ontoolresult = async (result) => {
       const request = ++revision.current
@@ -44,7 +45,7 @@ export function McpLocationApp() {
       try {
         const parsed = await LocationToolResult.fromResult(result)
         if (!active || request !== revision.current) return
-        setSnapshot({ city: parsed.city, name: parsed.name ?? '', data: parsed.locations, status: 'ready' })
+        setSnapshot({ city: parsed.city, name: parsed.name ?? '', provider_kind: parsed.provider_kind ?? null, data: parsed.locations, status: 'ready' })
       } catch {
         if (active && request === revision.current) setSnapshot((previous) => ({ ...previous, data: null, status: 'error' }))
       }
@@ -63,27 +64,32 @@ export function McpLocationApp() {
     const app = bridge.current
     const city = snapshot.city
     const name = snapshot.name ?? ''
+    const provider_kind = snapshot.provider_kind ?? null
     if (!app || !city) { setSnapshot(initial); return }
     const request = ++revision.current
     setSelection(null)
-    setSnapshot({ city, name, data: null, status: 'loading' })
+    setSnapshot({ city, name, provider_kind, data: null, status: 'loading' })
     try {
-      const result = await app.callServerTool({ name: 'prikazi_vrtice', arguments: { city, ...(name ? { name } : {}) } })
+      const result = await app.callServerTool({ name: 'prikazi_vrtice', arguments: { city, ...(name ? { name } : {}), ...(provider_kind ? { provider_kind } : {}) } })
       if (request !== revision.current) return
       if (result.isError) throw new Error('Tool failed')
       const parsed = await LocationToolResult.fromResult(result)
       if (request !== revision.current) return
-      setSnapshot({ city: parsed.city, name: parsed.name ?? '', data: parsed.locations, status: 'ready' })
+      setSnapshot({ city: parsed.city, name: parsed.name ?? '', provider_kind: parsed.provider_kind ?? null, data: parsed.locations, status: 'ready' })
     } catch {
-      if (request === revision.current) setSnapshot({ city, name, data: null, status: 'error' })
+      if (request === revision.current) setSnapshot({ city, name, provider_kind, data: null, status: 'error' })
     }
   }
 
+  const emptyNotice = snapshot.name || snapshot.provider_kind
+    ? `Nema rezultata za grad ${snapshot.city}${snapshot.name ? `, naziv „${snapshot.name}”` : ''}${snapshot.provider_kind ? `, vrstu „${providerLabels[snapshot.provider_kind]}”` : ''}. Provjerite ili promijenite kriterije u razgovoru.`
+    : undefined
+
   return <main className="mcp-location-app w-full overflow-hidden" data-display-mode={display.expanded ? 'fullscreen' : 'inline'} aria-label={snapshot.city ? `Vrtići: ${snapshot.city}` : 'Karta vrtićkih objekata'}>
     <KindergartenExplorer data={snapshot.data} status={snapshot.status} selectedId={selection} onSelect={setSelection}
-      criteria={snapshot.city ? { city: snapshot.city, name: snapshot.name } : undefined}
+      criteria={snapshot.city ? { city: snapshot.city, name: snapshot.name, provider_kind: snapshot.provider_kind } : undefined}
       notice={snapshot.notice}
-      emptyNotice={snapshot.name ? `Za naziv „${snapshot.name}” u gradu ${snapshot.city} nema rezultata. Provjerite ili skratite naziv u razgovoru.` : undefined}
+      emptyNotice={emptyNotice}
       retry={() => { void retry() }}
       openLink={(url) => { void bridge.current?.openLink({ url }) }}
       hostFullscreen={display.available ? { expanded: display.expanded, request: async (mode) => {

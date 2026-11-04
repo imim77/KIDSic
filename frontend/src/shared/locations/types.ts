@@ -11,6 +11,10 @@ export const providerLabels: Record<ProviderKind, string> = {
   unknown: 'Vrsta nije navedena',
 }
 
+export function isProviderKind(value: unknown): value is ProviderKind {
+  return typeof value === 'string' && Object.hasOwn(providerLabels, value)
+}
+
 // Mirrors theme.css because Mapbox paint expressions cannot read CSS variables.
 export const providerColors: Record<ProviderKind, string> = {
   municipal: '#82eda6',

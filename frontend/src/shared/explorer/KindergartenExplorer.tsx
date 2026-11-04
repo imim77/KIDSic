@@ -6,7 +6,7 @@ import { KindergartenMap } from '../map/KindergartenMap'
 import { LocationCarousel } from '../locations/LocationCarousel'
 import { LocationDetails } from '../locations/LocationDetails'
 import { LocationList } from '../locations/LocationList'
-import type { LocationCollection } from '../locations/types'
+import { providerLabels, type LocationCollection, type ProviderKind } from '../locations/types'
 
 interface KindergartenExplorerProps {
   data: LocationCollection | null
@@ -17,7 +17,7 @@ interface KindergartenExplorerProps {
   hostFullscreen?: HostFullscreen
   notice?: string
   emptyNotice?: string
-  criteria?: { city: string; name?: string }
+  criteria?: { city: string; name?: string; provider_kind?: ProviderKind | null }
   openLink?: (url: string) => void
 }
 
@@ -29,6 +29,7 @@ export function KindergartenExplorer({ hostFullscreen, criteria, ...props }: Kin
     {criteria && <header className="explorer-search-summary" aria-label="Kriteriji pretrage">
       <strong>Grad: {criteria.city}</strong>
       {criteria.name && <span>Naziv: „{criteria.name}”</span>}
+      <span>Vrsta: {criteria.provider_kind ? providerLabels[criteria.provider_kind] : 'Sve vrste'}</span>
     </header>}
     <ExplorerLayout {...props} />
   </FullscreenFrame>

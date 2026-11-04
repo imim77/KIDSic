@@ -45,3 +45,18 @@ it('keeps applied city and name and rejects malformed search criteria', async ()
     expect(() => LocationToolResult.parse({ city: 'Rijeka', name, locations })).toThrow('Invalid search name')
   }
 })
+
+it('validates applied type and rejects results from a different category', () => {
+  for (const kind of ['municipal', 'private', 'religious', 'childminder', 'other', 'unknown'] as const) {
+    const item = facility(kind)
+    item.properties.provider_kind = kind
+    const locations = collection(item)
+    expect(LocationToolResult.parse({ city: 'Zagreb', provider_kind: kind, locations }).provider_kind).toBe(kind)
+    expect(LocationToolResult.parse({ city: 'Zagreb', provider_kind: null, locations }).provider_kind).toBeNull()
+  }
+  for (const kind of ['', 'gradski', ['private'], 1, {}, '__proto__']) {
+    expect(() => LocationToolResult.parse({ city: 'Zagreb', provider_kind: kind, locations: collection() })).toThrow('Invalid provider kind')
+  }
+  expect(() => LocationToolResult.parse({ city: 'Zagreb', provider_kind: 'private', locations: collection(facility('municipal')) }))
+    .toThrow('Mismatched provider kind')
+})
