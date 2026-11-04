@@ -48,6 +48,75 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         return SourceSnapshot(source or self.source, normalize_records(records or [NATIONAL], parser),
                               datetime.now(timezone.utc))
 
+    async def test_provider_types_survive_reimport_and_are_exposed_with_their_source(self):
+        from KIDSic.dao.concrete.asyncpg_location import AsyncpgLocationRepository
+        from KIDSic.dto.location import LocationQuery
+        records = [{**NATIONAL, 'Naziv': name} for name in
+                   ('DV Varaždin', 'DV Bajka', 'DV Sveta Uršula')]
+        await self.repo.import_snapshot(self.snapshot(records))
+        identities = await self.c.fetch('SELECT id,provider_kind FROM kindergarten ORDER BY name')
+        await self.repo.import_snapshot(self.snapshot(records))
+        self.assertEqual(await self.c.fetch(
+            'SELECT id,provider_kind FROM kindergarten ORDER BY name'), identities)
+        locations = AsyncpgLocationRepository(self.c)
+        for kind in ('municipal', 'private', 'religious'):
+            rows = await locations.list_locations(LocationQuery(city='Varaždin', provider_kind=kind))
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]['provider_kind'], kind)
+            self.assertIn('provider_kind', rows[0]['field_sources'])
+            self.assertEqual(await self.c.fetchval("SELECT provenance->'provider_kind'->>'source_url' "
+                'FROM kindergarten WHERE id=$1', rows[0]['kindergarten_id']),
+                'https://varazdin.hr/djecji-vrtici/')
+        options = await AsyncpgKindergartenRepository(self.c).find_options(
+            city='varazdin', age_months=24, include_unknown=True)
+        self.assertEqual({row['provider_kind'] for row in options},
+                         {'municipal', 'private', 'religious'})
+
+    async def test_provider_backfill_preserves_known_types_and_other_cities(self):
+        records = [{**NATIONAL, 'Naziv': 'DV Bajka'},
+                   {**NATIONAL, 'Naziv': 'DV Varaždin'},
+                   {**NATIONAL, 'Naziv': 'DV Bajka', 'Mjesto': 'Drugi grad'},
+                   {**NATIONAL, 'Naziv': 'Udruga Primjer', 'Mjesto': 'Zagreb',
+                    'Zupanija': 'Grad Zagreb'}]
+        await self.repo.import_snapshot(self.snapshot(records))
+        await self.c.execute("UPDATE kindergarten SET provider_kind='unknown'")
+        await self.c.execute("UPDATE kindergarten SET provider_kind='private' WHERE name='DV Varaždin'")
+        before = await self.c.fetch('SELECT id,name,seat_settlement,provider_kind,provenance '
+                                    'FROM kindergarten ORDER BY id')
+        migration = (Path(__file__).resolve().parents[1] / 'src/KIDSic/db/alembic/versions/'
+                     '0004_provider_kinds.sql').read_text()
+        await self.c.execute(migration)
+        rows = await self.c.fetch('SELECT id,name,seat_settlement,provider_kind,provenance '
+                                  'FROM kindergarten ORDER BY id')
+        self.assertEqual({(r['name'], r['seat_settlement']): r['provider_kind'] for r in rows}, {
+            ('DV Bajka', 'Varaždin'): 'private', ('DV Varaždin', 'Varaždin'): 'private',
+            ('DV Bajka', 'Drugi grad'): 'unknown', ('Udruga Primjer', 'Zagreb'): 'other'})
+        await self.c.execute(migration)
+        self.assertEqual(await self.c.fetch('SELECT id,name,seat_settlement,provider_kind,provenance '
+                                            'FROM kindergarten ORDER BY id'), rows)
+        import importlib.util
+        from unittest.mock import patch
+        spec = importlib.util.spec_from_file_location('provider_migration',
+            Path(__file__).resolve().parents[1] / 'src/KIDSic/db/alembic/versions/'
+            '0004_provider_kinds.py')
+        revision = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(revision)
+        with patch.object(revision.op, 'execute') as execute:
+            revision.downgrade()
+        await self.c.execute(execute.call_args.args[0])
+        self.assertEqual(await self.c.fetch('SELECT id,name,seat_settlement,provider_kind,provenance '
+                                            'FROM kindergarten ORDER BY id'), before)
+
+    async def test_database_rejects_missing_or_invalid_provider_kind(self):
+        import asyncpg
+        for kind, error in ((None, asyncpg.NotNullViolationError),
+                            ('invalid', asyncpg.CheckViolationError)):
+            with self.subTest(kind=kind):
+                with self.assertRaises(error):
+                    async with self.c.transaction():
+                        await self.c.execute('INSERT INTO kindergarten(name,provider_kind) '
+                                             "VALUES ('Synthetic',$1)", kind)
+
     async def test_childminder_csv_import_preserves_identity_and_last_good_snapshot(self):
         fixtures = Path(__file__).parent / 'fixtures'
         package = json.loads((fixtures / 'ckan_childminders.json').read_text())

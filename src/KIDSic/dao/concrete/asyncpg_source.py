@@ -134,6 +134,9 @@ class AsyncpgSourceRepository(SourceRepository):
                                 if getattr(row, key) is not None}
             if row.provider_kind != 'unknown':
                 owner_provenance['provider_kind'] = evidence
+                if row.provider_kind_source_url:
+                    owner_provenance['provider_kind'] = {
+                        **evidence, 'source_url': row.provider_kind_source_url}
             owner_values = await self._connection.fetchrow('''
                 UPDATE kindergarten SET email=COALESCE($2,email),phone=COALESCE($3,phone),
                     website_url=COALESCE($4,website_url),oib=COALESCE($10,oib),

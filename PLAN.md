@@ -576,3 +576,50 @@ lokacije, uključujući GeoJSON i izvore. Stvarni CSV dry-run vratio je 14 obrta
 a pretraga Brezja iste četiri lokacije. Privremeni server je ugašen; postojeći
 server nije prekidan. `compileall` i `git diff --check` su uredni. Nema promjene
 SQL upita, migracija niti ponovnog upisa u radnu bazu.
+
+## Razlikovanje pružatelja u Varaždinu i Zagrebu — 2026-11-04
+
+Istraživanje: `kindergarten.provider_kind` već je NOT NULL i ograničen na
+`municipal`, `private`, `religious`, `childminder`, `other`, `unknown`.
+`api/locations.py` → `services/concrete/location.py` →
+`dao/concrete/asyncpg_location.py` već vraća i filtrira to polje. Zagrebački
+parser i varaždinski CSV dadilja daju potvrđen tip; nacionalni parser ga
+izostavlja. U radnoj bazi 11 varaždinskih i 91 zagrebačka ustanova zato ima
+`unknown`; 79 zagrebačkih zapisa opisuje druge programe/udruge, a ne vrtiće.
+Brojanje po općini obuhvaća i sjedišta čije mjesto nije doslovno Zagreb.
+Razgovorna pretraga u `asyncpg_kindergarten.py` uopće ne vraća tip.
+
+Razmotreno: novo polje s tri hrvatske vrijednosti dupliciralo bi već postojeći
+ugovor i izgubilo razliku vjerskih vrtića. Odabrano: dopuniti postojeći tip,
+sačuvati provjereni izvor razvrstavanja i dodati ga razgovornoj pretrazi.
+Kurirana podudaranja nacionalnog parsera ograničiti na potvrđeni grad i točan
+normalizirani naziv; ne zaključivati vlasništvo iz proizvoljnog naziva.
+Ostale izričito imenovane programe/udruge u tim gradovima označiti `other`.
+Nove nepoznate vrtiće zadržati kao `unknown` do provjere.
+
+Izvori provjereni prije implementacije:
+- https://varazdin.hr/djecji-vrtici/ — osnivači varaždinskih vrtića.
+- https://varazdin.hr/upload/2024/11/obrazlozenje_nacrta_proracuna_2025-2027_-_672b9864ddddb.pdf
+  — deset privatnih/vjerskih ustanova, uključujući Malo drvo, Sreću i Pandu.
+- https://www.zagreb.hr/UserDocsImages/arhiva/odgoj_obrazovanje_spot/POPIS%20VJERSKIH%20I%20PRIVATNIH%20DV_ZA%20WEB_kris.pdf
+  — osnivači zagrebačkih privatnih/vjerskih vrtića.
+- https://tltkindergarten.com/hr/ — Drvo znanja.
+- https://rino-institut.hr/ — Ružičnjak / Klinci Rinci.
+
+Implementacija: dopuniti nacionalni parser pregledanim mapiranjem i URL-om
+izvora; postojeći DAO zadržava taj izvor u provenijenciji. Nova Alembic
+migracija dopunjava samo prethodno nepoznate tipove postojećih zapisa, bez
+promjene identiteta ili geografske snimke. Provjeriti ponovljeni uvoz, opseg
+grada, zaštitu poznatih tipova, API filtre i integracijske testove u odvojenoj
+bazi. Nepoznato: budući izvori mogu sadržavati nove ustanove; ne dodjeljivati
+im privatno vlasništvo bez dokaza.
+
+
+Završna provjera: 84 Python testa, 81 prošao i tri opcionalna HTTP simulation
+testa preskočena. Provjereni su ponovni uvoz, zaštita poznatih tipova i drugih
+gradova, odbijanje NULL/nevažećeg tipa te vraćanje prethodne provenijencije pri
+downgradeu. Migracija je primijenjena na lokalnu radnu bazu. Stvarni servis
+lokacija vraća 33 lokacije Varaždina (9 municipal, 9 private, 1 religious,
+14 childminder) i 461 Zagreba (241 municipal, 69 private, 18 religious,
+54 childminder, 79 other). Nema `unknown` tipova u oba grada; pojedinačni
+filtri vraćaju točno odgovarajuće skupove. `git diff --check` prolazi.

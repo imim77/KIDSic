@@ -68,6 +68,17 @@ Naredba pretražuje prethodno uvezene podatke. Bez imenika traži pojašnjenje j
 
 ## CKAN registracija i uvoz
 
+Vrsta pružatelja obavezno je pohranjena u `kindergarten.provider_kind`:
+`municipal` (gradski), `private` (privatni), `childminder` (dadilje),
+`religious` (vjerski) i `other` (ostali programi/ustanove). `unknown` ostaje
+za nove ustanove čiji tip još nije potvrđen. Objekti preuzimaju tip povezane
+ustanove; `location.kind` zasebno razlikuje matični i područni objekt.
+API lokacija i razgovorna pretraga vraćaju `provider_kind` uz svaki rezultat.
+Nacionalni uvoz dopunjava pregledane vrtiće u Varaždinu i Zagrebu prema
+potvrđenom gradu i točnom normaliziranom nazivu, uz poveznicu na izvor
+osnivača u provenijenciji. Migracija `0004_provider_kinds` dopunjava postojeće
+nepoznate tipove; poznate tipove i identitete zadržava.
+
 Obrazac je preuzet iz [FOIHireloom CKAN integracije](https://github.com/imim77/FOIHireloom/tree/8ba897db799e993aa43c7d488879efb3870218f2/src/FOIHireloom): caller-owned `httpx.AsyncClient`, interface i konkretni klijent, DTO validacija, odvojene HTTP/transport/API/response pogreške, servis, factory, Unit of Work i CLI s `--dry-run`. KIDSic koristi asyncpg za sve upise. MZOM-ov resurs ima tekstualni ID pa DTO prihvaća string umjesto isključivo UUID-a.
 
 Početni izvori:

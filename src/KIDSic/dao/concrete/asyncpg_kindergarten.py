@@ -96,7 +96,7 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
               AND NOT EXISTS (SELECT 1 FROM location l JOIN active_record r ON r.location_id=l.id
                               WHERE l.kindergarten_id=k.id)
           ), candidates AS (
-            SELECT pl.location_id,pl.kindergarten_id,k.name,pl.location_name,pl.settlement,
+            SELECT pl.location_id,pl.kindergarten_id,k.name,k.provider_kind,pl.location_name,pl.settlement,
               m.name AS municipality,pl.address,pl.district,pl.quarter,pl.suburb,pl.neighbourhood,pl.geo_settlement,pl.scope,
               COALESCE((SELECT jsonb_agg(jsonb_build_object(
                 'program_id',p.id,'program_name',p.name,'source_record_id',p.source_record_id,
@@ -116,7 +116,7 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
             WHERE (pl.settlement_key=$1 OR m.key=$1 OR $1=ANY(m.aliases))
               AND ($6::text IS NULL OR pl.district=$6 OR pl.quarter=$6 OR pl.suburb=$6
                    OR pl.neighbourhood=$6 OR pl.geo_settlement=$6)
-          ) SELECT location_id,kindergarten_id,name,location_name,settlement,municipality,address,district,quarter,suburb,neighbourhood,geo_settlement,scope,
+          ) SELECT location_id,kindergarten_id,name,provider_kind,location_name,settlement,municipality,address,district,quarter,suburb,neighbourhood,geo_settlement,scope,
                    age_evidence,
                    CASE WHEN jsonb_array_length(age_evidence)>0 THEN 'confirmed' ELSE 'unknown' END AS age_status
             FROM candidates WHERE jsonb_array_length(age_evidence)>0 OR ($4 AND NOT has_known_program)

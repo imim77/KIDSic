@@ -64,6 +64,7 @@ class KindergartenRow:
     municipality: str | None = None
     oib: str | None = None
     provider_kind: str = 'unknown'
+    provider_kind_source_url: str | None = None
     kind: str = 'unknown'
     postal_code: str | None = None
     county: str | None = None

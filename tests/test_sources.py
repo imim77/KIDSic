@@ -31,6 +31,31 @@ def source_client(name='national'):
 
 
 class NormalizationTests(unittest.TestCase):
+    def test_reviewed_provider_kinds_require_confirmed_city_and_exact_name(self):
+        for name, kind in (("Dječji vrtić Varaždin", 'municipal'),
+                           ('Dječji vrtić „Bajka“', 'private'),
+                           ('DV "Sveta Uršula"', 'religious')):
+            with self.subTest(name=name):
+                row = normalize_records([{**NATIONAL, 'Naziv': name}], 'national')[0]
+                self.assertEqual(row.provider_kind, kind)
+                self.assertTrue(row.provider_kind_source_url.startswith('https://'))
+                wrong_city = normalize_records([{**NATIONAL, 'Naziv': name,
+                    'Mjesto': 'Drugi grad'}], 'national')[0]
+                self.assertEqual(wrong_city.provider_kind, 'unknown')
+        self.assertEqual(normalize_records([{**NATIONAL, 'Naziv': 'DV Bajka nova'}],
+                                           'national')[0].provider_kind, 'unknown')
+
+    def test_zagreb_directory_distinguishes_private_religious_and_other_programs(self):
+        for name, kind in (('DV Frfi', 'private'), ('DV Cvjetnjak', 'religious'),
+                           ('Udruga Primjer', 'other'), ('DV Nepoznati', 'unknown')):
+            with self.subTest(name=name):
+                row = normalize_records([{**NATIONAL, 'Naziv': name, 'Mjesto': 'Zagreb',
+                    'Zupanija': 'Grad Zagreb'}], 'national')[0]
+                self.assertEqual(row.provider_kind, kind)
+        suburb = normalize_records([{**NATIONAL, 'Naziv': 'DV Mudre glavice',
+            'Mjesto': 'Strmec', 'Zupanija': 'Grad Zagreb'}], 'national')[0]
+        self.assertEqual(suburb.provider_kind, 'private')
+
     def test_national_identity_is_independent_of_contacts_and_diacritics(self):
         first = normalize_records([NATIONAL], 'national')[0]
         second = normalize_records([{**NATIONAL, 'Telefon': '123', 'Mjesto': 'Varazdin'}], 'national')[0]
