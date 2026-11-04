@@ -30,9 +30,9 @@ it('negotiates the real SDK postMessage bridge, receives results, and requests h
       source: window.parent, data: { jsonrpc: '2.0', id: request.id, result },
     })))
     if (request.method === 'ui/notifications/initialized') queueMicrotask(() => {
-      notify('ui/notifications/tool-input', { arguments: { city: 'Zagreb' } })
+      notify('ui/notifications/tool-input', { arguments: { city: 'Zagreb', name: 'Bajka' } })
       const locations = collection(facility('bridge'))
-      notify('ui/notifications/tool-result', { content: [], structuredContent: { city: 'Zagreb', metadata: locations.metadata }, _meta: { locations } })
+      notify('ui/notifications/tool-result', { content: [], structuredContent: { city: 'Zagreb', name: 'Bajka', metadata: locations.metadata }, _meta: { locations } })
     })
   })
   const { unmount } = render(<McpLocationApp />)
@@ -41,8 +41,11 @@ it('negotiates the real SDK postMessage bridge, receives results, and requests h
   await userEvent.click(screen.getByRole('button', { name: 'Prikaži preko cijelog ekrana' }))
   expect(await screen.findByRole('button', { name: 'Vrati prikaz' })).toBeVisible()
   expect(methods).toContain('ui/request-display-mode')
+  expect(screen.getByText('Grad: Zagreb')).toBeVisible()
+  expect(screen.getByText('Naziv: „Bajka”')).toBeVisible()
   await act(async () => notify('ui/notifications/tool-input', { arguments: {} }))
   expect(screen.getByText('U kojem gradu želiš prikaz vrtića?')).toBeVisible()
   expect(screen.queryByText('Synthetic facility bridge')).toBeNull()
+  expect(screen.queryByText('Naziv: „Bajka”')).toBeNull()
   unmount()
 })

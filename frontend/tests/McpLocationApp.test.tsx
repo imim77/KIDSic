@@ -34,10 +34,10 @@ beforeEach(() => {
 })
 afterEach(() => { vi.unstubAllGlobals(); Reflect.deleteProperty(Element.prototype, 'scrollTo') })
 
-async function result(city: string, id?: string) {
+async function result(city: string, id?: string, name?: string) {
   const locations = collection(...(id ? [facility(id)] : []))
   if (locations.features[0]) locations.features[0].properties.website_url = 'https://example.invalid/kindergarten'
-  await act(async () => host.instance.ontoolresult({ structuredContent: { city, metadata: locations.metadata }, _meta: { locations } }))
+  await act(async () => host.instance.ontoolresult({ structuredContent: { city, name, metadata: locations.metadata }, _meta: { locations } }))
 }
 
 it('asks for a city and never fetches default Zagreb from the embedded UI', async () => {
@@ -92,6 +92,7 @@ it('rejects malformed results, and a chosen card opens host fullscreen details',
   expect(screen.getByRole('button', { name: 'Vrati prikaz' })).toBeVisible()
   expect(screen.getByRole('list', { name: 'Svi vrtići' })).toBeVisible()
   expect(screen.getByRole('region', { name: 'Detalji: Synthetic facility first' })).toBeVisible()
+  expect(screen.getByText('Grad: Zagreb')).toBeVisible()
   // Sandboxed hosts block navigation, so outbound links go through the bridge.
   await userEvent.click(screen.getByRole('link', { name: 'Web stranica vrtića' }))
   expect(host.link).toHaveBeenCalledWith({ url: 'https://example.invalid/kindergarten' })
@@ -114,4 +115,22 @@ it('ignores decompression finishing after results for another city', async () =>
   await act(async () => pending.resolve({ city: 'Zagreb', locations: collection(facility('old')) }))
   expect(screen.getByRole('main', { name: 'Vrtići: Split' })).toBeVisible()
   expect(screen.queryByText('Synthetic facility old')).toBeNull()
+})
+
+it('shows applied name and city, preserves both on retry and explains empty name matches', async () => {
+  render(<McpLocationApp />)
+  await act(async () => host.instance.ontoolinput({ arguments: { city: 'Rijeka', name: ' Zamet ' } }))
+  expect(screen.getByText('Grad: Rijeka')).toBeVisible()
+  expect(screen.getByText('Naziv: „Zamet”')).toBeVisible()
+  await act(async () => host.instance.ontoolresult({ isError: true }))
+  const locations = collection()
+  host.call.mockResolvedValueOnce({ structuredContent: { city: 'Rijeka', name: 'Zamet', metadata: locations.metadata }, _meta: { locations } })
+  await userEvent.click(screen.getByRole('button', { name: 'Pokušaj ponovno' }))
+  expect(host.call).toHaveBeenLastCalledWith({ name: 'prikazi_vrtice', arguments: { city: 'Rijeka', name: 'Zamet' } })
+  expect(screen.getByText(/Za naziv „Zamet” u gradu Rijeka nema rezultata/)).toBeVisible()
+  expect(screen.queryByRole('alert')).toBeNull()
+  await result('Rijeka', 'bajka', 'Bajka')
+  expect(screen.getByText('Naziv: „Bajka”')).toBeVisible()
+  expect(screen.queryByText('Naziv: „Zamet”')).toBeNull()
+  expect(fetch).not.toHaveBeenCalled()
 })

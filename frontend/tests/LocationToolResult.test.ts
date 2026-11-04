@@ -34,3 +34,14 @@ it('rejects malformed contact values before rendering host results', () => {
   Object.assign(locations.features[0].properties, { phone: { unexpected: true } })
   expect(() => LocationToolResult.parse({ city: 'Zagreb', locations })).toThrow('Invalid contact')
 })
+
+it('keeps applied city and name and rejects malformed search criteria', async () => {
+  const locations = collection()
+  const parsed = await LocationToolResult.fromResult({
+    structuredContent: { city: ' Rijeka ', name: ' Zamet ', metadata: locations.metadata }, _meta: { locations },
+  })
+  expect(parsed).toEqual({ city: 'Rijeka', name: 'Zamet', locations })
+  for (const name of [null, 1, [], 'x'.repeat(201)]) {
+    expect(() => LocationToolResult.parse({ city: 'Rijeka', name, locations })).toThrow('Invalid search name')
+  }
+})

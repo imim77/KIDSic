@@ -16,7 +16,7 @@ export class LocationToolResult {
       const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
       locations = await new Response(stream).json()
     }
-    const parsed = this.parse({ city: summary.city, locations })
+    const parsed = this.parse({ city: summary.city, name: summary.name, locations })
     const metadata = summary.metadata
     if (!record(metadata) || metadata.total !== parsed.locations.metadata.total
       || metadata.mapped !== parsed.locations.metadata.mapped || metadata.unmapped !== parsed.locations.metadata.unmapped
@@ -24,8 +24,9 @@ export class LocationToolResult {
     return parsed
   }
 
-  static parse(value: unknown): { city: string; locations: LocationCollection } {
+  static parse(value: unknown): { city: string; name?: string; locations: LocationCollection } {
     if (!record(value) || typeof value.city !== 'string' || !value.city.trim()) throw new Error('Missing city')
+    if (value.name !== undefined && (typeof value.name !== 'string' || value.name.trim().length > 200)) throw new Error('Invalid search name')
     const data = value.locations
     if (!record(data) || data.type !== 'FeatureCollection' || !Array.isArray(data.features)
       || !record(data.metadata) || data.metadata.complete !== true || data.metadata.scope !== 'city'
@@ -52,6 +53,6 @@ export class LocationToolResult {
       }
     }
     if (data.metadata.mapped !== mapped || data.metadata.unmapped !== data.features.length - mapped) throw new Error('Invalid counts')
-    return { city: value.city.trim(), locations: data as unknown as LocationCollection }
+    return { city: value.city.trim(), ...(value.name !== undefined ? { name: (value.name as string).trim() } : {}), locations: data as unknown as LocationCollection }
   }
 }
