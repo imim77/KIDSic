@@ -3,7 +3,7 @@ from pathlib import Path
 from mcp import types
 from mcp.server.lowlevel.helper_types import ReadResourceContents
 
-UI_URI = 'ui://kidsic/map-v9.html'
+UI_URI = 'ui://kidsic/map-v10.html'
 UI_MIME = 'text/html;profile=mcp-app'
 SERVER_INSTRUCTIONS = (
     'When the user asks to show or find kindergartens in a city, ALWAYS call '
@@ -12,7 +12,12 @@ SERVER_INSTRUCTIONS = (
     'or ambiguous, ask the user which city before calling the tool. Never infer '
     'a city from location, history, or a default. Do not replace the map with '
     'a text-only list. Only Zagreb, Varaždin and Rijeka are supported; explain '
-    'this limitation for other cities. Explain unavailable results without inventing data.'
+    'this limitation for other cities. Extract an optional kindergarten/facility name '
+    'into the name argument, e.g. "Bajka u Zagrebu" -> city="Zagreb", name="Bajka". '
+    'Send only the name, not the whole user sentence. A city must be supplied for '
+    'each search; ask when it is missing or ambiguous. For zero name matches, '
+    'report the applied criteria and ask whether to shorten/check the name. '
+    'Never broaden a failed search automatically. Explain unavailable results without inventing data.'
 )
 TOOL_META = {
     'ui': {'resourceUri': UI_URI},

@@ -179,6 +179,17 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
             await self.fixture(f'Facility {i}')
         self.assertEqual(len(await self.repository.list_locations(LocationQuery())), 101)
 
+    async def test_name_search_matches_parent_and_branch_with_croatian_letters_and_city_scope(self):
+        _, branch = await self.fixture('Dječji vrtić Čarobna kućica')
+        await self.c.execute("UPDATE location SET name='Đački kutak' WHERE id=$1", branch)
+        await self.fixture('Dječji vrtić Čarobna kućica', city='Rijeka')
+        await self.fixture('Other')
+        for query in ('ČAROBNA', 'carobna', 'kućica', 'KUCICA', 'Đački', 'dacki'):
+            with self.subTest(query=query):
+                rows = await self.repository.list_locations(LocationQuery(city='Zagreb', q=query))
+                self.assertEqual([r['location_id'] for r in rows], [branch])
+        self.assertEqual(await self.repository.list_locations(LocationQuery(q="%' OR 1=1 --")), [])
+
     async def test_reimport_exposes_last_known_coordinate_evidence_without_relabeling_it(self):
         from test_sources import MUNICIPAL, source_client
         client = source_client('municipal')

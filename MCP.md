@@ -47,13 +47,33 @@ Nakon povezivanja odabrati KIDSic aplikaciju u chatu i pokušati:
 
 - „Prikaži mi vrtiće u Zagrebu na karti.” → alat s `{"city":"Zagreb"}` i mapa.
 - „Prikaži mi vrtiće u Rijeci.” → isti pogled s rezultatima Rijeke.
+- „Prikaži vrtić Bajka u Zagrebu.” → `{"city":"Zagreb","name":"Bajka"}`.
+- „Tražim Čarobnu kućicu.” → pitati za grad, bez pretrage po pretpostavljenom gradu.
 - „Prikaži mi vrtiće u Splitu.” → poruka da su podržani Zagreb, Varaždin i Rijeka, bez čitanja baze.
 - „Prikaži mi vrtiće.” → AI pita „U kojem gradu želiš prikaz vrtića?” prije poziva.
 
 Grad je obavezan string od 1 do 100 znakova nakon trimanja, bez defaulta. Poziv
-bez grada, s praznim/nepodržanim gradom ili dodatnim argumentima vraća `isError` i uputu za
+bez grada, s praznim/nepodržanim gradom ili nepoznatim argumentima vraća `isError` i uputu za
 pojašnjenje bez čitanja baze. Alat ne zaključuje grad iz geolokacije. Klijent treba
 iz razgovornog oblika („u Zagrebu”) predati naziv grada („Zagreb”).
+
+Opcionalni `name` je naziv ili dio naziva ustanove/objekta (najviše 200 znakova),
+bez cijele rečenice upita. Izostavljen ili prazan naziv vraća sve objekte grada.
+Podržane padežne oblike grada server pretvara u kanonski naziv. Pretraga je
+literalno podudaranje dijela naziva, bez razlikovanja veličine slova i hrvatskih
+slova č/ć/ž/š/đ. `%` i `_` nisu zamjenski znakovi. Ne pretražuju se opisi ni adrese.
+
+Uspješan rezultat uvijek vraća primijenjeni `city` i `name`. UI ih prikazuje
+iznad karte, čuva ih pri ponovnom pokušaju i briše prethodni odabir pri novom
+upitu. Nula rezultata prikazuje praznu kartu s pozivom da se naziv provjeri ili
+skrati; server i UI ne proširuju pretragu automatski. Za cijeli grad ponovno
+pozvati alat bez `name`.
+
+Tumačenje prirodnog jezika i pitanje za nedostajući grad obavlja AI klijent
+prema opisu alata i uputama servera. Python server validira strukturirane
+argumente i izvršava determinističku pretragu; nema zasebnog LLM poziva ni
+novog chat polja u web aplikaciji. Dob, tip ustanove, područje, RAG, usporedba i
+vodič za upis nisu parametri ovog koraka.
 
 Upute servera i opis alata zahtijevaju ovaj alat za prikaz vrtića. Svaki poziv je
 povezan s UI resursom u definiciji alata i metapodacima rezultata. Server ipak ne
@@ -63,9 +83,9 @@ pročitati rezultat, ali ne može prikazati interaktivnu kartu.
 
 ## Ugovor UI-ja i provjera
 
-Resurs `ui://kidsic/map-v9.html` ima MIME `text/html;profile=mcp-app`. Moderni
+Resurs `ui://kidsic/map-v10.html` ima MIME `text/html;profile=mcp-app`. Moderni
 `_meta.ui.resourceUri` i kompatibilni `openai/outputTemplate` povezuju ga s alatom.
-Uspješan rezultat ima sažetak `structuredContent: {city, metadata}`, uz deklarirani
+Uspješan rezultat ima sažetak `structuredContent: {city, name, metadata}`, uz deklarirani
 `outputSchema`. Potpuni GeoJSON prenosi se bez gubitka u `_meta.locations` kao
 `{encoding: "gzip+base64", data: "…"}`. UI ga dekodira preko pregledničkog
 `DecompressionStream` API-ja prije validacije. Time veliki gradski skupovi s
@@ -87,7 +107,7 @@ visinu dodijeljenog prozora. Klik na karticu traži fullscreen i otvara popis,
 detalje i kartu u stupcima (ispod 1100 px detalji prekrivaju popis, ispod 700 px
 kartu). Detalji prikazuju samo podatke iz izvora i navode što nije poznato;
 vanjske poveznice otvaraju se kroz `ui/open-link`. Nakon nadogradnje ponovno
-povezati konektor kako bi host preuzeo URI resursa v7 te pokrenuti novi poziv
+povezati konektor kako bi host preuzeo URI resursa v10 te pokrenuti novi poziv
 alata.
 Resurs deklarira CSP za Mapbox API, događaje, tiles i blob/data resurse. Host mora
 dopustiti Mapbox blob worker i WebGL; u suprotnom ostaju dostupne kartice. UI je

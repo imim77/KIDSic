@@ -86,8 +86,8 @@ class AsyncpgLocationRepository(LocationRepository):
                                 'district','longitude','latitude')
           ) fields ON true
           WHERE (pl.settlement_key=$1 OR m.key=$1 OR $1=ANY(m.aliases))
-            AND ($2='' OR strpos(lower(k.name),lower($2))>0
-                       OR strpos(lower(pl.location_name),lower($2))>0)
+            AND ($2='' OR strpos(translate(lower(k.name),'čćžšđ','cczsd'),$2)>0
+                       OR strpos(translate(lower(pl.location_name),'čćžšđ','cczsd'),$2)>0)
             AND ($3::text IS NULL OR k.provider_kind=$3)
           )
           SELECT location_id,kindergarten_id,name,location_name,address,city,
@@ -99,5 +99,5 @@ class AsyncpgLocationRepository(LocationRepository):
               geometry_valid AND longitude BETWEEN $4[1] AND $4[3]
               AND latitude BETWEEN $4[2] AND $4[4]))
           ORDER BY name,location_name,kindergarten_id,location_id
-        ''', normalize(query.city), query.q, query.provider_kind,
+        ''', normalize(query.city), normalize(query.q), query.provider_kind,
             list(query.bbox) if query.bbox is not None else None)
