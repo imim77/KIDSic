@@ -2,6 +2,12 @@
 
 MCP app za pronalazak dječjih vrtića povezivanjem više otvorenih skupova. Implementirani su PostgreSQL model, CKAN registracija izvora i uvoz triju JSON skupova i CSV popisa varaždinskih obrta dadilja, SQL pretraga prema gradu i dobi te RAG dohvat s izvorima. MCP alat `prikazi_vrtice` povezuje obavezan grad s Mapbox kartom i vodoravnim karticama naziva i adresa. Embedding pružatelj još nije implementiran.
 
+Aplikacija podržava samo **Zagreb, Varaždin i Rijeku**. Uvoz preskače zapise
+iz drugih gradova prije upisa u bazu; pripadnost gradu određuje se prema
+potvrđenoj općini, pa zagrebačka naselja poput Sesveta ostaju uključena.
+HTTP API odbija nepodržani grad statusom 422, a MCP alat vraća popis podržanih
+gradova. Razgovorna pretraga koristi isti obuhvat.
+
 ## Struktura
 
 Organizacija prati [FOIHireloom](https://github.com/imim77/FOIHireloom), pregledan na reviziji `8ba897db799e993aa43c7d488879efb3870218f2`:
@@ -64,7 +70,13 @@ uv run kidsic-sync-kindergartens
 uv run kidsic-search 'Imam dijete od 2 godine i iz varazdina sam koji su mi vrtici opcija'
 ```
 
-Naredba pretražuje prethodno uvezene podatke. Bez imenika traži pojašnjenje jer grad nije poznat. Uvoz razlikuje mjesto (npr. Sesvete) od grada/općine (Zagreb) i dodaje kurirane padežne aliase za Zagreb, Varaždin, Rijeku, Split i Osijek. Upit za grad uključuje i njegova mjesta. `.env.example` je predložak, a `.env` se ne učitava automatski. Postavke `DATABASE_POOL_MIN_SIZE` i `DATABASE_POOL_MAX_SIZE` upravljaju poolom. CLI trenutačno koristi leksički RAG dohvat; servis podržava i predani embedding s oznakom modela.
+Naredba pretražuje prethodno uvezene podatke. Bez imenika traži pojašnjenje jer grad nije poznat. Uvoz razlikuje mjesto (npr. Sesvete) od grada/općine (Zagreb) i dodaje kurirane padežne aliase za Zagreb, Varaždin i Rijeku. Upit za grad uključuje i njegova mjesta. `.env.example` je predložak, a `.env` se ne učitava automatski. Postavke `DATABASE_POOL_MIN_SIZE` i `DATABASE_POOL_MAX_SIZE` upravljaju poolom. CLI trenutačno koristi leksički RAG dohvat; servis podržava i predani embedding s oznakom modela.
+
+Migracija `0005_supported_cities` uklanja postojeće ustanove izvan obuhvata,
+njihove objekte, izvorne zapise i ovisne podatke. Ustanova s barem jednim
+objektom u podržanom gradu ostaje, zajedno s potrebnim identitetom i dokazima,
+čak i ako joj je sjedište drugdje. Prije migracije napraviti `pg_dump` baze;
+izbrisani podaci mogu se vratiti iz sigurnosne kopije, a downgrade ih ne obnavlja.
 
 ## CKAN registracija i uvoz
 

@@ -16,9 +16,17 @@ MUNICIPALITIES = {m.key: m for m in (
     Municipality('zagreb', 'Zagreb', 'Grad Zagreb', ('zagreba', 'zagrebu')),
     Municipality('varazdin', 'Varaždin', 'Varaždinska županija', ('varazdina', 'varazdinu')),
     Municipality('rijeka', 'Rijeka', 'Primorsko-goranska županija', ('rijeke', 'rijeci')),
-    Municipality('split', 'Split', 'Splitsko-dalmatinska županija', ('splita', 'splitu')),
-    Municipality('osijek', 'Osijek', 'Osječko-baranjska županija', ('osijeka', 'osijeku')),
 )}
+
+SUPPORTED_CITY_MESSAGE = 'Podržani gradovi su Zagreb, Varaždin i Rijeka.'
+
+
+def supported_city_key(value: str) -> str:
+    key = normalize(value)
+    for city in MUNICIPALITIES.values():
+        if key == city.key or key in city.aliases:
+            return city.key
+    raise ValueError(SUPPORTED_CITY_MESSAGE)
 
 
 def resolve_municipality(settlement: str, county: str | None) -> str | None:

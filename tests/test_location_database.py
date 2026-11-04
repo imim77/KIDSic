@@ -141,7 +141,8 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([r['location_id'] for r in await self.repository.list_locations(query)],
                          [location])
         self.assertEqual(await self.repository.list_locations(LocationQuery(q='missing')), [])
-        self.assertEqual(await self.repository.list_locations(LocationQuery(city='Split')), [])
+        with self.assertRaises(ValueError):
+            LocationQuery(city='Split')
 
     async def test_complete_city_has_no_recommendation_limit(self):
         for i in range(101):

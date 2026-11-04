@@ -35,7 +35,7 @@ class LocationHttpTests(unittest.TestCase):
     def test_invalid_queries_never_access_persistence(self):
         service = SimpleNamespace(list_locations=AsyncMock())
         with TestClient(create_app(service)) as client:
-            for suffix in ('city=', 'provider_kind=city', 'bbox=bad', 'bbox=nan,45,16,46',
+            for suffix in ('city=Split', 'city=Osijek', 'city=', 'provider_kind=city', 'bbox=bad', 'bbox=nan,45,16,46',
                            'city=Zagreb&city=Split', 'limit=1', 'q=' + 'a' * 201):
                 with self.subTest(suffix=suffix):
                     response = client.get('/api/locations?' + suffix)

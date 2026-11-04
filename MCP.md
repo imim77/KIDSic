@@ -46,11 +46,12 @@ primijeniti autentikaciju/pristup i operativna ograničenja svojeg hostinga.
 Nakon povezivanja odabrati KIDSic aplikaciju u chatu i pokušati:
 
 - „Prikaži mi vrtiće u Zagrebu na karti.” → alat s `{"city":"Zagreb"}` i mapa.
-- „Prikaži mi vrtiće u Splitu.” → isti pogled s rezultatima Splita.
+- „Prikaži mi vrtiće u Rijeci.” → isti pogled s rezultatima Rijeke.
+- „Prikaži mi vrtiće u Splitu.” → poruka da su podržani Zagreb, Varaždin i Rijeka, bez čitanja baze.
 - „Prikaži mi vrtiće.” → AI pita „U kojem gradu želiš prikaz vrtića?” prije poziva.
 
 Grad je obavezan string od 1 do 100 znakova nakon trimanja, bez defaulta. Poziv
-bez grada, s praznim gradom ili dodatnim argumentima vraća `isError` i uputu za
+bez grada, s praznim/nepodržanim gradom ili dodatnim argumentima vraća `isError` i uputu za
 pojašnjenje bez čitanja baze. Alat ne zaključuje grad iz geolokacije. Klijent treba
 iz razgovornog oblika („u Zagrebu”) predati naziv grada („Zagreb”).
 

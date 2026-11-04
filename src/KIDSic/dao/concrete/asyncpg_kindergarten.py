@@ -4,6 +4,7 @@ import math
 import asyncpg
 
 from KIDSic.dao.interfaces.kindergarten import KindergartenRepository
+from KIDSic.dto.municipality import MUNICIPALITIES
 from KIDSic.dto.text import normalize
 
 
@@ -13,10 +14,9 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
 
     async def list_cities(self):
         return await self._connection.fetch('''
-            SELECT settlement_key AS city_key,'{}'::text[] AS city_aliases FROM location
-            UNION SELECT seat_settlement_key,'{}' FROM kindergarten WHERE seat_settlement_key IS NOT NULL
-            UNION SELECT key,aliases FROM municipality
-        ''')
+            SELECT key AS city_key,aliases AS city_aliases FROM municipality
+            WHERE key=ANY($1::text[])
+        ''', list(MUNICIPALITIES))
 
     async def list_areas(self, *, city: str):
         return await self._connection.fetch('''

@@ -6,6 +6,7 @@ from collections.abc import Callable
 from mcp import types
 from pydantic import ValidationError
 from KIDSic.dto.location import LocationQuery, LocationMetadata
+from KIDSic.dto.municipality import SUPPORTED_CITY_MESSAGE
 from KIDSic.services.interfaces.location import LocationServiceInterface
 from KIDSic.api.apps.map_resource import TOOL_META
 
@@ -36,12 +37,13 @@ class LocationTools:
                 'kindergartens in a city. Displays the map and scrollable cards. '
                 'REQUIRES a city supplied explicitly by the user. If no city '
                 'is given, ask "U kojem gradu želiš prikaz vrtića?" first. '
-                'Never assume Zagreb or any other city.'
+                'Never assume Zagreb or any other city. '
+                'Only Zagreb, Varaždin and Rijeka are supported.'
             ),
             inputSchema={
                 'type': 'object', 'properties': {'city': {
                     'type': 'string', 'minLength': 1, 'maxLength': 100,
-                    'description': 'Naziv grada koji je korisnik izričito naveo.',
+                    'description': 'Podržani grad koji je korisnik izričito naveo: Zagreb, Varaždin ili Rijeka.',
                 }}, 'required': ['city'], 'additionalProperties': False,
             },
             outputSchema={
@@ -67,7 +69,7 @@ class LocationTools:
         try:
             query = LocationQuery.model_validate({'city': arguments['city']})
         except ValidationError:
-            return self._error_result('Navedi valjan naziv grada (1–100 znakova). Pitaj korisnika za grad.')
+            return self._error_result(f'Navedi valjan grad (1–100 znakova). {SUPPORTED_CITY_MESSAGE}')
         try:
             locations = await self._service().list_locations(query)
         except Exception:

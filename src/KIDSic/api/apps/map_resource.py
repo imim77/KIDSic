@@ -11,7 +11,8 @@ SERVER_INSTRUCTIONS = (
     'A city explicitly supplied by the user is required. If the city is missing '
     'or ambiguous, ask the user which city before calling the tool. Never infer '
     'a city from location, history, or a default. Do not replace the map with '
-    'a text-only list. Explain unavailable results without inventing data.'
+    'a text-only list. Only Zagreb, Varaždin and Rijeka are supported; explain '
+    'this limitation for other cities. Explain unavailable results without inventing data.'
 )
 TOOL_META = {
     'ui': {'resourceUri': UI_URI},

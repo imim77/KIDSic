@@ -48,6 +48,88 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         return SourceSnapshot(source or self.source, normalize_records(records or [NATIONAL], parser),
                               datetime.now(timezone.utc))
 
+    async def test_city_scope_filters_reimports_and_rejects_unfiltered_snapshots(self):
+        from dataclasses import replace
+        records = [{**NATIONAL, 'Mjesto': city, 'Zupanija': county} for city, county in (
+            ('Zagreb', 'Grad Zagreb'), ('Varaždin', 'Varaždinska županija'),
+            ('Rijeka', 'Primorsko-goranska županija'), ('Split', 'Splitsko-dalmatinska županija'))]
+        snapshot = self.snapshot(records)
+        await self.repo.import_snapshot(snapshot)
+        identities = await self.c.fetch('SELECT id,seat_settlement FROM kindergarten ORDER BY id')
+        self.assertEqual({r['seat_settlement'] for r in identities}, {'Zagreb', 'Varaždin', 'Rijeka'})
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 3)
+        await self.repo.import_snapshot(self.snapshot(records))
+        self.assertEqual(await self.c.fetch('SELECT id,seat_settlement FROM kindergarten ORDER BY id'), identities)
+        bad = replace(snapshot, rows=(replace(snapshot.rows[0], municipality='split'),))
+        with self.assertRaises(SourceImportError):
+            await self.repo.import_snapshot(bad)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 6)
+
+    async def test_city_cleanup_preserves_supported_branches_and_removes_dependent_data(self):
+        from uuid import uuid4
+        await self.repo.register(self.source)
+        source_id = await self.c.fetchval("SELECT id FROM data_source WHERE dataset_key='national'")
+        batch = uuid4()
+        await self.c.execute('UPDATE data_source SET active_batch_id=$2 WHERE id=$1', source_id, batch)
+        cities = {city: await self.c.fetchval('INSERT INTO municipality(key,name) VALUES ($1,$1) '
+                  'RETURNING id', city) for city in ('zagreb', 'varazdin', 'rijeka', 'split', 'osijek')}
+
+        async def place(name, city, *, owner=None, settlement=None):
+            if owner is None:
+                owner = await self.c.fetchval('''INSERT INTO kindergarten
+                    (name,seat_settlement,seat_settlement_key,seat_municipality_id)
+                    VALUES ($1,$2,$2,$3) RETURNING id''', name, city, cities[city])
+            location = await self.c.fetchval('''INSERT INTO location
+                (kindergarten_id,name,settlement,settlement_key,municipality_id)
+                VALUES ($1,$2,$3,$3,$4) RETURNING id''', owner, name, settlement or city, cities[city])
+            record = await self.c.fetchval('''INSERT INTO source_record
+                (source_id,batch_id,raw_data,kindergarten_id,location_id,match_status,match_method)
+                VALUES ($1,$2,'{}',$3,$4,'accepted','manual') RETURNING id''',
+                source_id, batch, owner, location)
+            program = await self.c.fetchval('''INSERT INTO program
+                (kindergarten_id,location_id,source_record_id,name,verified_on)
+                VALUES ($1,$2,$3,'Synthetic',CURRENT_DATE) RETURNING id''', owner, location, record)
+            await self.c.execute('''INSERT INTO availability
+                (kindergarten_id,location_id,source_record_id,program_id,observed_on)
+                VALUES ($1,$2,$3,$4,CURRENT_DATE)''', owner, location, record, program)
+            await self.c.execute('''INSERT INTO enrolment
+                (kindergarten_id,source_record_id,academic_year,application_url,channel)
+                VALUES ($1,$2,'2026/27','https://example.invalid','kindergarten')''', owner, record)
+            await self.c.execute('''INSERT INTO knowledge_chunk
+                (kindergarten_id,location_id,source_record_id,program_id,ordinal,content,source_url,content_sha256)
+                VALUES ($1,$2,$3,$4,0,'Synthetic','https://example.invalid',$5)''',
+                owner, location, record, program, 'a' * 64)
+            return owner, location, record
+
+        outside = await place('Outside only', 'split')
+        rijeka = await place('Rijeka retained', 'rijeka')
+        external = await place('External seat', 'split')
+        zagreb = await place('Zagreb branch', 'zagreb', owner=external[0], settlement='sesvete')
+        varazdin = await place('Varaždin retained', 'varazdin')
+        for city, county in (('Split', 'Splitsko-dalmatinska županija'), ('Sesvete', 'Grad Zagreb')):
+            await self.c.execute('''INSERT INTO source_record(source_id,batch_id,raw_data)
+                VALUES ($1,$2,$3)''', source_id, batch, {**NATIONAL, 'Mjesto': city, 'Zupanija': county})
+        await self.c.execute('''INSERT INTO enrolment
+            (municipality_id,source_record_id,academic_year,application_url,channel)
+            VALUES ($1,$2,'2026/27','https://example.invalid','city_system')''', cities['split'], rijeka[2])
+
+        migration = (Path(__file__).resolve().parents[1] /
+                     'src/KIDSic/db/alembic/versions/0005_supported_cities.sql').read_text()
+        await self.c.execute(migration)
+        self.assertEqual({r['id'] for r in await self.c.fetch('SELECT id FROM kindergarten')},
+                         {rijeka[0], external[0], varazdin[0]})
+        self.assertEqual({r['id'] for r in await self.c.fetch('SELECT id FROM location')},
+                         {rijeka[1], zagreb[1], varazdin[1]})
+        for table in ('program', 'availability', 'enrolment', 'knowledge_chunk'):
+            self.assertEqual(await self.c.fetchval(f'SELECT count(*) FROM {table}'), 3, table)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 4)
+        self.assertIsNone(await self.c.fetchval("SELECT id FROM municipality WHERE key='osijek'"))
+        self.assertEqual(await self.c.fetchval('SELECT active_batch_id FROM data_source WHERE id=$1', source_id), batch)
+        cities_after = await AsyncpgKindergartenRepository(self.c).list_cities()
+        self.assertEqual({r['city_key'] for r in cities_after}, {'zagreb', 'varazdin', 'rijeka'})
+        await self.c.execute(migration)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM kindergarten'), 3)
+
     async def test_provider_types_survive_reimport_and_are_exposed_with_their_source(self):
         from KIDSic.dao.concrete.asyncpg_location import AsyncpgLocationRepository
         from KIDSic.dto.location import LocationQuery
@@ -75,10 +157,12 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
     async def test_provider_backfill_preserves_known_types_and_other_cities(self):
         records = [{**NATIONAL, 'Naziv': 'DV Bajka'},
                    {**NATIONAL, 'Naziv': 'DV Varaždin'},
-                   {**NATIONAL, 'Naziv': 'DV Bajka', 'Mjesto': 'Drugi grad'},
                    {**NATIONAL, 'Naziv': 'Udruga Primjer', 'Mjesto': 'Zagreb',
                     'Zupanija': 'Grad Zagreb'}]
         await self.repo.import_snapshot(self.snapshot(records))
+        # Simulate a legacy row without passing through the now city-limited import.
+        await self.c.execute("INSERT INTO kindergarten(name,seat_settlement,seat_settlement_key) "
+                             "VALUES ('DV Bajka','Drugi grad','drugi grad')")
         await self.c.execute("UPDATE kindergarten SET provider_kind='unknown'")
         await self.c.execute("UPDATE kindergarten SET provider_kind='private' WHERE name='DV Varaždin'")
         before = await self.c.fetch('SELECT id,name,seat_settlement,provider_kind,provenance '

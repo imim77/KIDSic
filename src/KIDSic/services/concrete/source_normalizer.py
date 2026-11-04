@@ -1,6 +1,7 @@
 """SourceRecordNormalizer applies an injected schema while guarding snapshot identity."""
 from collections.abc import Mapping
 from KIDSic.dto.source import KindergartenRow
+from KIDSic.dto.municipality import MUNICIPALITIES
 from KIDSic.exceptions import SourceImportError
 from KIDSic.services.interfaces.source_parser import SourceRowParser
 
@@ -20,7 +21,7 @@ class SourceRecordNormalizer:
         for ordinal, record in enumerate(records, start=1):
             try:
                 row = adapter.parse(record)
-                if row is None:
+                if row is None or row.municipality not in MUNICIPALITIES:
                     continue
                 if row.source_key in keys:
                     raise SourceImportError('Duplicate row identity in resource.')

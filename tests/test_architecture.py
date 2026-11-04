@@ -59,13 +59,23 @@ class LayerDependencyTests(unittest.TestCase):
         self.assertEqual(criteria, {'city':'varazdin','age_months':24})
         self.assertEqual(parser.parse_area('na Banfici', [{'name':'Banfica'}]), 'Banfica')
 
+    def test_request_parser_rejects_unsupported_cities_even_in_a_legacy_catalogue(self):
+        parser = RequestParser()
+        for city in ('split', 'osijek', 'sesvete'):
+            with self.subTest(city=city), self.assertRaisesRegex(ValueError, 'Zagreb, Varaždin i Rijeka'):
+                parser.parse_city_age(f'Dijete od 2 godine iz {city}',
+                                      [{'city_key': city, 'city_aliases': []}])
+        self.assertEqual(parser.parse_city_age('Dijete od 2 godine iz Rijeke',
+            [{'city_key': 'rijeka', 'city_aliases': ['rijeke']}]), {'city': 'rijeka', 'age_months': 24})
+
 
 class ExtensibleSourceTests(unittest.IsolatedAsyncioTestCase):
     async def test_a_new_schema_can_be_injected_without_changing_service_or_normalizer(self):
         class ExampleParser(SourceRowParser):
             def parse(self, record):
                 return KindergartenRow(source_key=record['id'], raw_data=record,
-                    name='Example',location_name='Example',settlement='Varaždin',address='Example 1')
+                    name='Example',location_name='Example',settlement='Varaždin',address='Example 1',
+                    municipality='varazdin')
         client = source_client()
         client.download_records = AsyncMock(return_value=[{'id':'one'},{'id':'two'}])
         definition = SourceDefinition('example','https://data.gov.hr/ckan','example','custom-schema')

@@ -71,22 +71,22 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
     async def test_city_is_trimmed_and_empty_results_still_have_map_contract(self):
         service = SimpleNamespace(list_locations=AsyncMock(return_value=empty_collection()))
         async with connected(service) as (session, _):
-            result = await session.call_tool('prikazi_vrtice', {'city': ' Split '})
+            result = await session.call_tool('prikazi_vrtice', {'city': ' Rijeka '})
             self.assertFalse(result.isError)
-            self.assertEqual(result.structuredContent['city'], 'Split')
+            self.assertEqual(result.structuredContent['city'], 'Rijeka')
             self.assertEqual(decoded_locations(result)['features'], [])
             self.assertEqual(result.meta['ui']['resourceUri'], UI_URI)
             self.assertEqual(result.structuredContent['metadata']['total'], 0)
             self.assertNotIn('locations', result.structuredContent)
         query = service.list_locations.await_args.args[0]
-        self.assertEqual(query.city, 'Split')
+        self.assertEqual(query.city, 'Rijeka')
         self.assertEqual(query.q, '')
 
     async def test_missing_blank_invalid_city_never_reads_database(self):
         service = SimpleNamespace(list_locations=AsyncMock())
         async with connected(service) as (session, _):
             for arguments in ({}, {'city': ''}, {'city': '   '}, {'city': None},
-                              {'city': 123}, {'city': 'a' * 101},
+                              {'city': 123}, {'city': 'a' * 101}, {'city': 'Split'}, {'city': 'Osijek'},
                               {'city': 'Zagreb', 'unexpected': 'value'}):
                 with self.subTest(arguments=arguments):
                     result = await session.call_tool('prikazi_vrtice', arguments)
@@ -100,18 +100,18 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
             'id': 'test-seat', 'geometry': None, 'properties': {
                 'location_id': None, 'kindergarten_id': 'test-kindergarten',
                 'name': 'Synthetic test institution', 'location_name': 'Synthetic seat',
-                'address': None, 'city': 'Split', 'provider_kind': 'unknown',
+                'address': None, 'city': 'Rijeka', 'provider_kind': 'unknown',
                 'district': None, 'location_role': 'seat', 'sources': [],
             },
         }], metadata={'total': 1, 'mapped': 0, 'unmapped': 1, 'scope': 'city'})
         service = SimpleNamespace(list_locations=AsyncMock(return_value=payload))
         async with connected(service) as (session, _):
-            result = await session.call_tool('prikazi_vrtice', {'city': 'Split'})
+            result = await session.call_tool('prikazi_vrtice', {'city': 'Rijeka'})
             self.assertFalse(result.isError)
             self.assertEqual(result.meta['locations']['encoding'], 'gzip+base64')
             self.assertEqual(decoded_locations(result), payload.model_dump(mode='json'))
             self.assertEqual(result.structuredContent, {
-                'city': 'Split', 'metadata': payload.metadata.model_dump(mode='json'),
+                'city': 'Rijeka', 'metadata': payload.metadata.model_dump(mode='json'),
             })
             self.assertNotIn('Synthetic', str(result.structuredContent))
 

@@ -51,6 +51,8 @@ class AsyncpgSourceRepository(SourceRepository):
         return 'updated'
 
     async def import_snapshot(self, snapshot: SourceSnapshot) -> dict:
+        if any(row.municipality not in MUNICIPALITIES for row in snapshot.rows):
+            raise SourceImportError('Import supports only Zagreb, Varaždin and Rijeka.')
         source = snapshot.source
         registered = await self.register(source)
         stored = await self._connection.fetchrow(

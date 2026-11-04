@@ -623,3 +623,44 @@ lokacija vraća 33 lokacije Varaždina (9 municipal, 9 private, 1 religious,
 14 childminder) i 461 Zagreba (241 municipal, 69 private, 18 religious,
 54 childminder, 79 other). Nema `unknown` tipova u oba grada; pojedinačni
 filtri vraćaju točno odgovarajuće skupove. `git diff --check` prolazi.
+
+## Obuhvat Zagreba, Varaždina i Rijeke — 2026-11-04
+
+Istraživanje: javni HTTP/MCP ulazi koriste `LocationQuery`, razgovorna pretraga
+`RequestParser`, a svi redoviti izvori prolaze kroz `SourceRecordNormalizer`
+prije `AsyncpgSourceRepository`. `dto/municipality.py` već potvrđuje općinu
+prema mjestu i županiji, uz zagrebačka naselja. Radna baza ima 963 ustanove;
+304 imaju sjedište ili objekt u tražena tri grada. Ostale treba ukloniti,
+zajedno s pripadnim izvornim zapisima i ovisnim podacima. Postoje i pružatelji
+s objektom u Zagrebu bez poznatog sjedišta; oni moraju ostati.
+
+Pristupi: filtriranje samo prikaza ostavilo bi nepotrebne podatke i ponovni
+uvoz ostalih gradova. Odabrano je zajedničko pravilo triju podržanih općina,
+filtriranje prije upisa i provjera snapshotova u DAO-u, javno odbijanje
+nepodržanog grada te transakcijska migracija čišćenja.
+
+`MUNICIPALITIES` ostaje katalog samo triju gradova; nazivi, dijakritika i
+postojeći padežni aliasi ostaju podržani. Naselja poput Sesveta ostaju dio
+Zagreba; samostalni javni upit treba navesti podržani grad. Povijesne podatke
+obrisati od ovisnih prema roditeljskim tablicama, bez CASCADE, uz očuvanje
+ustanova s barem jednim podržanim objektom i njihovih dokaza. Izvorne zapise
+bez povezane ustanove iz nacionalnog skupa također filtrirati po potvrđenoj
+geografiji. Prije primjene na radnu bazu napraviti lokalni pg_dump; downgrade
+ne izmišlja izbrisane podatke i zahtijeva obnovu sigurnosne kopije.
+
+Provjera: miješani uvoz i ponovljeni uvoz, odbijanje nepodržanih gradova u
+HTTP/MCP/razgovornoj pretrazi, očuvanje Rijeke i zagrebačkih naselja, migracija
+s ovisnostima programa/kapaciteta/upisa/RAG-a i ustanovom vanjskog sjedišta.
+Puni Python testovi koriste odvojenu testnu bazu. Nema otvorenih pitanja;
+ne provoditi nova geokodiranja niti zaključivati nedostajuće tipove u Rijeci.
+
+Završeno: migracija `0005_supported_cities` primijenjena je na lokalnu bazu
+nakon sigurnosne kopije `database/backups/kidsic-before-supported-cities-20261104.dump`
+(čitljivost arhiva potvrđena alatom pg_restore). Uklonjeno je 659 ustanova i
+659 pripadnih izvornih zapisa; ostale su 304 ustanove i 694 izvorna zapisa.
+Probna migracija s rollbackom usporedila je cijele odgovore lokacijskog DAO-a:
+Zagreb 461, Varaždin 33 i Rijeka 13 rezultata ostali su identični. Završno
+čitanje nakon primjene potvrdilo je iste brojeve i nula ustanova bez sjedišta
+ili objekta u podržanim gradovima. Puni Python skup: 89 testova, 86 prošlo,
+tri postojeća opcionalna HTTP simulation testa preskočena. Migracija je
+provjerena i kroz Alembic nad odvojenom bazom; git diff --check prolazi.

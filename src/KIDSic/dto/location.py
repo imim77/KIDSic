@@ -4,6 +4,7 @@ import math
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from KIDSic.dto.municipality import supported_city_key
 
 ProviderKind = Literal['municipal', 'private', 'religious', 'childminder', 'other', 'unknown']
 
@@ -20,6 +21,12 @@ class LocationQuery(BaseModel):
     @classmethod
     def strip_text(cls, value):
         return value.strip() if isinstance(value, str) else value
+
+    @field_validator('city')
+    @classmethod
+    def validate_city(cls, value):
+        supported_city_key(value)
+        return value
 
     @field_validator('bbox')
     @classmethod

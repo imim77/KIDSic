@@ -7,7 +7,7 @@ read endpoint; the local server binds to `127.0.0.1` by default.
 
 | Query | Meaning |
 | --- | --- |
-| `city` | Settlement or municipality name/curated alias, default `Zagreb`. Trimmed, 1–100 characters. A municipality includes its settlements. |
+| `city` | `Zagreb`, `Varaždin` or `Rijeka`, including case/diacritic variants and curated aliases, default `Zagreb`. Trimmed, 1–100 characters. Each city includes its settlements, such as Sesvete within Zagreb. Other cities return HTTP 422. |
 | `q` | Literal case-insensitive substring of institution or facility name, trimmed, at most 200 characters. No address search. |
 | `provider_kind` | One of `municipal`, `private`, `religious`, `childminder`, `other`, `unknown`; omitted means all. |
 | `bbox` | Optional `west,south,east,north` in WGS84; finite ordered longitude/latitude bounds. Antimeridian wrapping is unsupported. |
