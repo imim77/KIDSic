@@ -1,28 +1,10 @@
-/* RouteSummary: a map card whose body slides open via Disclosure (GSAP). */
-.route-summary { width: 100%; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 20px; box-shadow: var(--shadow-sm); font-size: 13px; }
-.route-summary summary { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; list-style: none; border-radius: 18px; }
-.route-summary summary::-webkit-details-marker { display: none; }
-.route-summary summary:focus-visible { outline: 3px solid var(--lilac); outline-offset: 2px; }
+/* RouteSummary: a one-line map card, the option's name beside its arrows. */
+.route-summary { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px 10px 14px; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 20px; box-shadow: var(--shadow-sm); }
 .route-summary-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.route-summary-rank { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.route-summary-rank { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
 .route-summary-name { font-family: var(--display); font-size: 15px; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.route-summary-chevron { flex: 0 0 auto; transition: rotate 260ms ease-out; }
-.route-summary details[open]:not([data-closing]) .route-summary-chevron { rotate: 180deg; }
-/* The overlay sits on the map, so a long route scrolls inside the card. */
-.route-summary .disclosure-body > * { margin: 0 14px 10px; }
-/* No padding or border on the body: GSAP collapses it to a true zero height. */
-.route-summary .disclosure-body { max-height: min(46vh, 360px); overflow-y: auto; }
-.route-summary-facts { border-top: 1px solid var(--ink-wash); padding-top: 10px; }
-.route-summary h3 { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
-.route-summary ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; }
-.route-summary li { display: flex; align-items: flex-start; gap: 6px; line-height: 1.35; }
-.route-summary li svg { flex: 0 0 auto; margin-top: 2px; }
-.route-summary strong { font-weight: 800; }
-/* The last section sits on the card's bottom edge, so give it room. */
-.route-summary .disclosure-body > :last-child { margin-bottom: 14px; }
 @media (max-width: 650px) {
-  .route-summary { font-size: 11px; }
-  .route-summary summary { padding: 8px 10px; }
+  .route-summary { padding: 8px 10px; }
   .route-summary-name { font-size: 13px; }
 }
 
@@ -77,13 +59,8 @@
   .commute-tabs button { transition: none; }
 }
 
-/* Option arrows: mint pills like the carousel arrows, pinned to the route
-   card's top right. Only rank and name make room for them; the arrival line
-   runs full width and the chevron drops to the bottom corner below them. */
-.route-summary { position: relative; }
-.route-summary[data-stepper] summary { align-items: flex-end; }
-.route-summary[data-stepper] :is(.route-summary-rank, .route-summary-name) { margin-right: 108px; }
-.route-option-nav { position: absolute; top: 10px; right: 12px; z-index: 1; display: flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Option arrows: mint pills like the carousel arrows. */
+.route-option-nav { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .route-option-nav button { display: grid; place-items: center; width: 32px; height: 32px; color: var(--ink); background: var(--mint); border: 0; border-radius: 100px; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
 .route-option-nav button:hover { background: var(--lemon); }
 .route-option-nav button:active { transform: var(--press); box-shadow: none; }
@@ -91,9 +68,4 @@
 .route-option-nav svg { width: 17px; height: 17px; stroke-width: 2.6; }
 @media (prefers-reduced-motion: reduce) {
   .route-option-nav button { transition: none; }
-}
-@media (max-width: 650px) {
-  /* Too narrow to share a row with the title: the arrows get their own. */
-  .route-option-nav { position: static; justify-content: flex-end; padding: 8px 10px 0; }
-  .route-summary[data-stepper] :is(.route-summary-rank, .route-summary-name) { margin-right: 0; }
 }
