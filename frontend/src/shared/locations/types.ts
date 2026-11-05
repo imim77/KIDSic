@@ -159,6 +159,7 @@ export interface LocationFilters {
   city: string
   q: string
   provider_kind: ProviderKind | ''
+  area?: string
   nearby?: Nearby | null
 }
 

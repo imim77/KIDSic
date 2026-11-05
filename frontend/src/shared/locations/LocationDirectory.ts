@@ -7,6 +7,7 @@ export class LocationDirectory {
     const query = new URLSearchParams({ city: filters.city })
     if (filters.q) query.set('q', filters.q)
     if (filters.provider_kind) query.set('provider_kind', filters.provider_kind)
+    if (filters.area) query.set('area', filters.area)
     if (filters.nearby) {
       // Five decimals is about a metre; extra device precision adds nothing.
       query.set('near', filters.nearby.near.map((value) => Number(value.toFixed(5))).join(','))

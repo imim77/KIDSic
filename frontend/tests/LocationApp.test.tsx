@@ -171,6 +171,36 @@ describe('directory interactions', () => {
     expect(Object.fromEntries(new URL(fetch.mock.calls[3][0], 'http://localhost').searchParams)).toEqual({ city: 'Zagreb' })
   })
 
+  it('filters by a recorded district and says which objects the filter cannot include', async () => {
+    const inDistrict = (id: string, district: string) => {
+      const feature = facility(id)
+      feature.properties.district = district
+      return feature
+    }
+    const city = collection(inDistrict('trnje', 'Trnje'), inDistrict('dubrava', 'Donja Dubrava'), facility('unknown'))
+    const fetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => city })
+      .mockResolvedValueOnce({ ok: true, json: async () => collection(inDistrict('trnje', 'Trnje')) })
+      .mockResolvedValueOnce({ ok: true, json: async () => city })
+    vi.stubGlobal('fetch', fetch)
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByRole('button', { name: /Synthetic facility unknown/ })
+    const picker = screen.getByRole('combobox', { name: 'Četvrt' })
+    expect([...picker.querySelectorAll('option')].map((option) => option.textContent))
+      .toEqual(['Sve četvrti', 'Donja Dubrava', 'Trnje'])
+    await user.selectOptions(picker, 'Trnje')
+    await screen.findByText('1 rezultat · područje „Trnje” · abecedno')
+    expect(screen.queryByRole('button', { name: /Synthetic facility unknown/ })).toBeNull()
+    expect(new URL(fetch.mock.calls[1][0], 'http://localhost').searchParams.get('area')).toBe('Trnje')
+    expect(screen.getByText('Nisu uključeni objekti bez potvrđene četvrti (1).')).toBeVisible()
+    expect(screen.getByRole('combobox', { name: 'Četvrt' }).querySelectorAll('option')).toHaveLength(3)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Četvrt' }), 'Sve četvrti')
+    await screen.findByRole('button', { name: /Synthetic facility unknown/ })
+    expect(new URL(fetch.mock.calls[2][0], 'http://localhost').searchParams.has('area')).toBe(false)
+    expect(screen.queryByText(/Nisu uključeni objekti/)).toBeNull()
+  })
+
   it('uses the device location and explains a denied permission without searching', async () => {
     const fetch = vi.fn().mockImplementation(async (url: string) => {
       const payload = collection(facility('result'))

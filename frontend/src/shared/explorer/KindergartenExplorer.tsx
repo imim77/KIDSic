@@ -7,6 +7,7 @@ import { LocationCarousel } from '../locations/LocationCarousel'
 import { LocationDetails } from '../locations/LocationDetails'
 import { LocationList } from '../locations/LocationList'
 import { NearbyControl } from '../locations/NearbyControl'
+import { DistrictControl } from '../locations/DistrictControl'
 import { formatDistance } from '../locations/distance'
 import { describeCriteria, results } from '../locations/criteria'
 import type { LocationCollection, Nearby, SearchCriteria } from '../locations/types'
@@ -23,6 +24,8 @@ interface KindergartenExplorerProps {
   openLink?: (url: string) => void
   // nearby enables the point-and-radius control; hosts without a directory omit it.
   nearby?: { value: Nearby | null; onChange: (value: Nearby | null) => void }
+  // district enables the city-district picker; hosts without a directory omit it.
+  district?: { options: string[]; value: string; unknown: number; onChange: (value: string) => void }
   // criteria describes the search behind data, so the results explain themselves.
   criteria?: SearchCriteria
 }
@@ -37,7 +40,7 @@ export function KindergartenExplorer({ hostFullscreen, ...props }: KindergartenE
 }
 
 // ExplorerLayout arranges list, details and map for the frame's current state.
-function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emptyNotice, openLink, nearby, criteria }: Omit<KindergartenExplorerProps, 'hostFullscreen'>) {
+function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emptyNotice, openLink, nearby, district, criteria }: Omit<KindergartenExplorerProps, 'hostFullscreen'>) {
   const { expanded, expand } = useFrameControls()
   const [picking, setPicking] = useState(false)
   const [chosenRadius, setRadius] = useState(1000)
@@ -74,10 +77,12 @@ function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emp
               setRadius(value)
               if (nearby.value) nearby.onChange({ ...nearby.value, radius_m: value })
             }} />}
+          {!!district?.options.length && <DistrictControl {...district} />}
           {status === 'loading' && <p className="explorer-notice" role="status">{notice ?? 'Učitavanje objekata…'}</p>}
           {status === 'error' && <div className="explorer-notice" role="alert"><p>Podatke nije moguće učitati. Provjerite vezu i pokušajte ponovno.</p><button className="text-button" onClick={() => { setReveal(null); retry() }}>Pokušaj ponovno</button></div>}
           {data?.features.length === 0 && <p className="explorer-notice" role="status">{emptyNotice ?? (nearby?.value
-            ? `Nema objekata s potvrđenim koordinatama unutar ${formatDistance(nearby.value.radius_m)}. Povećajte radijus ili uklonite točku.`
+            ? `Nema objekata s potvrđenim koordinatama unutar ${formatDistance(nearby.value.radius_m)}${district?.value ? ` u četvrti ${district.value}` : ''}. Povećajte radijus ili uklonite točku.`
+            : district?.value ? `Nema objekata s potvrđenom četvrti ${district.value}.`
             : 'Nema dostupnih vrtićkih objekata.')}</p>}
         </>} />
       {data && <p className="sr-only" role="status">{data.metadata.total} rezultata · {data.metadata.mapped} na karti · {data.metadata.unmapped} bez koordinata</p>}

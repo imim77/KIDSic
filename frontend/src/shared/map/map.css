@@ -60,7 +60,18 @@
 .nearby-summary button { flex: none; background: var(--cream); }
 .nearby-hint, .nearby-error { margin: 0; line-height: 1.4; }
 .nearby-error { color: var(--ink); font-weight: 600; }
+/* DistrictControl: one pill like the folded nearby control. */
+.district-control { display: flex; flex-direction: column; gap: 4px; padding: 4px 6px 4px 12px; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 100px; box-shadow: var(--shadow-sm); font-size: 12px; }
+.district-control[data-active="true"] { border-radius: 16px; padding-bottom: 8px; }
+.district-control label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.district-control svg { width: 14px; height: 14px; flex: none; }
+.district-control select { min-height: 30px; max-width: 210px; padding: 0 6px; color: var(--ink); background: var(--surface); border: 2px solid var(--ink-wash); border-radius: 10px; font: inherit; }
+.district-control[data-active="true"] select { background: var(--lemon); }
+.district-control select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.district-note { margin: 0; color: var(--muted); line-height: 1.4; }
 @media (max-width: 650px) {
+  .district-control { font-size: 11px; }
+  .district-control select { min-height: 28px; }
   .nearby-control { font-size: 11px; }
   .nearby-control[data-open="true"] { padding: 6px 8px 8px; }
   .nearby-body-inner { gap: 6px; }
