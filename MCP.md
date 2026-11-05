@@ -65,7 +65,9 @@ Nakon povezivanja odabrati KIDSic aplikaciju u chatu i pokušati:
 Opcionalni `near` (`[dužina, širina]` u WGS84) i `radius_m` (cijeli metri,
 1–50000) šalju se zajedno i ograničavaju rezultate na zračni radijus, kao
 `GET /api/locations` ([LOCATION_API.md](LOCATION_API.md)). Objekti bez potvrđenih
-koordinata nisu uključeni, a svaki rezultat nosi `distance_m`. Udaljenost nije
+koordinata nisu uključeni, a svaki rezultat nosi `distance_m`. Rezultati su
+poredani od najbližeg (nakon potvrđene prikladnosti), a app iznad kartica
+navodi broj rezultata, aktivne kriterije i redoslijed. Udaljenost nije
 vrijeme putovanja. Model koristi samo koordinate iz karte ili brojeve koje je
 korisnik izričito naveo. „Moja lokacija” ovisi o tome dopušta li sandbox hosta
 geolokaciju; ako ne, kontrola upućuje na odabir na karti.

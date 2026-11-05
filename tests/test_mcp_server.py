@@ -313,6 +313,7 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
                              ([15.9775, 45.8131], 1000))
             self.assertEqual(result.structuredContent['metadata']['scope'], 'radius')
             self.assertIn('Zračno do 1000 m', result.content[0].text)
+            self.assertIn('poredani od najbližeg', result.content[0].text)
             self.assertIn('Predloži veći radijus', result.content[0].text)
             plain = await session.call_tool('prikazi_vrtice', {'city': 'Zagreb'})
             self.assertIsNone(plain.structuredContent['near'])

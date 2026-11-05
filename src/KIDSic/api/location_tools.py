@@ -72,7 +72,7 @@ class LocationTools:
                 'to a straight-line radius; both or neither. Use only coordinates chosen in the map UI or '
                 'given explicitly by the user as numbers. NEVER estimate coordinates from an address or place '
                 'name; ask the user to choose the point on the map instead. Distance is not travel time. '
-                'Objects without verified coordinates are excluded from a radius search. '
+                'Objects without verified coordinates are excluded from a radius search; results come nearest first. '
                 'For a follow-up, send all criteria the user wants to retain, changing or clearing only '
                 'what they requested. Reuse an explicitly established city only when unambiguous; '
                 'ask otherwise. Each call is a full search, not a patch of the previous call. '
@@ -209,7 +209,8 @@ class LocationTools:
         area_notice = (f' Područje: „{query.area}”. Pretraga koristi samo potvrđene nazive područja; '
                        'pokrivenost je nepotpuna. OSM nazivi nisu potvrda službenih granica.' if query.area else '')
         radius_notice = (f' Zračno do {query.radius_m} m od točke {query.near[0]}, {query.near[1]}; '
-                         'samo objekti s potvrđenim koordinatama. Udaljenost nije vrijeme putovanja.'
+                         'samo objekti s potvrđenim koordinatama, poredani od najbližeg. '
+                         'Udaljenost nije vrijeme putovanja.'
                          if query.near is not None else '')
         suitability_notice = ''
         if query.age_months is not None or query.program:
