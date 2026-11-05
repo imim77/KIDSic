@@ -1,0 +1,36 @@
+{
+  "gtfs_sha256": "e2d9357c5f020d6d4081ba114509d89f51a33dd224d09aae09ff6c1e4c0849bd",
+  "gtfs_url": "https://gitlab.com/api/v4/projects/vekejsn%2Fgtfs-generators/packages/generic/rijeka-gtfs/latest/autotrolej_gtfs.zip",
+  "service_start": "2026-10-09",
+  "service_end": "2026-11-08",
+  "osm_source": "https://download.geofabrik.de/europe/croatia.html",
+  "osm_sha256": "284fd7f018ec6d8d2f267326c889e488b2f80518c0635a2776126e817b0b79bc",
+  "osm_license": "ODbL-1.0",
+  "gtfs_license": "CC-BY-4.0 (Transitous source registry)",
+  "gtfs_license_verification": "https://transitous.org/sources/#croatia",
+  "retrieved_on": "2026-11-05",
+  "otp_version": "2.8.1",
+  "osm_bbox": [
+    14.2,
+    45.2,
+    14.65,
+    45.45
+  ],
+  "gtfs_publisher": "vekejsn (Nedžad Beus)",
+  "gtfs_origin": "https://e-usluge2.rijeka.hr/OpenData/",
+  "gtfs_registry": "https://transitous.org/sources/#croatia",
+  "table_rows": {
+    "stops": 1187,
+    "routes": 59,
+    "trips": 3988,
+    "stop_times": 78163
+  },
+  "build_issues": {
+    "IsolatedStop": 69,
+    "StopNotLinkedForTransfers": 76,
+    "TripDegenerate": 28,
+    "NegativeHopTime": 1
+  },
+  "scope": "Rijeka; street network cropped to bbox; peripheral transit stops may not link",
+  "osm_snapshot": "2026-11-04T21:21:03Z"
+}

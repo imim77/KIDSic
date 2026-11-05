@@ -172,3 +172,8 @@ tags
 
 # Local geocoding snapshots can include source contacts and tax identifiers.
 /data-enrichment/*.json
+
+# Local open-routing archives and generated graph
+/routing/data/
+
+/routing/cache/
