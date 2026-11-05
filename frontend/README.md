@@ -76,3 +76,11 @@ Odabir kartice i oznake na karti ostaje zajednički.
 Cijelu površinu kartice pokriva jedan nativni shadcn gumb: sličica, naziv,
 adresa i prazni prostor biraju isti objekt, uz Enter/Space podršku i jedan
 tabulatorni korak po kartici.
+
+
+Alat `preporuci_vrtice_usput` koristi isti `dist/mcp.html` i isti
+`KindergartenExplorer` kao gradska pretraga. Prikazuje samo rangiranih `top_k`
+vrtića (zadano 4, ukupno s najboljim), s vremenom dolaska na karticama. Sloj
+`RouteLayer` crta dostupne geometrije odabrane rute, dom i posao. Odabir druge
+kartice ili oznake mijenja put bez stvaranja druge karte. Podloga ostaje siva,
+a oznake i rute obojene. Zaseban commute HTML build više nije potreban.

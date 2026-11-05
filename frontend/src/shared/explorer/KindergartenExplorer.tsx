@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { FullscreenFrame, type HostFullscreen } from './FullscreenFrame'
 import { useFrameControls } from './frameControls'
 import { useMediaQuery } from './useMediaQuery'
+import type { MapRoute } from '../map/RouteLayer'
 import { KindergartenMap } from '../map/KindergartenMap'
 import { LocationCarousel } from '../locations/LocationCarousel'
 import { LocationDetails } from '../locations/LocationDetails'
@@ -17,6 +18,10 @@ import { describeCriteria } from '../locations/criteria'
 import type { LocationCollection, LocationFeature, Nearby, SearchCriteria } from '../locations/types'
 
 interface KindergartenExplorerProps {
+  route?: MapRoute | null
+  summary?: (feature: LocationFeature) => string
+  details?: ReactNode
+  mapNotice?: ReactNode
   data: LocationCollection | null
   status: 'loading' | 'ready' | 'error'
   selectedId: string | null
@@ -44,7 +49,7 @@ export function KindergartenExplorer({ hostFullscreen, ...props }: KindergartenE
 }
 
 // ExplorerLayout arranges list, details and map for the frame's current state.
-function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emptyNotice, openLink, nearby, district, criteria }: Omit<KindergartenExplorerProps, 'hostFullscreen'>) {
+function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emptyNotice, openLink, nearby, district, criteria, route, summary, details, mapNotice }: Omit<KindergartenExplorerProps, 'hostFullscreen'>) {
   const { expanded, expand } = useFrameControls()
   const [picking, setPicking] = useState(false)
   const [chosenRadius, setRadius] = useState(1000)
@@ -90,15 +95,16 @@ function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emp
   return <div ref={layoutRef} className="explorer-layout" data-suitability={data?.features.some((feature) => feature.properties.suitability_status === 'confirmed') ? '' : undefined} data-layout={panels ? 'panels' : 'map'} data-details={expanded && selected ? '' : undefined} data-comparing={covered ? '' : undefined}>
     {/* display: contents keeps list and details as grid items of the layout. */}
     <div className="contents" inert={covered}>
-    {panels && <LocationList collection={data!} selectedId={selectedId} onSelect={onSelect} criteria={described} />}
-    {expanded && selected && <LocationDetails key={selected.id} feature={selected} onClose={closeDetails} openLink={openLink} compare={compareChoice(selected)} />}
+    {panels && <LocationList collection={data!} selectedId={selectedId} onSelect={onSelect} criteria={described} summary={summary} />}
+    {expanded && selected && (details ?? <LocationDetails key={selected.id} feature={selected} onClose={closeDetails} openLink={openLink} compare={compareChoice(selected)} />)}
     </div>
     {covered && <ComparisonView features={comparedNow} onRemove={removeCompared}
       onClose={() => setComparing(false)} openLink={openLink} />}
     <div className="explorer-map" inert={covered}>
-      <KindergartenMap collection={data} selectedId={selectedId} nearby={nearby?.value} picking={picking} onPick={place}
+      <KindergartenMap route={route} collection={data} selectedId={selectedId} nearby={nearby?.value} picking={picking} onPick={place}
         onSelect={(id) => { onSelect(id); setReveal((previous) => ({ id, revision: (previous?.revision ?? 0) + 1 })) }}
         overlay={(mapReady) => <>
+          {mapNotice}
           {nearby && <NearbyControl value={nearby.value} radius={radius} picking={picking && mapReady} canPick={mapReady}
             onLocate={place} onPicking={setPicking} onClear={() => { setPicking(false); nearby.onChange(null) }}
             onRadius={(value) => {
@@ -116,7 +122,7 @@ function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emp
         </>} />
       {data && <p className="sr-only" role="status">{data.metadata.total} rezultata · {data.metadata.mapped} na karti · {data.metadata.unmapped} bez koordinata</p>}
       {!!data?.features.length && !panels && <LocationCarousel features={data.features} selectedId={selectedId} reveal={reveal} onSelect={(id) => { onSelect(id); expand() }}
-        compare={compareChoice}
+        compare={route ? undefined : compareChoice} summary={summary}
         caption={described?.join(' · ')} />}
     </div>
   </div>

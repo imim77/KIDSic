@@ -8,13 +8,14 @@ import { CompareToggle, type CompareChoice } from './CompareToggle'
 
 interface LocationCardProps {
   feature: LocationFeature
+  summary?: string
   selected: boolean
   onSelect: (id: string) => void
   compare?: CompareChoice
 }
 
 // LocationCard selects a map result from its compact name and address summary.
-export function LocationCard({ feature, selected, onSelect, compare }: LocationCardProps) {
+export function LocationCard({ feature, selected, onSelect, compare, summary }: LocationCardProps) {
   const location = feature.properties
   const rawAddress = location.address ?? 'Adresa nije poznata'
   const address = location.location_role === 'seat' ? `Sjedište: ${rawAddress}` : rawAddress
@@ -32,6 +33,7 @@ export function LocationCard({ feature, selected, onSelect, compare }: LocationC
         </CardTitle>
         <CardDescription className="truncate text-xs" title={address}>{address}</CardDescription>
       </CardHeader>
+      {summary && <p className="truncate text-[11px] font-semibold">{summary}</p>}
       <SuitabilityBadge status={location.suitability_status} />
       {(distance || location.district) && <CardContent className="min-w-0 p-0">
         {/* One meta line keeps the card short; distance leads when searching nearby. */}

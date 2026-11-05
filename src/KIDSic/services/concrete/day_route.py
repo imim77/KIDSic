@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from KIDSic.dto.day_route import (DayPoint, DayJourneyRequest,
     GTFS_SHA256, GTFS_URL, SERVICE_START, SERVICE_END)
-from KIDSic.dto.location import LocationQuery
+from KIDSic.dto.location import LocationQuery, LocationCollection
 from KIDSic.integrations.interfaces.journey import JourneyPlanner
 from KIDSic.services.interfaces.location import LocationServiceInterface
 
@@ -27,7 +27,11 @@ class DayRouteService:
         collection, facilities = await self._facilities()
         result = await self._compare(request, list(facilities.values()))
         reachable = [r for r in result['results'] if r['status'] == 'ok']
-        result.update(results=reachable[:4], searched=len(facilities),
+        selected = reachable[:request.top_k]
+        locations = LocationCollection(features=[facilities[r['facility_id']] for r in selected],
+            metadata={'total': len(selected), 'mapped': len(selected), 'unmapped': 0, 'scope': 'city'})
+        result.update(results=selected, top_k=request.top_k,
+                      locations=locations.model_dump(mode='json'), searched=len(facilities),
                       reachable=len(reachable), without_route=len(facilities) - len(reachable),
                       excluded=collection.metadata.total - len(facilities),
                       ranking='earliest_arrival_at_work', city='Rijeka',

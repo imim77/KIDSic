@@ -12,6 +12,8 @@ from unittest.mock import AsyncMock
 from KIDSic.api.commute_tools import CommuteTools, COMMUTE_URI
 from KIDSic.dto.commute import CommuteQuery
 from KIDSic.dto.day_route import DayJourneyRequest
+from KIDSic.dto.location import LocationFeature
+from KIDSic.api.apps.map_resource import UI_URI
 from KIDSic.integrations.concrete.address import LocalAddressLookup, normalized_address
 from KIDSic.services.concrete.commute import CommuteService
 from KIDSic.services.concrete.day_route import DayRouteService
@@ -25,12 +27,18 @@ def criteria(**changes):
                 mode='TRANSIT') | changes
 
 
+def facility(identifier, longitude=14.42, name=None):
+    return LocationFeature(id=identifier, geometry={'coordinates': (longitude, 45.33)}, properties={
+        'location_id': identifier, 'kindergarten_id': 'synthetic', 'name': name or identifier,
+        'location_name': name or identifier, 'address': 'Test 1', 'city': 'Rijeka',
+        'provider_kind': 'municipal', 'district': None, 'location_role': 'facility', 'sources': [],
+    })
+
+
 class RecommendationTests(unittest.IsolatedAsyncioTestCase):
     async def test_ranks_every_mapped_facility_and_returns_best_plus_three(self):
         query=DayJourneyRequest(**{k:v for k,v in criteria().items() if k!='city'})
-        facilities=[SimpleNamespace(id=f'id{i}',geometry=SimpleNamespace(coordinates=(14.42+i*.001,45.33)),
-            properties=SimpleNamespace(address=f'Test {i}',location_name=f'Object {i}',location_role='facility'))
-            for i in range(6)]
+        facilities=[facility(f'id{i}', 14.42+i*.001, f'Object {i}') for i in range(6)]
         locations=SimpleNamespace(list_locations=AsyncMock(return_value=SimpleNamespace(
             features=facilities,metadata=SimpleNamespace(total=8))))
         active=0
@@ -55,13 +63,19 @@ class RecommendationTests(unittest.IsolatedAsyncioTestCase):
         self.assertLessEqual(peak,4)
         self.assertEqual(result['results'][0]['elapsed_seconds'],20*60)
         self.assertEqual(result['home'],query.home.model_dump())
+        self.assertEqual([f['id'] for f in result['locations']['features']], ['id5','id4','id3','id2'])
+        for limit in (1, 3, 6, 30):
+            limited = await DayRouteService(locations, Planner()).recommend(query.model_copy(update={'top_k': limit}))
+            self.assertEqual(len(limited['results']), min(limit, 6))
+            self.assertEqual(limited['locations']['metadata']['total'], min(limit, 6))
+            self.assertEqual(limited['searched'], 6)
+            self.assertEqual(limited['top_k'], limit)
 
     async def test_waiting_and_dropoff_are_included_in_elapsed_time(self):
         query=DayJourneyRequest(**{k:v for k,v in criteria().items() if k!='city'})
-        facility=SimpleNamespace(id='one',geometry=SimpleNamespace(coordinates=(14.42,45.33)),
-            properties=SimpleNamespace(address='Test 1',location_name='One',location_role='facility'))
+        item=facility('one', name='One')
         locations=SimpleNamespace(list_locations=AsyncMock(return_value=SimpleNamespace(
-            features=[facility],metadata=SimpleNamespace(total=1))))
+            features=[item],metadata=SimpleNamespace(total=1))))
         planner=SimpleNamespace(plan=AsyncMock(side_effect=[
             journey(query.departure+timedelta(minutes=5),10),
             journey(query.departure+timedelta(minutes=5),10),
@@ -75,10 +89,9 @@ class RecommendationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_unreachable_facilities_are_counted_without_fabricating_options(self):
         query=DayJourneyRequest(**{k:v for k,v in criteria().items() if k!='city'})
-        facility=SimpleNamespace(id='one',geometry=SimpleNamespace(coordinates=(14.42,45.33)),
-            properties=SimpleNamespace(address='Test 1',location_name='One',location_role='facility'))
+        item=facility('one', name='One')
         locations=SimpleNamespace(list_locations=AsyncMock(return_value=SimpleNamespace(
-            features=[facility],metadata=SimpleNamespace(total=1))))
+            features=[item],metadata=SimpleNamespace(total=1))))
         planner=SimpleNamespace(plan=AsyncMock(return_value=None))
         result=await DayRouteService(locations,planner).recommend(query)
         self.assertEqual(result['results'],[])
@@ -98,9 +111,10 @@ class RecommendationTests(unittest.IsolatedAsyncioTestCase):
               'Work 2':{'label':'Work 2','point':{'lat':45.33,'lon':14.44},'match':'exact'}}
         routes=SimpleNamespace(recommend=AsyncMock(return_value={'results':[]}))
         service=CommuteService(routes,SimpleNamespace(find=lambda q:[rows[q]]))
-        result=await service.recommend(CommuteQuery(**criteria(home='Home 1',work='Work 2')))
+        result=await service.recommend(CommuteQuery(**criteria(home='Home 1',work='Work 2',top_k=2)))
         query=routes.recommend.await_args.args[0]
         self.assertEqual((query.home.lon,query.work.lon),(14.41,14.44))
+        self.assertEqual(query.top_k, 2)
         self.assertEqual(result['status'],'no_route')
         self.assertIn('10 minuta',result['notice'])
 
@@ -127,6 +141,7 @@ class CommuteToolTests(unittest.IsolatedAsyncioTestCase):
         service=SimpleNamespace(recommend=AsyncMock(return_value={
             'status':'ok','results':[{'facility_id':'one','name':'Synthetic','journeys':[{'geometry':'private shape'}],
                                       'point':{'lat':45.33,'lon':14.43}}],
+            'locations': {'private': 'canonical UI locations'},
             'home':{'lat':45.33,'lon':14.41},'work':{'lat':45.33,'lon':14.44},'notice':'test'}))
         async with connected(SimpleNamespace(list_locations=AsyncMock()),commute_service=service) as (session,_):
             tool=next(t for t in (await session.list_tools()).tools if t.name==CommuteTools.name)
@@ -135,10 +150,15 @@ class CommuteToolTests(unittest.IsolatedAsyncioTestCase):
             result=await session.call_tool(tool.name,criteria())
             self.assertFalse(result.isError)
             self.assertNotIn('home',result.structuredContent)
+            self.assertNotIn('locations',result.structuredContent)
+            self.assertIn('locations',result.meta['commute'])
             self.assertNotIn('journeys',result.structuredContent['results'][0])
             self.assertIn('home',result.meta['commute'])
             asset=(await session.read_resource(COMMUTE_URI)).contents[0]
-            self.assertIn('Commute map',asset.text)
+            self.assertEqual(COMMUTE_URI, UI_URI)
+            self.assertIn('KIDSic map',asset.text)
+            self.assertEqual(len((await session.list_resources()).resources), 1)
+            self.assertEqual(tool.inputSchema['properties']['top_k']['default'], 4)
             self.assertEqual(asset.meta['ui']['csp']['connectDomains'],['https://tile.openstreetmap.org'])
         service.recommend.assert_awaited_once()
 
@@ -146,7 +166,8 @@ class CommuteToolTests(unittest.IsolatedAsyncioTestCase):
         service=SimpleNamespace(recommend=AsyncMock())
         tool=CommuteTools(lambda:service)
         for bad in ({},criteria(city='Zagreb'),criteria(departure='07:00'),
-                    {k:v for k,v in criteria().items() if k!='mode'},criteria(facility_ids=['one'])):
+                    {k:v for k,v in criteria().items() if k!='mode'},criteria(facility_ids=['one']), criteria(top_k=0),
+                    criteria(top_k=True), criteria(top_k='3')):
             result=await tool.call_tool(tool.name,bad)
             self.assertTrue(result.isError)
             self.assertIn('invalid_commute',result.content[0].text)

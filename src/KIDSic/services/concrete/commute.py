@@ -28,7 +28,7 @@ class CommuteService:
                     'notice': 'Potvrdi točnu adresu i grad ili odaberi ponuđenu lokaciju. '
                               'Ako nema podudaranja, navedi koordinate; nemoj ih nagađati.'}
         request = DayJourneyRequest(home=points['home'], work=points['work'],
-            departure=query.departure, mode=query.mode, dropoff_minutes=query.dropoff_minutes)
+            departure=query.departure, mode=query.mode, dropoff_minutes=query.dropoff_minutes, top_k=query.top_k)
         result = await self._routes.recommend(request)
         result.update(status='ok' if result['results'] else 'no_route', resolved_addresses=resolved,
                       notice='Najbolje prema dolasku na posao; nije potvrda radnog vremena, '

@@ -3,11 +3,13 @@ import type { Map } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { LocationLayer } from './LocationLayer'
 import type { NearbyLayer } from './NearbyLayer'
+import type { MapRoute, RouteLayer } from './RouteLayer'
 import type { LocationCollection, Nearby } from '../locations/types'
 import { providerColors } from '../locations/types'
 import './map.css'
 
 interface KindergartenMapProps {
+  route?: MapRoute | null
   collection?: LocationCollection | null
   onSelect?: (id: string) => void
   selectedId?: string | null
@@ -19,8 +21,10 @@ interface KindergartenMapProps {
   overlay?: (mapReady: boolean) => ReactNode
 }
 
-export function KindergartenMap({ collection = null, onSelect, selectedId = null, nearby = null, picking = false, onPick, overlay }: KindergartenMapProps) {
+export function KindergartenMap({ route = null, collection = null, onSelect, selectedId = null, nearby = null, picking = false, onPick, overlay }: KindergartenMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const routeRef = useRef(route)
+  const routeLayerRef = useRef<RouteLayer | null>(null)
   const mapRef = useRef<Map | null>(null)
   const layerRef = useRef<LocationLayer | null>(null)
   const collectionRef = useRef(collection)
@@ -35,14 +39,15 @@ export function KindergartenMap({ collection = null, onSelect, selectedId = null
   useEffect(() => {
     if (!containerRef.current) return
     let map: Map | undefined
+    let routeLayer: RouteLayer | undefined
     let layer: LocationLayer | undefined
     let nearbyLayer: NearbyLayer | undefined
     let observer: ResizeObserver | undefined
     let disposed = false
     // Loading the map separately keeps the directory usable during setup.
     void Promise.all([
-      import('leaflet'), import('./LocationLayer'), import('./NearbyLayer'),
-    ]).then(([{ default: L }, { LocationLayer }, { NearbyLayer }]) => {
+      import('leaflet'), import('./LocationLayer'), import('./NearbyLayer'), import('./RouteLayer'),
+    ]).then(([{ default: L }, { LocationLayer }, { NearbyLayer }, { RouteLayer }]) => {
       if (disposed || !containerRef.current) return
       map = L.map(containerRef.current, {
         center: [45.815, 15.9819], zoom: 11, maxZoom: 19, zoomControl: false,
@@ -62,17 +67,26 @@ export function KindergartenMap({ collection = null, onSelect, selectedId = null
       nearbyLayerRef.current = nearbyLayer
       nearbyLayer.show(nearbyRef.current)
       nearbyLayer.setPicking(pickingRef.current)
+      routeLayer = new RouteLayer(map)
+      routeLayerRef.current = routeLayer
       layer = new LocationLayer(map, (id) => { if (!pickingRef.current) onSelectRef.current?.(id) })
       layerRef.current = layer
       layer.update(collectionRef.current)
-      layer.select(selectedIdRef.current)
+      layer.select(selectedIdRef.current, !routeRef.current)
+      if (routeRef.current) layer.fit(routeLayer.show(routeRef.current))
       setStatus('')
-      observer = new ResizeObserver(() => { map?.invalidateSize({ pan: false }); layer?.resize() })
+      observer = new ResizeObserver(() => {
+        map?.invalidateSize({ pan: false })
+        if (routeRef.current) layer?.fit(routeLayer?.show(routeRef.current))
+        else layer?.resize()
+      })
       observer.observe(containerRef.current)
     }).catch(() => {
       observer?.disconnect()
       layer?.dispose()
       nearbyLayer?.dispose()
+      routeLayer?.dispose()
+      routeLayerRef.current = null
       if (layerRef.current === layer) layerRef.current = null
       if (nearbyLayerRef.current === nearbyLayer) nearbyLayerRef.current = null
       map?.remove()
@@ -80,6 +94,7 @@ export function KindergartenMap({ collection = null, onSelect, selectedId = null
       map = undefined
       layer = undefined
       nearbyLayer = undefined
+      routeLayer = undefined
       if (!disposed) setStatus('Kartu nije moguće pokrenuti u ovom pregledniku. Objekte možete pregledati na popisu.')
     })
     return () => {
@@ -87,6 +102,8 @@ export function KindergartenMap({ collection = null, onSelect, selectedId = null
       observer?.disconnect()
       layer?.dispose()
       nearbyLayer?.dispose()
+      routeLayer?.dispose()
+      routeLayerRef.current = null
       if (layerRef.current === layer) layerRef.current = null
       if (nearbyLayerRef.current === nearbyLayer) nearbyLayerRef.current = null
       map?.remove()
@@ -97,7 +114,14 @@ export function KindergartenMap({ collection = null, onSelect, selectedId = null
   useEffect(() => {
     collectionRef.current = collection
     layerRef.current?.update(collection)
+    if (routeRef.current) layerRef.current?.fit(routeLayerRef.current?.show(routeRef.current))
   }, [collection])
+
+  useEffect(() => {
+    routeRef.current = route
+    const points = routeLayerRef.current?.show(route)
+    if (route) layerRef.current?.fit(points)
+  }, [route])
 
   useEffect(() => { onSelectRef.current = onSelect }, [onSelect])
   useEffect(() => { onPickRef.current = onPick }, [onPick])
@@ -111,7 +135,7 @@ export function KindergartenMap({ collection = null, onSelect, selectedId = null
   }, [picking])
   useEffect(() => {
     selectedIdRef.current = selectedId
-    layerRef.current?.select(selectedId)
+    layerRef.current?.select(selectedId, !routeRef.current)
   }, [selectedId])
 
   return (

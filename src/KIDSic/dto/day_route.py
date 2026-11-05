@@ -25,6 +25,7 @@ class DayJourneyRequest(BaseModel):
     work: DayPoint
     departure: datetime
     mode: Literal['WALK', 'TRANSIT'] = 'TRANSIT'
+    top_k: int = Field(default=4, strict=True, ge=1)
     dropoff_minutes: int = Field(default=10, strict=True, ge=0, le=60)
 
     @field_validator('departure')

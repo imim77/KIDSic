@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run --config vitest.config.ts",
-    "build:mcp": "tsc -b && vite build --config vite.mcp.config.ts && vite build --config vite.commute.config.ts"
+    "build:mcp": "tsc -b && vite build --config vite.mcp.config.ts"
   },
   "dependencies": {
     "@fontsource/titan-one": "^5.3.0",

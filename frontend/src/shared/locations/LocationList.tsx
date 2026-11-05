@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react'
 import { Building2 } from 'lucide-react'
-import { providerLabels, type LocationCollection } from './types'
+import { providerLabels, type LocationFeature, type LocationCollection } from './types'
 import { SuitabilityBadge } from './ProgramDetails'
 import { formatDistance } from './distance'
 import { useEntrance } from '../motion/useEntrance'
 
 interface LocationListProps {
   collection: LocationCollection
+  summary?: (feature: LocationFeature) => string
   selectedId: string | null
   onSelect: (id: string) => void
   criteria?: string[]
@@ -14,7 +15,7 @@ interface LocationListProps {
 
 // LocationList shows every result as a scrollable column in the expanded
 // explorer, where the horizontal card deck would hide most of them.
-export function LocationList({ collection, selectedId, onSelect, criteria }: LocationListProps) {
+export function LocationList({ collection, selectedId, onSelect, criteria, summary }: LocationListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   // Items, not rows: rows keep CSS transform transitions for hover and press.
   useEntrance(scrollRef, [collection], { selector: 'li', limit: 14 })
@@ -47,6 +48,7 @@ export function LocationList({ collection, selectedId, onSelect, criteria }: Loc
                 <span className="location-row-kind">{providerLabels[location.provider_kind]}</span>
                 <SuitabilityBadge status={location.suitability_status} />
                 <span className="location-row-name">{location.location_name}</span>
+                {summary && <span className="location-row-distance">{summary(feature)}</span>}
                 <span className="location-row-address">{location.address ?? 'Adresa nije poznata'}</span>
                 {location.distance_m != null && <span className="location-row-distance">{formatDistance(location.distance_m)} zračno</span>}
                 {location.district && <span className="location-row-district">{location.district}</span>}

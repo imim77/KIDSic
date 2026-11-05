@@ -1,65 +1,100 @@
+import type { ReactNode } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { CommuteView } from '../src/views/commute/CommuteView'
-import { McpCommuteApp } from '../src/views/commute/McpCommuteApp'
-import { decodePolyline } from '../src/views/commute/polyline'
-import { parseCommuteResult, type CommuteResult } from '../src/views/commute/types'
+import { McpLocationApp } from '../src/views/mcp/McpLocationApp'
+import { decodePolyline } from '../src/shared/map/polyline'
+import type { MapRoute } from '../src/shared/map/RouteLayer'
+import type { LocationCollection } from '../src/shared/locations/types'
+import { parseCommuteResult } from '../src/views/commute/types'
+import { commuteResult } from './commuteFixtures'
+import { collection, facility } from './fixtures'
 
 const bridge = vi.hoisted(() => ({ current: null as Record<string, unknown> | null,
-  updateModelContext: vi.fn().mockResolvedValue({}), connect:vi.fn().mockResolvedValue({}), close:vi.fn() }))
+  updateModelContext: vi.fn().mockResolvedValue({}), connect:vi.fn().mockResolvedValue({}), close:vi.fn(),
+  requestDisplayMode:vi.fn(async({mode})=>({mode})) }))
 vi.mock('@modelcontextprotocol/ext-apps', () => ({App: class {
   constructor() {bridge.current=this as unknown as Record<string, unknown>}
   connect=bridge.connect
   close=bridge.close
   updateModelContext=bridge.updateModelContext
+  requestDisplayMode=bridge.requestDisplayMode
+  getHostContext=()=>({displayMode:'inline',availableDisplayModes:['inline','fullscreen']})
 }}))
-vi.mock('../src/views/commute/CommuteMap', () => ({default:({geometries}:{geometries:string[]}) => <div aria-label="Odabrana geometrija">{geometries.join(',')}</div>}))
+vi.mock('../src/shared/map/KindergartenMap', () => ({KindergartenMap:({route,collection,onSelect,overlay}: {
+  route?:MapRoute;collection?:LocationCollection;onSelect?:(id:string)=>void;overlay?:(ready:boolean)=>ReactNode
+}) => <div aria-label="Zajednička karta">
+  <output aria-label="Odabrana geometrija">{route?.legs.map(leg=>leg.geometry).join(',')}</output>
+  <output aria-label="Broj oznaka">{collection?.features.length ?? 0}</output>
+  {collection?.features.map(feature=><button key={feature.id} onClick={()=>onSelect?.(feature.id)}>Oznaka {feature.id}</button>)}
+  {overlay?.(true)}
+</div>}))
 
-function result(): CommuteResult {
-  const departure='2026-11-05T07:00:00+01:00'
-  const leg={mode:'BUS',departure,arrival:'2026-11-05T07:20:00+01:00',from_name:'Origin',to_name:'Destination',line:'23',geometry:'shape'}
-  return {status:'ok',city:'Rijeka',home:{lat:45.33,lon:14.41},work:{lat:45.33,lon:14.44},departure,
-    mode:'TRANSIT',dropoff_minutes:10,searched:10,reachable:8,without_route:2,excluded:3,
-    notice:'Rang prema dolasku, bez potvrde mjesta.',sources:{service_start:'2026-10-09',service_end:'2026-11-08',gtfs_url:'https://example.invalid/gtfs'},
-    results:[0,1,2,3].map(i => ({facility_id:`id${i}`,name:`Vrtić ${i}`,address:`Test ${i}`,point:{lat:45.33,lon:14.42},
-      status:'ok',arrival:'2026-11-05T07:35:00+01:00',elapsed_seconds:2100+i*60,extra_seconds:600+i*60,transfers:0,
-      journeys:[{departure,arrival:leg.arrival,legs:[{...leg,geometry:`shape${i}`}]},
-        {departure:'2026-11-05T07:30:00+01:00',arrival:'2026-11-05T07:35:00+01:00',legs:[{...leg,geometry:null}]}]}))}
-}
+beforeEach(()=> {Element.prototype.scrollTo=vi.fn()})
+afterEach(()=> {Reflect.deleteProperty(Element.prototype,'scrollTo')})
 
-it('shows the best plus three alternatives and changes only the selected map route', () => {
+it('uses the city explorer and ranked cards, with only the requested options and selected route', () => {
   const select=vi.fn()
-  render(<CommuteView result={result()} onSelect={select}/>)
-  expect(screen.getByText('NAJBOLJA OPCIJA')).toBeInTheDocument()
-  expect(screen.getByText('ALTERNATIVA 3')).toBeInTheDocument()
+  const {container}=render(<CommuteView result={commuteResult()} onSelect={select}/>)
+  expect(container.querySelector('.kindergarten-explorer')).toBeInTheDocument()
+  expect(screen.getByLabelText('Broj oznaka')).toHaveTextContent('4')
+  expect(screen.getByText(/^Najbolja opcija ·/)).toBeInTheDocument()
+  expect(screen.getByText(/^Alternativa 3 ·/)).toBeInTheDocument()
   expect(screen.getByLabelText('Odabrana geometrija')).toHaveTextContent('shape0')
-  fireEvent.click(screen.getByRole('button',{name:'Prikaži rutu: Vrtić 2'}))
+  fireEvent.click(screen.getByRole('button',{name:'Oznaka id2'}))
   expect(screen.getByLabelText('Odabrana geometrija')).toHaveTextContent('shape2')
   expect(select).toHaveBeenCalledWith('id2')
+  fireEvent.click(screen.getByRole('button',{name:'Vrtić 2 Test 2'}))
+  expect(screen.getByRole('region',{name:'Ruta: Vrtić 2'})).toBeVisible()
   expect(screen.getByText('Uspoređeno 10 objekata · dostupna ruta za 8 · bez rute 2 · izvan mapirane pokrivenosti 3.')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button',{name:'Zatvori detalje rute'}))
+  expect(screen.queryByRole('region',{name:'Ruta: Vrtić 2'})).not.toBeInTheDocument()
 })
 
-it('rejects malformed or unsorted routes before putting them on the map', () => {
-  expect(parseCommuteResult(result()).results).toHaveLength(4)
-  const invalid=result(); invalid.results[0].point.lat=Infinity
+it('validates variable top_k and rejects extra, unsorted, or mismatched map results', () => {
+  expect(parseCommuteResult(commuteResult()).results).toHaveLength(4)
+  const two=commuteResult()
+  two.top_k=2;two.results=two.results.slice(0,2);two.locations.features=two.locations.features.slice(0,2)
+  two.locations.metadata.total=2;two.locations.metadata.mapped=2
+  expect(parseCommuteResult(two).results).toHaveLength(2)
+  expect(()=>parseCommuteResult({...commuteResult(),top_k:2})).toThrow()
+  expect(()=>parseCommuteResult({...two,locations:commuteResult().locations})).toThrow()
+  const invalid=commuteResult(); invalid.results[0].point.lat=Infinity
   expect(()=>parseCommuteResult(invalid)).toThrow()
-  const unsorted=result(); unsorted.results.reverse()
+  const unsorted=commuteResult(); unsorted.results.reverse()
   expect(()=>parseCommuteResult(unsorted)).toThrow()
-  expect(()=>parseCommuteResult({...result(),reachable:3})).toThrow()
+  expect(()=>parseCommuteResult({...commuteResult(),reachable:3})).toThrow()
 })
 
-it('receives host results, updates selected context and clears old routes on new input', async () => {
-  render(<McpCommuteApp/>)
+it('receives both tools through one bridge and clears old routes on new input, errors and clarification', async () => {
+  render(<McpLocationApp/>)
   const call=(name:string,payload:unknown) => (bridge.current?.[name] as (p:unknown)=>void)(payload)
-  await act(async()=>call('ontoolresult',{_meta:{commute:result()}}))
-  fireEvent.click(screen.getByRole('button',{name:'Prikaži rutu: Vrtić 1'}))
+  await act(async()=>call('ontoolresult',{_meta:{commute:commuteResult()}}))
+  fireEvent.click(screen.getByRole('button',{name:'Oznaka id1'}))
   expect(bridge.updateModelContext).toHaveBeenCalled()
-  await act(async()=>call('ontoolinput',{}))
-  expect(screen.queryByText('NAJBOLJA OPCIJA')).not.toBeInTheDocument()
+  await act(async()=>call('ontoolinput',{arguments:{city:'Rijeka',home:'Zametska 6',work:'Korzo 16',top_k:4}}))
+  expect(screen.getByLabelText('Broj oznaka')).toHaveTextContent('0')
   expect(screen.getByText('Uspoređujem putove kroz riječke vrtiće…')).toBeInTheDocument()
+  await act(async()=>call('ontoolresult',{isError:true}))
+  expect(screen.getByText(/Izračun nije dostupan/)).toBeInTheDocument()
   await act(async()=>call('ontoolresult',{_meta:{commute:{status:'clarification_required'}}}))
   expect(screen.getByText(/Adresa nije jednoznačna/)).toBeInTheDocument()
-  expect(screen.queryByLabelText('Odabrana geometrija')).not.toBeInTheDocument()
+  expect(screen.getByLabelText('Odabrana geometrija')).toBeEmptyDOMElement()
+  await act(async()=>call('ontoolresult',{_meta:{commute:commuteResult()}}))
+  await act(async()=>call('ontoolinput',{arguments:{city:'Rijeka'}}))
+  const locations=collection(facility('city'))
+  await act(async()=>call('ontoolresult',{structuredContent:{city:'Rijeka',metadata:locations.metadata},_meta:{locations}}))
+  expect(screen.getByRole('button',{name:/^Synthetic facility city/})).toBeVisible()
+  expect(screen.getByLabelText('Odabrana geometrija')).toBeEmptyDOMElement()
+})
+
+it('shows an empty map without inventing options when there is no route', () => {
+  const empty=commuteResult()
+  empty.status='no_route';empty.results=[];empty.reachable=0;empty.without_route=empty.searched;empty.locations=collection()
+  render(<CommuteView result={parseCommuteResult(empty)}/>)
+  expect(screen.getByLabelText('Broj oznaka')).toHaveTextContent('0')
+  expect(screen.getByText(/Nema dostupnog puta/)).toBeVisible()
+  expect(screen.getByLabelText('Odabrana geometrija')).toBeEmptyDOMElement()
 })
 
 it('decodes route geometry and rejects truncated polylines', () => {

@@ -171,3 +171,37 @@ describe('Leaflet/OpenStreetMap lifecycle and data', () => {
     expect(remove).toHaveBeenCalledOnce()
   })
 })
+
+it('draws the selected route, fits all ranked pins and endpoints, and replaces shapes on the same map', async () => {
+  const payload = collection(facility('first'), facility('second'))
+  payload.features[0].geometry = { type: 'Point', coordinates: [14.42, 45.335] }
+  payload.features[1].geometry = { type: 'Point', coordinates: [14.43, 45.34] }
+  const route = {
+    home: [14.410, 45.338] as [number, number], work: [14.4422, 45.3271] as [number, number],
+    legs: [{ mode: 'BUS', geometry: 'oavsGom}vAvQo}@jp@wiC' }, { mode: 'WALK', geometry: null }],
+  }
+  const { rerender, unmount } = render(<KindergartenMap collection={payload} selectedId="first" route={route} />)
+  const map = await ready()
+  const paths = () => layers(map, L.Polyline)
+  expect(paths()).toHaveLength(1)
+  expect(paths()[0].getLatLngs()).toEqual([L.latLng(45.338, 14.410), L.latLng(45.335, 14.42), L.latLng(45.3271, 14.4422)])
+  expect(paths()[0].options.color).toBe('#376fbe')
+  expect(screen.getByText('Dom')).toBeInTheDocument()
+  expect(screen.getByText('Posao')).toBeInTheDocument()
+  for (const [lng, lat] of [route.home, route.work, ...payload.features.map(f => f.geometry!.coordinates)]) {
+    expect(map.getBounds().contains([lat, lng])).toBe(true)
+  }
+  const first = paths()[0]
+  rerender(<KindergartenMap collection={payload} selectedId="second" route={{ ...route,
+    legs: [{ mode: 'WALK', geometry: 'oavsGom}vAoK_|BroAgkA' }, { mode: 'BUS', geometry: '_' }],
+  }} />)
+  expect(paths()).toHaveLength(1)
+  expect(map.hasLayer(first)).toBe(false)
+  expect(paths()[0].options.dashArray).toBe('6 8')
+  expect(maps).toHaveLength(1)
+  rerender(<KindergartenMap collection={payload} />)
+  expect(paths()).toHaveLength(0)
+  expect(screen.queryByText('Dom')).not.toBeInTheDocument()
+  unmount()
+  expect(map.listens('click')).toBe(false)
+})

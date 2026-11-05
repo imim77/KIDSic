@@ -33,7 +33,6 @@ async def connected(service, rag_service=None, commute_service=None):
     with TemporaryDirectory() as directory:
         asset = Path(directory) / 'mcp.html'
         asset.write_text('<html><body>KIDSic map</body></html>')
-        (Path(directory) / 'day-mcp.html').write_text('<html>Commute map</html>')
         app = create_app(service, ui_path=asset, rag_service=rag_service, commute_service=commute_service)
         async with app.router.lifespan_context(app):
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app),

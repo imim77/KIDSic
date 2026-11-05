@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
 import { McpLocationApp } from '../src/views/mcp/McpLocationApp'
 import { collection, facility, programEvidence } from './fixtures'
+import { commuteResult } from './commuteFixtures'
 
 vi.mock('../src/shared/map/KindergartenMap', () => ({
   KindergartenMap: ({ overlay }: { overlay?: (mapReady: boolean) => ReactNode }) => <div aria-label="Test map">{overlay?.(true)}</div>,
@@ -53,5 +54,11 @@ it('negotiates the real SDK postMessage bridge, receives results, and requests h
   await act(async () => notify('ui/notifications/tool-input', { arguments: {} }))
   expect(screen.getByText('U kojem gradu želiš prikaz vrtića?')).toBeVisible()
   expect(screen.queryByText('Synthetic facility bridge')).toBeNull()
+  await act(async () => notify('ui/notifications/tool-input', { arguments: {
+    city: 'Rijeka', home: 'Zametska 6', work: 'Korzo 16', departure: '2026-11-05T07:00', mode: 'TRANSIT', top_k: 4,
+  } }))
+  await act(async () => notify('ui/notifications/tool-result', { content: [], _meta: { commute: commuteResult() } }))
+  expect(screen.getByRole('button', { name: /Vrtić 0.*Najbolja opcija/ })).toBeVisible()
+  expect(screen.getByText(/^Alternativa 3 ·/)).toBeVisible()
   unmount()
 })

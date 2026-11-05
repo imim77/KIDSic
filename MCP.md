@@ -186,7 +186,7 @@ pročitati rezultat, ali ne može prikazati interaktivnu kartu.
 
 ## Ugovor UI-ja i provjera
 
-Resurs `ui://kidsic/map-v25.html` ima MIME `text/html;profile=mcp-app`. Hostovi
+Resurs `ui://kidsic/map-v26.html` ima MIME `text/html;profile=mcp-app`. Hostovi
 predložak spremaju po URI-ju, pa se verzija u URI-ju podiže pri svakoj promjeni
 UI-ja, a server se nakon `build:mcp` mora ponovno pokrenuti. Moderni
 `_meta.ui.resourceUri` i kompatibilni `openai/outputTemplate` povezuju ga s alatom.
@@ -212,7 +212,7 @@ visinu dodijeljenog prozora. Klik na karticu traži fullscreen i otvara popis,
 detalje i kartu u stupcima (ispod 1100 px detalji prekrivaju popis, ispod 700 px
 kartu). Detalji prikazuju samo podatke iz izvora i navode što nije poznato;
 vanjske poveznice otvaraju se kroz `ui/open-link`. Nakon nadogradnje ponovno
-povezati konektor kako bi host preuzeo URI resursa v25 te pokrenuti novi poziv
+povezati konektor kako bi host preuzeo URI resursa v26 te pokrenuti novi poziv
 alata.
 Resurs deklarira CSP za `https://tile.openstreetmap.org` i ugrađene data resurse.
 Leaflet ne zahtijeva WebGL ili Web Workere. UI je jedan HTML bez relativnih
@@ -273,7 +273,8 @@ Primjer poziva:
   "work": "Korzo 16",
   "departure": "2026-11-05T07:00",
   "mode": "TRANSIT",
-  "dropoff_minutes": 10
+  "dropoff_minutes": 10,
+  "top_k": 4
 }
 ```
 
@@ -301,23 +302,28 @@ Model ih ne smije procijeniti.
 
 Alat uspoređuje **sve mapirane objekte u obuhvatu** (uz najviše četiri istodobna
 OTP izračuna), uključuje čekanje i predaju djeteta te vraća najbolju opciju
-prema dolasku na posao i do tri alternative. Nema ručnog predodabira vrtića ni
-zračnog radijusa koji bi mogao izbaciti najbolji put. U odgovoru su brojevi
-uspoređenih, dostupnih, nepovezanih i isključenih objekata. Manje od četiri
-rezultata nije razlog za izmišljanje dodatnih opcija.
+prema dolasku na posao i traženi broj alternativa. `top_k` je ukupan broj opcija
+(pozitivan cijeli broj, zadano 4): najbolja opcija i tri alternative znači `top_k=4`, a top tri
+znači `top_k=3`. Ograničavanje se primjenjuje tek nakon rangiranja cijelog kataloga.
+Ako ima manje dostupnih ruta, alat vraća samo njih i točne brojeve pokrivenosti.
 
-Novi resurs `ui://kidsic/day-route-v3.html` ugrađuje `frontend/dist/day-mcp.html`.
-To je samostalan Leaflet/OSM prikaz, odvojen od glavnog resursa karte.
-Najbolji put je odabran odmah. „Prikaži ovu rutu” prikazuje geometriju alternative
-i ažurira kontekst razgovora. Podaci dolaze kroz MCP bridge (`_meta.commute`),
-a iframe ne poziva lokalni HTTP API. Model dobiva sažetak bez velikih geometrija.
-Novi CSP dopušta samo OSM poslužitelj pločica i ugrađene resurse.
+Oba alata koriste isti resurs `ui://kidsic/map-v26.html` iz `frontend/dist/mcp.html`.
+Preporuka koristi istu sivu Leaflet/OSM kartu, boje oznaka, vodoravne kartice i
+fullscreen prikaz kao `prikazi_vrtice`. Na karti i karticama su samo vraćenih
+`top_k` vrtića u poretku dolaska na posao. Najbolja ruta je odabrana odmah;
+odabir oznake, kartice ili retka prikazuje rutu druge opcije. Kartica prikazuje
+rang, trajanje i dolazak, a detalji dionice i presjedanja. Karta obuhvaća dom,
+posao, sve vraćene vrtiće i dostupne geometrije odabrane rute. Nedostajuće
+geometrije ne zamjenjuju se ravnim linijama.
 
-Nakon izgradnje ponovno pokrenuti MCP server i osvježiti alate u ChatGPT/MCP
-klijentu. Novi alat i drugi HTML resurs moraju se pojaviti u discoveryju.
-`build:mcp` sada proizvodi oba HTML-a. Ako je `KIDSIC_UI_PATH` prilagođen,
-`day-mcp.html` mora biti uz njega ili se pri kreiranju aplikacije može zadati
-`day_ui_path`. Postojeći opći alat i njegov resurs ostaju dostupni.
+Podaci dolaze kroz MCP bridge (`_meta.commute`): puni GeoJSON `locations`
+sadrži isključivo rangirane objekte i njihove izvorne podatke. Model dobiva
+sažetak bez koordinata doma/posla, GeoJSON-a i velikih geometrija. Iframe ne
+poziva lokalni API. CSP dopušta OSM pločice i ugrađene resurse.
+
+Nakon `npm --prefix frontend run build:mcp` ponovno pokrenuti MCP server i
+osvježiti konektor. Discovery sada objavljuje jedan zajednički HTML resurs;
+zaseban `day-mcp.html` i postavka `day_ui_path` više se ne koriste.
 
 „Najbolji” ovdje znači najraniji dolazak među OTP-ovim vraćenim alternativama.
 To ne potvrđuje radno vrijeme, dobnu prikladnost, kvalitetu vrtića, slobodna

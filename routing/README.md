@@ -102,7 +102,9 @@ najranijem dolasku među OTP-ovim vraćenim alternativama, a dodatne minute
 uspoređuju se s izravnim putem za isti polazak. U načinu javnog prijevoza OTP
 smije vratiti samo hodanje ako je to bolje. Presjedanja se broje unutar svakog
 dijela puta; predaja djeteta nije presjedanje. Karta prikazuje geometriju
-najbolje vraćene opcije.
+najbolje vraćene opcije; odabir druge kartice prikazuje njezinu rutu na istoj
+sivoj karti kao opća pretraga. `top_k` određuje ukupan broj vraćenih vrtića
+(pozitivan cijeli broj, zadano 4), nakon rangiranja cijelog mapiranog kataloga.
 
 - Podaci su raspored polazaka, bez kašnjenja i vozila uživo. Izračunata vremena
   nisu jamstvo stvarnog dolaska ni dostupnosti mjesta u vrtiću.

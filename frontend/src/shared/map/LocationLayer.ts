@@ -43,10 +43,17 @@ export class LocationLayer {
       })
     }))
     this.select(this.selectedId, false)
-    if (this.features.length) this.map.fitBounds(L.latLngBounds(this.features.map((feature) => {
+    this.fit()
+  }
+
+  fit(routePoints: L.LatLngTuple[] = []) {
+    const points: L.LatLngTuple[] = [...routePoints, ...this.features.map((feature) => {
       const [lng, lat] = feature.geometry.coordinates
       return [lat, lng] as L.LatLngTuple
-    })), { ...this.cameraPadding(), maxZoom: 14, animate: false })
+    })]
+    if (points.length) this.map.fitBounds(L.latLngBounds(points), {
+      ...this.cameraPadding(), maxZoom: 14, animate: false,
+    })
   }
 
   select(id: string | null, focus = true) {

@@ -4,13 +4,15 @@ from mcp import types
 from mcp.server.lowlevel.helper_types import ReadResourceContents
 
 # Hosts cache the template by URI; bump the version whenever the UI changes.
-UI_URI = 'ui://kidsic/map-v25.html'
+UI_URI = 'ui://kidsic/map-v26.html'
 UI_MIME = 'text/html;profile=mcp-app'
 SERVER_INSTRUCTIONS = (
     'When the user asks which kindergartens fit a home-to-work commute, use '
     'KIDSic:preporuci_vrtice_usput instead of the general map tool. It resolves explicit '
-    'addresses locally, ranks all mapped Rijeka facilities, and returns the best plus '
-    'up to three alternatives with a route map. Ask for missing city, home, work, '
+    'addresses locally, ranks all mapped Rijeka facilities, and returns '
+    'top_k ranked options on the same map/cards UI as prikazi_vrtice. '
+    'Set top_k to the total requested: best plus three alternatives=4, '
+    'top three=3 (default 4). Ask for missing city, home, work, '
     'departure DATE/time and transport mode. Never guess coordinates, date or mode. '
     'For clarification_required ask which candidate; do not choose ambiguous addresses. '
     'Explain that ranking concerns arrival at work, not age suitability or admission. '

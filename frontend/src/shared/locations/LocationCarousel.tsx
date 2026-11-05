@@ -8,6 +8,7 @@ import { useEntrance } from '../motion/useEntrance'
 
 interface LocationCarouselProps {
   features: LocationFeature[]
+  summary?: (feature: LocationFeature) => string
   selectedId: string | null
   reveal: { id: string; revision: number } | null
   onSelect: (id: string) => void
@@ -26,7 +27,7 @@ function anchor(track: HTMLElement, card: HTMLElement) {
 }
 
 // LocationCarousel scrolls its own viewport without changing the map selection.
-export function LocationCarousel({ features, selectedId, reveal, onSelect, caption, compare }: LocationCarouselProps) {
+export function LocationCarousel({ features, selectedId, reveal, onSelect, caption, compare, summary }: LocationCarouselProps) {
   const trackRef = useRef<HTMLUListElement>(null)
   const [edges, setEdges] = useState({ start: true, end: features.length < 2 })
   // Slides, not cards: cards keep CSS transform transitions for hover and press.
@@ -71,7 +72,7 @@ export function LocationCarousel({ features, selectedId, reveal, onSelect, capti
       <Button type="button" variant="outline" size="icon-lg" className="rounded-full" aria-label="Sljedeći vrtić" disabled={edges.end} onClick={() => move(1)}><ChevronRight data-icon="inline-end" /></Button>
     </div>
     <ul ref={trackRef} className="location-track" aria-label="Vrtićki objekti">
-      {features.map((feature) => <li className="location-slide" key={feature.id}><LocationCard feature={feature} selected={feature.id === selectedId} onSelect={onSelect} compare={compare?.(feature)} /></li>)}
+      {features.map((feature) => <li className="location-slide" key={feature.id}><LocationCard feature={feature} summary={summary?.(feature)} selected={feature.id === selectedId} onSelect={onSelect} compare={compare?.(feature)} /></li>)}
     </ul>
   </section>
 }

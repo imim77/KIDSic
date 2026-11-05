@@ -8,8 +8,7 @@ from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from starlette.applications import Starlette
 from starlette.routing import Route
 from KIDSic.api.apps.map_resource import MapResource, SERVER_INSTRUCTIONS, UI_URI, UI_MIME
-from KIDSic.api.apps.resource_registry import ResourceRegistry
-from KIDSic.api.commute_tools import CommuteTools, COMMUTE_URI
+from KIDSic.api.commute_tools import CommuteTools
 from KIDSic.integrations.concrete.address import LocalAddressLookup
 from KIDSic.integrations.concrete.otp import OtpJourneyPlanner
 from KIDSic.services.concrete.day_route import DayRouteService
@@ -35,7 +34,7 @@ class McpServer:
     """McpServer shares one caller-supplied or lifetime-owned service across requests."""
     def __init__(self, service: LocationServiceInterface | None = None,
                  ui_path: Path | str | None = None, rag_service: RagServiceInterface | None = None,
-                 commute_service=None, day_ui_path: Path | str | None = None):
+                 commute_service=None):
         self._provided_commute, self._commute = commute_service, None
         self._provided_service = service
         self._locations = None
@@ -43,16 +42,7 @@ class McpServer:
         asset = Path(ui_path) if ui_path is not None else Path(os.environ.get('KIDSIC_UI_PATH', 'frontend/dist/mcp.html'))
         self._resource = MapResource(asset)
         self.server = Server('KIDSic', version='0.1.0', instructions=SERVER_INSTRUCTIONS)
-        day_asset = Path(day_ui_path) if day_ui_path else asset.with_name('day-mcp.html')
-        domains = ['https://tile.openstreetmap.org']
-        day_meta = {'ui': {'prefersBorder': True, 'csp': {'connectDomains': domains,
-                    'resourceDomains': [*domains, 'data:', 'blob:']}},
-                    'openai/widgetCSP': {'connect_domains': domains,
-                                        'resource_domains': [*domains, 'data:', 'blob:']},
-                    'openai/widgetDescription': 'Najbolja ruta kroz vrtić i do tri alternative.'}
-        self._day_resource = MapResource(day_asset, uri=COMMUTE_URI, meta=day_meta,
-            name='kidsic-day-route', title='Vrtići na putu do posla', lazy=True)
-        ResourceRegistry([self._resource, self._day_resource]).register(self.server)
+        self._resource.register(self.server)
         ToolRegistry([LocationTools(self._location_service), RagTools(self._rag_service), CommuteTools(self._commute_service)]).register(self.server)
         self._manager = StreamableHTTPSessionManager(self.server, stateless=True, json_response=True)
         self.app = Starlette(routes=[Route('/mcp', McpHttpEndpoint(self._manager),
@@ -83,7 +73,6 @@ class McpServer:
             self._rag = None
             self._commute = None
             self._resource.close()
-            self._day_resource.close()
 
 
     @asynccontextmanager
@@ -109,5 +98,5 @@ class McpServer:
 
 def create_app(service: LocationServiceInterface | None = None,
                ui_path: Path | str | None = None, rag_service: RagServiceInterface | None = None,
-               commute_service=None, day_ui_path: Path | str | None = None) -> Starlette:
-    return McpServer(service, ui_path, rag_service, commute_service, day_ui_path).app
+               commute_service=None) -> Starlette:
+    return McpServer(service, ui_path, rag_service, commute_service).app
