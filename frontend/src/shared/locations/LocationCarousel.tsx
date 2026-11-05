@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '../ui/button'
 import { LocationCard } from './LocationCard'
+import type { CompareChoice } from './CompareToggle'
 import type { LocationFeature } from './types'
 import { useEntrance } from '../motion/useEntrance'
 
@@ -12,6 +13,7 @@ interface LocationCarouselProps {
   onSelect: (id: string) => void
   // caption names the count, active criteria and order above the deck.
   caption?: string
+  compare?: (feature: LocationFeature) => CompareChoice
 }
 
 function motion(): ScrollBehavior {
@@ -24,7 +26,7 @@ function anchor(track: HTMLElement, card: HTMLElement) {
 }
 
 // LocationCarousel scrolls its own viewport without changing the map selection.
-export function LocationCarousel({ features, selectedId, reveal, onSelect, caption }: LocationCarouselProps) {
+export function LocationCarousel({ features, selectedId, reveal, onSelect, caption, compare }: LocationCarouselProps) {
   const trackRef = useRef<HTMLUListElement>(null)
   const [edges, setEdges] = useState({ start: true, end: features.length < 2 })
   // Slides, not cards: cards keep CSS transform transitions for hover and press.
@@ -69,7 +71,7 @@ export function LocationCarousel({ features, selectedId, reveal, onSelect, capti
       <Button type="button" variant="outline" size="icon-lg" className="rounded-full" aria-label="Sljedeći vrtić" disabled={edges.end} onClick={() => move(1)}><ChevronRight data-icon="inline-end" /></Button>
     </div>
     <ul ref={trackRef} className="location-track" aria-label="Vrtićki objekti">
-      {features.map((feature) => <li className="location-slide" key={feature.id}><LocationCard feature={feature} selected={feature.id === selectedId} onSelect={onSelect} /></li>)}
+      {features.map((feature) => <li className="location-slide" key={feature.id}><LocationCard feature={feature} selected={feature.id === selectedId} onSelect={onSelect} compare={compare?.(feature)} /></li>)}
     </ul>
   </section>
 }

@@ -43,7 +43,7 @@ export function compareOptions(features: LocationFeature[]): Map<string, Compari
 
     const round = currentRound(location.enrolment ?? [])
     if (!round) checks.push('Kanal upisa nije potvrđen')
-    else if (round.status === 'open') strengths.push(`Upis je otvoren${round.closes_at ? ` do ${enrolmentInstant(round.closes_at)}` : ''}`)
+    else if (round.status === 'open') strengths.push(`${round.round === 'main' ? 'Upis' : 'Upis tijekom godine'} je otvoren${round.closes_at ? ` do ${enrolmentInstant(round.closes_at)}` : ''}`)
     else if (round.status === 'upcoming') strengths.push(`Upis počinje ${enrolmentInstant(round.opens_at!)}`)
     else if (round.status === 'closed') checks.push(`Rok upisa za ${round.academic_year} je završio`)
     else if (round.status === 'not_accepting') checks.push(`Upisi za ${round.academic_year} se ne provode`)

@@ -7,11 +7,13 @@ import { ProgramDetails } from './ProgramDetails'
 import { HistoricalDetails } from './HistoricalDetails'
 import { EnrolmentDetails } from './EnrolmentDetails'
 import { useEntrance } from '../motion/useEntrance'
+import { CompareToggle, type CompareChoice } from './CompareToggle'
 
 interface LocationDetailsProps {
   feature: LocationFeature
   onClose: () => void
   openLink?: (url: string) => void
+  compare?: CompareChoice
 }
 
 
@@ -23,7 +25,7 @@ function phoneHref(value: string) {
 }
 
 // LocationDetails presents published contacts and leaves missing facts unfilled.
-export function LocationDetails({ feature, onClose, openLink }: LocationDetailsProps) {
+export function LocationDetails({ feature, onClose, openLink, compare }: LocationDetailsProps) {
   const location = feature.properties
   const sectionRef = useRef<HTMLElement>(null)
   // Remounted per feature (keyed by id), so each selection replays the entrance.
@@ -57,6 +59,7 @@ export function LocationDetails({ feature, onClose, openLink }: LocationDetailsP
         <span className="location-details-kind">{providerLabels[location.provider_kind]}</span>
         <h2>{location.location_name}</h2>
         {location.name !== location.location_name && <p className="location-details-institution">Ustanova: {location.name}</p>}
+        {compare && <CompareToggle {...compare} name={location.location_name} />}
         <p className="location-details-address">
           <MapPin aria-hidden="true" />
           <span>{location.address ?? 'Adresa nije poznata'}{place && `, ${place}`}</span>

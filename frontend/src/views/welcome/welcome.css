@@ -99,3 +99,45 @@
 .historical-details ul { padding-left: 18px; list-style: disc; }
 .historical-details summary { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .historical-details details ul { padding-top: 8px; }
+
+/* Comparison: add buttons, tray and side-by-side table. */
+.location-card-compare { position: absolute; top: 6px; right: 6px; z-index: 1; }
+.location-card:has(.location-card-compare) .location-card-text { padding-right: 26px; }
+.compare-toggle { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 12px; color: var(--ink); background: var(--mint); border: 2px solid var(--ink); border-radius: 100px; box-shadow: var(--shadow-sm); font-size: 12px; font-weight: 700; cursor: pointer; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+.compare-toggle[data-compact="true"] { width: 26px; min-height: 26px; padding: 0; justify-content: center; border-width: 1.5px; box-shadow: none; }
+.compare-toggle[aria-pressed="true"] { background: var(--lemon); }
+.compare-toggle:hover:not(:disabled) { background: var(--lemon); }
+.compare-toggle:active:not(:disabled) { transform: var(--press); box-shadow: none; }
+.compare-toggle:disabled { opacity: .45; cursor: not-allowed; }
+.compare-toggle:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.compare-toggle svg { width: 14px; height: 14px; stroke-width: 2.5; }
+.location-details-body > .compare-toggle { margin: 4px 0 6px 3px; }
+.compare-tray { display: inline-flex; align-items: center; gap: 6px; padding: 4px 4px 4px 12px; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 100px; box-shadow: var(--shadow-sm); font-size: 12px; font-weight: 600; }
+.compare-tray > svg { width: 14px; height: 14px; }
+.compare-tray button { display: inline-flex; align-items: center; justify-content: center; min-height: 30px; color: var(--ink); border: 0; border-radius: 100px; font: inherit; font-weight: 700; cursor: pointer; }
+.compare-tray-open { padding: 0 12px; background: var(--lemon); }
+.compare-tray-open:disabled { background: var(--cream); opacity: .6; cursor: not-allowed; }
+.compare-tray-clear { width: 30px; background: var(--cream); }
+.compare-tray-clear svg { width: 14px; height: 14px; }
+.compare-tray button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.comparison-view { position: absolute; inset: 0; z-index: 12; display: flex; flex-direction: column; min-height: 0; color: var(--ink); background: var(--cream); }
+.comparison-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 12px; border-bottom: 2px solid var(--ink-wash); }
+.comparison-header h2 { font-family: var(--display); font-size: 26px; font-weight: 400; line-height: 1; letter-spacing: .01em; outline: none; }
+.comparison-header .location-details-close { position: static; }
+.comparison-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.comparison-view table { width: 100%; min-width: 640px; border-collapse: separate; border-spacing: 0; font-size: 13px; line-height: 1.45; }
+.comparison-view th, .comparison-view td { padding: 12px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--ink-wash); }
+.comparison-view thead th { position: sticky; top: 0; z-index: 1; background: var(--surface); font-family: var(--display); font-size: 15px; font-weight: 400; }
+.comparison-view thead th > span { display: block; padding-right: 30px; }
+.comparison-view thead td { position: sticky; top: 0; left: 0; z-index: 2; background: var(--surface); }
+/* Criterion labels stay visible while the columns scroll sideways on phones. */
+.comparison-view tbody th { position: sticky; left: 0; z-index: 1; width: 128px; background: var(--cream); font-weight: 700; }
+.comparison-view td { min-width: 180px; background: var(--surface); }
+.comparison-view ul { display: flex; flex-direction: column; gap: 4px; padding-left: 16px; list-style: disc; }
+.comparison-view a { text-underline-offset: 3px; overflow-wrap: anywhere; }
+.comparison-view .enrolment-status { margin-bottom: 6px; }
+.comparison-unknown { color: var(--muted); font-style: italic; }
+.comparison-remove { position: absolute; top: 10px; right: 10px; display: grid; place-items: center; width: 26px; height: 26px; color: var(--ink); background: var(--cream); border: 1.5px solid var(--ink); border-radius: 50%; cursor: pointer; }
+.comparison-remove:hover { background: var(--lemon); }
+.comparison-remove svg { width: 13px; height: 13px; stroke-width: 2.5; }
+.comparison-footnote { margin: 0; padding: 12px 20px 16px; border-top: 2px solid var(--ink-wash); }

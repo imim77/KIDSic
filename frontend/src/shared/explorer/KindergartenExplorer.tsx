@@ -8,9 +8,13 @@ import { LocationDetails } from '../locations/LocationDetails'
 import { LocationList } from '../locations/LocationList'
 import { NearbyControl } from '../locations/NearbyControl'
 import { DistrictControl } from '../locations/DistrictControl'
+import { CompareTray } from '../locations/CompareTray'
+import { ComparisonView } from '../locations/ComparisonView'
+import { comparisonLimit } from '../locations/comparison'
+import type { CompareChoice } from '../locations/CompareToggle'
 import { formatDistance } from '../locations/distance'
 import { describeCriteria, results } from '../locations/criteria'
-import type { LocationCollection, Nearby, SearchCriteria } from '../locations/types'
+import type { LocationCollection, LocationFeature, Nearby, SearchCriteria } from '../locations/types'
 
 interface KindergartenExplorerProps {
   data: LocationCollection | null
@@ -62,12 +66,36 @@ function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emp
     onSelect(null)
   }
 
+  // Compared options are kept as snapshots so they survive a new search; a
+  // result that is still listed replaces its snapshot, e.g. to show distance.
+  const [compared, setCompared] = useState<LocationFeature[]>([])
+  const [comparing, setComparing] = useState(false)
+  const comparedNow = compared.map((feature) => data?.features.find((current) => current.id === feature.id) ?? feature)
+  const compareChoice = (feature: LocationFeature): CompareChoice => {
+    const selected = compared.some((item) => item.id === feature.id)
+    return { selected, full: compared.length >= comparisonLimit, onToggle: () => setCompared((items) => selected
+      ? items.filter((item) => item.id !== feature.id)
+      : items.length < comparisonLimit ? [...items, feature] : items) }
+  }
+  const removeCompared = (id: string) => {
+    const remaining = compared.filter((item) => item.id !== id)
+    setCompared(remaining)
+    if (remaining.length < 2) setComparing(false)
+  }
+
   const panels = expanded && roomy && !!data?.features.length
+  // The comparison covers the explorer; what lies beneath must not take focus.
+  const covered = comparing && comparedNow.length > 1
   const described = criteria ? describeCriteria(criteria) : undefined
-  return <div ref={layoutRef} className="explorer-layout" data-suitability={data?.features.some((feature) => feature.properties.suitability_status === 'confirmed') ? '' : undefined} data-layout={panels ? 'panels' : 'map'} data-details={expanded && selected ? '' : undefined}>
+  return <div ref={layoutRef} className="explorer-layout" data-suitability={data?.features.some((feature) => feature.properties.suitability_status === 'confirmed') ? '' : undefined} data-layout={panels ? 'panels' : 'map'} data-details={expanded && selected ? '' : undefined} data-comparing={covered ? '' : undefined}>
+    {/* display: contents keeps list and details as grid items of the layout. */}
+    <div className="contents" inert={covered}>
     {panels && <LocationList collection={data!} selectedId={selectedId} onSelect={onSelect} criteria={described} />}
-    {expanded && selected && <LocationDetails key={selected.id} feature={selected} onClose={closeDetails} openLink={openLink} />}
-    <div className="explorer-map">
+    {expanded && selected && <LocationDetails key={selected.id} feature={selected} onClose={closeDetails} openLink={openLink} compare={compareChoice(selected)} />}
+    </div>
+    {covered && <ComparisonView features={comparedNow} onRemove={removeCompared}
+      onClose={() => setComparing(false)} openLink={openLink} />}
+    <div className="explorer-map" inert={covered}>
       <KindergartenMap collection={data} selectedId={selectedId} nearby={nearby?.value} picking={picking} onPick={place}
         onSelect={(id) => { onSelect(id); setReveal((previous) => ({ id, revision: (previous?.revision ?? 0) + 1 })) }}
         overlay={(mapReady) => <>
@@ -78,6 +106,7 @@ function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emp
               if (nearby.value) nearby.onChange({ ...nearby.value, radius_m: value })
             }} />}
           {!!district?.options.length && <DistrictControl {...district} />}
+          {compared.length > 0 && <CompareTray count={compared.length} onOpen={() => setComparing(true)} onClear={() => { setCompared([]); setComparing(false) }} />}
           {status === 'loading' && <p className="explorer-notice" role="status">{notice ?? 'Učitavanje objekata…'}</p>}
           {status === 'error' && <div className="explorer-notice" role="alert"><p>Podatke nije moguće učitati. Provjerite vezu i pokušajte ponovno.</p><button className="text-button" onClick={() => { setReveal(null); retry() }}>Pokušaj ponovno</button></div>}
           {data?.features.length === 0 && <p className="explorer-notice" role="status">{emptyNotice ?? (nearby?.value
@@ -87,6 +116,7 @@ function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emp
         </>} />
       {data && <p className="sr-only" role="status">{data.metadata.total} rezultata · {data.metadata.mapped} na karti · {data.metadata.unmapped} bez koordinata</p>}
       {!!data?.features.length && !panels && <LocationCarousel features={data.features} selectedId={selectedId} reveal={reveal} onSelect={(id) => { onSelect(id); expand() }}
+        compare={compareChoice}
         caption={described && [results(data.metadata.total), ...described].join(' · ')} />}
     </div>
   </div>

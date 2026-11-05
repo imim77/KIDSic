@@ -243,7 +243,7 @@ it('searches around a map point with the retained criteria and tells the model a
   host.call.mockResolvedValueOnce(radiusResult('Zagreb', null, 'city'))
   await user.click(screen.getByRole('button', { name: 'Ukloni' }))
   expect(host.call).toHaveBeenLastCalledWith({ name: 'prikazi_vrtice', arguments: { city: 'Zagreb', provider_kind: 'municipal' } })
-  await screen.findByRole('button', { name: /Synthetic facility city/ })
+  await screen.findByRole('button', { name: /^Synthetic facility city/ })
   expect(host.model).toHaveBeenLastCalledWith({ content: [{ type: 'text', text: expect.stringContaining('uklonio točku') }] })
 })
 

@@ -4,15 +4,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import type { LocationFeature } from './types'
 import { SuitabilityBadge } from './ProgramDetails'
 import { formatDistance } from './distance'
+import { CompareToggle, type CompareChoice } from './CompareToggle'
 
 interface LocationCardProps {
   feature: LocationFeature
   selected: boolean
   onSelect: (id: string) => void
+  compare?: CompareChoice
 }
 
 // LocationCard selects a map result from its compact name and address summary.
-export function LocationCard({ feature, selected, onSelect }: LocationCardProps) {
+export function LocationCard({ feature, selected, onSelect, compare }: LocationCardProps) {
   const location = feature.properties
   const rawAddress = location.address ?? 'Adresa nije poznata'
   const address = location.location_role === 'seat' ? `Sjedište: ${rawAddress}` : rawAddress
@@ -23,7 +25,7 @@ export function LocationCard({ feature, selected, onSelect }: LocationCardProps)
     <div className="location-thumbnail pointer-events-none relative" aria-hidden="true">
       <Building2 />
     </div>
-    <div className="pointer-events-none relative flex min-w-0 flex-1 flex-col justify-center gap-1 self-stretch">
+    <div className="location-card-text pointer-events-none relative flex min-w-0 flex-1 flex-col justify-center gap-1 self-stretch">
       <CardHeader className="gap-0 p-0">
         <CardTitle className="min-w-0">
           <span className="block truncate font-display text-[15px] leading-tight font-normal tracking-[.01em]" title={location.location_name}>{location.location_name}</span>
@@ -40,5 +42,7 @@ export function LocationCard({ feature, selected, onSelect }: LocationCardProps)
         </p>
       </CardContent>}
     </div>
+    {/* Sits above the card-wide select button, so it toggles without opening details. */}
+    {compare && <div className="location-card-compare"><CompareToggle {...compare} name={location.location_name} compact /></div>}
   </Card>
 }
