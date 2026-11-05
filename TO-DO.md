@@ -17,7 +17,7 @@
 
 - [ ] Pretraživati nacionalni imenik prema nazivu, mjestu, gradu, županiji i poštanskom broju.
 - [x] Pronalaziti objekte prema odabranoj lokaciji i radijusu udaljenosti kada su dostupne provjerene koordinate (API: `near` + `radius_m`; web karta i MCP app: „Moja lokacija” ili klik na kartu; MCP alat: `near` + `radius_m`).
-- [ ] Filtrirati zagrebačke objekte prema gradskoj četvrti.
+- [x] Filtrirati zagrebačke objekte prema gradskoj četvrti (web: izbornik „Četvrt” nad postojećim `area` filtrom; objekti bez potvrđene četvrti navedeni su brojem).
 - [x] Filtrirati prema vrsti pružatelja: gradski, privatni, vjerski vrtić ili obrt dadilja.
 - [ ] Filtrirati prema dobi djeteta i programu kada postoje potvrđeni podaci, uz zasebnu oznaku za rezultate s nepoznatim uvjetima.
 - [x] Prikazivati rezultate na listi i karti, s međusobno povezanim odabirom objekta.
