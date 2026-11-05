@@ -1,6 +1,7 @@
 import type { RefObject } from 'react'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
+import { reducedMotion } from './reducedMotion'
 
 gsap.registerPlugin(useGSAP)
 
@@ -10,12 +11,6 @@ interface EntranceOptions {
   limit?: number
   // Also moves the scope itself in before its children.
   container?: boolean
-}
-
-// Treats a missing matchMedia as reduced motion, so tests and odd hosts see
-// the final state at once.
-function reducedMotion() {
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? true
 }
 
 // useEntrance fades a container's children in, staggered, whenever `deps`

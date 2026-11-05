@@ -1,6 +1,7 @@
 import type { MouseEvent } from 'react'
 import type { HistoricalEvidence } from './types'
 import { websiteHref } from './links'
+import { Disclosure } from '../motion/Disclosure'
 
 // HistoricalDetails preserves the date and institution/object scope of open snapshots.
 export function HistoricalDetails({ records, openLink }: { records: HistoricalEvidence[]; openLink?: (url: string) => void }) {
@@ -23,12 +24,11 @@ export function HistoricalDetails({ records, openLink }: { records: HistoricalEv
         <p className="historical-details-date">{record.date_kind === 'observed' ? 'Stanje na dan' : 'Objavljeno'} {format(record.reference_date)}</p>
         <p>{record.scope === 'institution' ? 'Podatak za cijelu ustanovu/obrt; mjesta nisu raspoređena po objektima.' : 'Podatak za ovaj objekt.'}</p>
         {record.programs.length > 0 && <ul>{record.programs.map((program) => <li key={program}>{program}</li>)}</ul>}
-        {record.vacancies.length > 0 && <details>
-          <summary>Mjesta prema dobi i programu</summary>
+        {record.vacancies.length > 0 && <Disclosure summary="Mjesta prema dobi i programu">
           <ul>{record.vacancies.map((vacancy, i) => <li key={i}>
             {[vacancy.age_label, vacancy.program?.toLocaleLowerCase('hr')].filter(Boolean).join(' · ')}: <strong>{vacancy.free_places ?? 'nije objavljeno'}</strong>
           </li>)}</ul>
-        </details>}
+        </Disclosure>}
         {href && <a href={href} target="_blank" rel="noreferrer" onClick={open}>Grad Zagreb · izvorni otvoreni skup ↗</a>}
         <p className="location-details-note">Licenca: {record.license}</p>
       </article>

@@ -87,6 +87,8 @@ a { color: var(--ink); }
 .subsidy-rates strong { display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .subsidy-links { display: flex; flex-direction: column; gap: 8px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .subsidy-links a { text-underline-offset: 3px; }
+/* flow-root keeps child margins inside, so the measured height matches the end state. */
+.disclosure-body { display: flow-root; }
 .enrolment-action { align-self: flex-start; padding: 8px 14px; font-weight: 700; text-decoration: none; background: var(--surface); border: 2px solid var(--ink); border-radius: 999px; box-shadow: var(--shadow-lg); }
 .enrolment-action:active { transform: var(--press); box-shadow: none; }
 h1, h2, p { margin: 0; }

@@ -34,7 +34,7 @@ ispunjava dodijeljeni prozor.
 - `src/shared/locations/`: ugovor podataka, dohvat, kartice i carousel.
 - `src/shared/explorer/`: zajednički okvir i prošireni prikaz.
 - `src/shared/map/`: Mapbox lifecycle, GeoJSON slojevi i odabir objekta.
-- `src/shared/motion/`: GSAP ulazne animacije (`useEntrance`).
+- `src/shared/motion/`: GSAP ulazne animacije (`useEntrance`) i sklopivi odjeljci (`Disclosure`).
 - `src/shared/`: zajednička tema i resursi.
 - `public/`: statičke datoteke.
 
@@ -42,7 +42,10 @@ Animacije koriste [GSAP](https://gsap.com) i `@gsap/react` (`useGSAP` čisti
 animacije pri unmountu). Kartice, popis i detalji odabranog vrtića ulaze
 postupno: mijenjaju se samo prozirnost i pomak, a inline stilovi brišu se na
 kraju, da ostanu CSS hover i press stanja i da detalji mogu primiti fokus.
-Animira se omotač (`li`), ne kartica s vlastitim CSS prijelazom. Uz
+Animira se omotač (`li`), ne kartica s vlastitim CSS prijelazom.
+Sklopivi odjeljci (npr. „Tarife, olakšice i uvjeti”) ostaju nativni `<details>`
+radi tipkovnice, pretrage stranice i čitača zaslona; `Disclosure` samo glatko
+mijenja visinu i zatvara element tek kad animacija završi. Uz
 `prefers-reduced-motion: reduce` ili bez `matchMedia` (npr. u testovima)
 sadržaj se odmah prikazuje u konačnom stanju. GSAP koristi vlastitu besplatnu
 [standardnu licencu](https://gsap.com/standard-license), a ne OSS licencu.
