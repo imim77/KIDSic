@@ -17,26 +17,21 @@ export function RouteSummary({ result, option }: { result: CommuteResult; option
       <span className="route-summary-title">
         <span className="route-summary-rank">{rank === 0 ? 'Najbolja opcija' : `Alternativa ${rank}`}</span>
         <span className="route-summary-name">{option.name}</span>
-        <span>Dolazak {time(option.arrival)} · {minutes(option.elapsed_seconds)} min · predaja {result.dropoff_minutes} min</span>
+        <span>Dolazak <strong>{time(option.arrival)}</strong> · <strong>{minutes(option.elapsed_seconds)} min</strong> · predaja {result.dropoff_minutes} min</span>
       </span>
       <ChevronDown className="route-summary-chevron" aria-hidden="true" size={18} />
     </>}>
       <p className="route-summary-facts">
-        Polazak {time(result.departure)} · {result.mode === 'TRANSIT' ? 'bus + pješice' : 'pješice'} · {option.transfers} presjedanja{extra && ` · ${extra}`}
+        Polazak <strong>{time(result.departure)}</strong> · {result.mode === 'TRANSIT' ? 'bus + pješice' : 'pješice'} · <strong>{option.transfers}</strong> presjedanja{extra && <> · <strong>{extra}</strong></>}
       </p>
       {option.journeys.map((journey, index) => <section key={index}>
         <h3>{index === 0 ? 'Dom → vrtić' : 'Vrtić → posao'} · {time(journey.departure)}–{time(journey.arrival)}</h3>
         <ol>{journey.legs.map((leg, i) => <li key={i}>
           {leg.mode === 'WALK' ? <Footprints aria-hidden="true" size={14} /> : <Bus aria-hidden="true" size={14} />}
-          <span>{time(leg.departure)} {leg.mode === 'WALK' ? 'pješice' : `linija ${leg.line ?? leg.mode}`} do{' '}
+          <span><strong>{time(leg.departure)}</strong> {leg.mode === 'WALK' ? 'pješice' : <strong>linija {leg.line ?? leg.mode}</strong>} do{' '}
             {leg.to_name === 'Destination' ? (index === 0 ? 'vrtića' : 'posla') : leg.to_name}</span>
         </li>)}</ol>
       </section>)}
-      {option.journeys.some(journey => journey.legs.some(leg => !leg.geometry)) && <p>Dio puta nema geometriju pa nije na karti.</p>}
-      <p className="route-summary-note">
-        Uspoređeno {result.searched}, s rutom {result.reachable}. Vozni red do {result.sources.service_end}, bez kašnjenja uživo; radno vrijeme i mjesta nisu potvrđeni.
-      </p>
-      <p className="route-summary-note">GTFS vekejsn, CC-BY-4.0 · © OpenStreetMap contributors</p>
     </Disclosure>
   </div>
 }

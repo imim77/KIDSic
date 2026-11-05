@@ -17,8 +17,9 @@
 .route-summary ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; }
 .route-summary li { display: flex; align-items: flex-start; gap: 6px; line-height: 1.35; }
 .route-summary li svg { flex: 0 0 auto; margin-top: 2px; }
-.route-summary-facts { font-weight: 600; }
-.route-summary-note { color: var(--muted); font-size: 11px; line-height: 1.4; }
+.route-summary strong { font-weight: 800; }
+/* The last section sits on the card's bottom edge, so give it room. */
+.route-summary .disclosure-body > :last-child { margin-bottom: 14px; }
 @media (max-width: 650px) {
   .route-summary { font-size: 11px; }
   .route-summary summary { padding: 8px 10px; }

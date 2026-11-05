@@ -186,7 +186,7 @@ pročitati rezultat, ali ne može prikazati interaktivnu kartu.
 
 ## Ugovor UI-ja i provjera
 
-Resurs `ui://kidsic/map-v28.html` ima MIME `text/html;profile=mcp-app`. Hostovi
+Resurs `ui://kidsic/map-v29.html` ima MIME `text/html;profile=mcp-app`. Hostovi
 predložak spremaju po URI-ju, pa se verzija u URI-ju podiže pri svakoj promjeni
 UI-ja, a server se nakon `build:mcp` mora ponovno pokrenuti. Moderni
 `_meta.ui.resourceUri` i kompatibilni `openai/outputTemplate` povezuju ga s alatom.
@@ -212,7 +212,7 @@ visinu dodijeljenog prozora. Klik na karticu traži fullscreen i otvara popis,
 detalje i kartu u stupcima (ispod 1100 px detalji prekrivaju popis, ispod 700 px
 kartu). Detalji prikazuju samo podatke iz izvora i navode što nije poznato;
 vanjske poveznice otvaraju se kroz `ui/open-link`. Nakon nadogradnje ponovno
-povezati konektor kako bi host preuzeo URI resursa v28 te pokrenuti novi poziv
+povezati konektor kako bi host preuzeo URI resursa v29 te pokrenuti novi poziv
 alata.
 Resurs deklarira CSP za `https://tile.openstreetmap.org` i ugrađene data resurse.
 Leaflet ne zahtijeva WebGL ili Web Workere. UI je jedan HTML bez relativnih
@@ -307,7 +307,7 @@ prema dolasku na posao i traženi broj alternativa. `top_k` je ukupan broj opcij
 znači `top_k=3`. Ograničavanje se primjenjuje tek nakon rangiranja cijelog kataloga.
 Ako ima manje dostupnih ruta, alat vraća samo njih i točne brojeve pokrivenosti.
 
-Oba alata koriste isti resurs `ui://kidsic/map-v28.html` iz `frontend/dist/mcp.html`.
+Oba alata koriste isti resurs `ui://kidsic/map-v29.html` iz `frontend/dist/mcp.html`.
 Preporuka koristi istu sivu Leaflet/OSM kartu, boje oznaka, vodoravne kartice i
 fullscreen prikaz kao `prikazi_vrtice`. Na karti i karticama su samo vraćenih
 `top_k` vrtića u poretku dolaska na posao. Najbolja ruta je odabrana odmah;
