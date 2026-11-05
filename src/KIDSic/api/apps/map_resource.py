@@ -7,7 +7,17 @@ from mcp.server.lowlevel.helper_types import ReadResourceContents
 UI_URI = 'ui://kidsic/map-v22.html'
 UI_MIME = 'text/html;profile=mcp-app'
 SERVER_INSTRUCTIONS = (
-    'When the user asks to show or find kindergartens in a city, ALWAYS call '
+    'When the user asks which kindergartens fit a home-to-work commute, use '
+    'KIDSic:preporuci_vrtice_usput instead of the general map tool. It resolves explicit '
+    'addresses locally, ranks all mapped Rijeka facilities, and returns the best plus '
+    'up to three alternatives with a route map. Ask for missing city, home, work, '
+    'departure DATE/time and transport mode. Never guess coordinates, date or mode. '
+    'For clarification_required ask which candidate; do not choose ambiguous addresses. '
+    'Explain that ranking concerns arrival at work, not age suitability or admission. '
+    'State the drop-off minutes (default 10) and timetable validity from the result. '
+    'Do not call the general map tool afterwards and overwrite the commute map. '
+
+    'For general city searches without commuting constraints, ALWAYS call '
     'prikazi_vrtice to display the interactive map and cards. '
     'A city explicitly supplied by the user is required. If the city is missing '
     'or ambiguous, ask the user which city before calling the tool. Never infer '
@@ -65,7 +75,10 @@ RESOURCE_META = {
 
 
 class MapResource:
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, *, uri=UI_URI, meta=RESOURCE_META,
+                 name='kidsic-map', title='Karta vrtića', lazy=False):
+        self.uri, self._meta = uri, meta
+        self._name, self._title, self._lazy = name, title, lazy
         self._path = path
         self._html = None
 
@@ -86,13 +99,15 @@ class MapResource:
         server.read_resource()(self.read_resource)
 
     async def list_resources(self):
-        return [types.Resource(uri=UI_URI, name='kidsic-map', title='Karta vrtića',
-                               mimeType=UI_MIME, _meta=RESOURCE_META)]
+        return [types.Resource(uri=self.uri, name=self._name, title=self._title,
+                               mimeType=UI_MIME, _meta=self._meta)]
 
     async def read_resource(self, uri):
-        if str(uri) != UI_URI:
+        if str(uri) != self.uri:
             raise ValueError('Nepoznat UI resurs.')
+        if self._html is None and self._lazy:
+            self.load()
         if self._html is None:
             raise RuntimeError('Map resource is not loaded.')
         return [ReadResourceContents(content=self._html, mime_type=UI_MIME,
-                                     meta=RESOURCE_META)]
+                                     meta=self._meta)]

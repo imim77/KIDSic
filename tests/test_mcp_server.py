@@ -29,11 +29,12 @@ def decoded_locations(result):
 
 
 @asynccontextmanager
-async def connected(service, rag_service=None):
+async def connected(service, rag_service=None, commute_service=None):
     with TemporaryDirectory() as directory:
         asset = Path(directory) / 'mcp.html'
         asset.write_text('<html><body>KIDSic map</body></html>')
-        app = create_app(service, ui_path=asset, rag_service=rag_service)
+        (Path(directory) / 'day-mcp.html').write_text('<html>Commute map</html>')
+        app = create_app(service, ui_path=asset, rag_service=rag_service, commute_service=commute_service)
         async with app.router.lifespan_context(app):
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app),
                                          base_url='http://localhost') as http:
@@ -93,7 +94,7 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn('ALWAYS', initialized.instructions)
             self.assertIn('ask the user', initialized.instructions)
             tools = (await session.list_tools()).tools
-            self.assertEqual([tool.name for tool in tools], ['prikazi_vrtice', 'dohvati_kontekst_vrtica'])
+            self.assertEqual([tool.name for tool in tools], ['prikazi_vrtice', 'dohvati_kontekst_vrtica', 'preporuci_vrtice_usput'])
             tool = tools[0]
             self.assertEqual(tool.inputSchema['required'], ['city'])
             self.assertNotIn('default', tool.inputSchema['properties']['city'])

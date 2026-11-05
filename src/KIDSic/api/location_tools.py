@@ -37,7 +37,8 @@ class LocationTools:
         return [types.Tool(
             name='prikazi_vrtice', title='Prikaži vrtiće na karti',
             description=(
-                'ALWAYS use this tool when the user asks to show or find '
+                'For home-to-work commute recommendations use KIDSic:preporuci_vrtice_usput instead. '
+                'For general city searches, ALWAYS use this tool when the user asks to show or find '
                 'kindergartens by city, optionally name, provider type, area, child age and program. '
                 'Returns a map, cards, all applied criteria and counts of confirmed and unknown suitability. '
                 'REQUIRES a city supplied explicitly by the user. If no city '
