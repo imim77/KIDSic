@@ -96,7 +96,7 @@ function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emp
     {/* display: contents keeps list and details as grid items of the layout. */}
     <div className="contents" inert={covered}>
     {panels && <LocationList collection={data!} selectedId={selectedId} onSelect={onSelect} criteria={described} summary={summary} />}
-    {expanded && selected && (details ?? <LocationDetails key={selected.id} feature={selected} onClose={closeDetails} openLink={openLink} compare={compareChoice(selected)} />)}
+    {expanded && selected && (details ?? <LocationDetails key={selected.id} feature={selected} onClose={closeDetails} openLink={openLink} compare={route ? undefined : compareChoice(selected)} />)}
     </div>
     {covered && <ComparisonView features={comparedNow} onRemove={removeCompared}
       onClose={() => setComparing(false)} openLink={openLink} />}

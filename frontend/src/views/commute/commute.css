@@ -1,0 +1,26 @@
+/* RouteSummary: a map card whose body slides open via Disclosure (GSAP). */
+.route-summary { width: 100%; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 20px; box-shadow: var(--shadow-sm); font-size: 13px; }
+.route-summary summary { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; list-style: none; border-radius: 18px; }
+.route-summary summary::-webkit-details-marker { display: none; }
+.route-summary summary:focus-visible { outline: 3px solid var(--lilac); outline-offset: 2px; }
+.route-summary-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.route-summary-rank { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.route-summary-name { font-family: var(--display); font-size: 15px; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.route-summary-chevron { flex: 0 0 auto; transition: rotate 260ms ease-out; }
+.route-summary details[open]:not([data-closing]) .route-summary-chevron { rotate: 180deg; }
+/* The overlay sits on the map, so a long route scrolls inside the card. */
+.route-summary .disclosure-body > * { margin: 0 14px 10px; }
+/* No padding or border on the body: GSAP collapses it to a true zero height. */
+.route-summary .disclosure-body { max-height: min(46vh, 360px); overflow-y: auto; }
+.route-summary-facts { border-top: 1px solid var(--ink-wash); padding-top: 10px; }
+.route-summary h3 { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+.route-summary ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; }
+.route-summary li { display: flex; align-items: flex-start; gap: 6px; line-height: 1.35; }
+.route-summary li svg { flex: 0 0 auto; margin-top: 2px; }
+.route-summary-facts { font-weight: 600; }
+.route-summary-note { color: var(--muted); font-size: 11px; line-height: 1.4; }
+@media (max-width: 650px) {
+  .route-summary { font-size: 11px; }
+  .route-summary summary { padding: 8px 10px; }
+  .route-summary-name { font-size: 13px; }
+}
