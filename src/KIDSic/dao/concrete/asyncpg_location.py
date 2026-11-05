@@ -192,11 +192,18 @@ class AsyncpgLocationRepository(LocationRepository):
             provider_kind,district,areas,programs,historical_data,enrolment,suitability_status,
             website_url,email,phone,contact_sources,location_role,sources,field_sources,subsidy_policies,
             CASE WHEN geometry_valid THEN longitude END AS longitude,
-            CASE WHEN geometry_valid THEN latitude END AS latitude
+            CASE WHEN geometry_valid THEN latitude END AS latitude,
+            CASE WHEN $9::float8[] IS NOT NULL AND geometry_valid THEN round(ST_Distance(
+              ST_MakePoint(longitude,latitude)::geography,
+              ST_MakePoint($9[1],$9[2])::geography))::int END AS distance_m
           FROM candidate
           WHERE ($4::float8[] IS NULL OR (
               geometry_valid AND longitude BETWEEN $4[1] AND $4[3]
               AND latitude BETWEEN $4[2] AND $4[4]))
+            -- Geography measures metres on the spheroid; NULL points never match.
+            AND ($9::float8[] IS NULL OR (geometry_valid AND ST_DWithin(
+              ST_MakePoint(longitude,latitude)::geography,
+              ST_MakePoint($9[1],$9[2])::geography,$10::float8)))
             AND ($5='' OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(areas) area(name)
               WHERE regexp_replace(translate(lower(btrim(area.name)),'čćžšđ','cczsd'),
                 '^mjesni odbor ','')=$5))
@@ -206,4 +213,5 @@ class AsyncpgLocationRepository(LocationRepository):
         ''', supported_city_key(query.city), normalize(query.q), query.provider_kind,
             list(query.bbox) if query.bbox is not None else None,
             normalize(query.area).removeprefix('mjesni odbor '),
-            query.age_months, normalize(query.program), query.include_unknown)
+            query.age_months, normalize(query.program), query.include_unknown,
+            list(query.near) if query.near is not None else None, query.radius_m)

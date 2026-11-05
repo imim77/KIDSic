@@ -25,6 +25,13 @@ class LocationHttpEndpoint:
                 raise ValueError('Repeated query parameters are unsupported.')
             if 'bbox' in params:
                 params['bbox'] = params['bbox'].split(',')
+            if 'near' in params:
+                params['near'] = params['near'].split(',')
+            if 'radius_m' in params:
+                radius = params['radius_m']
+                if not radius.isascii() or not radius.isdecimal():
+                    raise ValueError('Radius must be an integer number of metres.')
+                params['radius_m'] = int(radius)
             if 'age_months' in params:
                 age = params['age_months']
                 if not age.isascii() or not age.isdecimal():

@@ -109,6 +109,7 @@ export interface LocationProperties {
   programs?: LocationProgram[]
   historical_data?: HistoricalEvidence[]
   enrolment?: LocationEnrolment[]
+  distance_m?: number | null
   location_role: 'facility' | 'seat'
   sources: LocationSource[]
   field_sources?: Record<string, LocationSource & { active_snapshot: boolean }>
@@ -140,7 +141,7 @@ export interface LocationCollection extends FeatureCollection<Point | null, Loca
     total: number
     mapped: number
     unmapped: number
-    scope: 'city' | 'bbox'
+    scope: 'city' | 'bbox' | 'radius'
     complete: true
     confirmed?: number
     unknown?: number

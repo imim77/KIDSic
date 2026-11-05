@@ -42,6 +42,7 @@ class LocationService(LocationServiceInterface):
                         suitability_status=dict(row).get('suitability_status', 'not_evaluated'),
                         programs=dict(row).get('programs', []),
                         historical_data=dict(row).get('historical_data', []),
+                        distance_m=dict(row).get('distance_m'),
                         enrolment=self._enrolment.present(dict(row).get('enrolment', [])),
                         subsidy_policies=[self._subsidies.present(policy)
                             for policy in dict(row).get('subsidy_policies', [])],
@@ -50,7 +51,8 @@ class LocationService(LocationServiceInterface):
             mapped = sum(feature.geometry is not None for feature in features)
             return LocationCollection(features=features, metadata=LocationMetadata(
                 total=len(features), mapped=mapped, unmapped=len(features) - mapped,
-                scope='bbox' if query.bbox is not None else 'city',
+                scope=('radius' if query.near is not None
+                       else 'bbox' if query.bbox is not None else 'city'),
                 confirmed=sum(feature.properties.suitability_status == 'confirmed' for feature in features),
                 unknown=sum(feature.properties.suitability_status == 'unknown' for feature in features),
             ))

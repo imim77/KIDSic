@@ -74,6 +74,20 @@ class LocationServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload['features'][0]['properties']['email'], 'info@example.invalid')
         self.assertEqual(payload['features'][0]['properties']['phone'], '01/123-4567')
 
+    async def test_radius_scope_and_distance_reach_geojson(self):
+        row = dict(location_id=uuid4(), kindergarten_id=uuid4(), name='Synthetic', location_name='Branch',
+                   address=None, city='Zagreb', provider_kind='municipal', district=None,
+                   location_role='facility', longitude=15.98, latitude=45.82, sources=[],
+                   distance_m=1112)
+        repository = SimpleNamespace(list_locations=AsyncMock(return_value=[row]))
+        @asynccontextmanager
+        async def uow():
+            yield SimpleNamespace(locations=repository)
+        result = await LocationServiceFactory().create(uow).list_locations(
+            LocationQuery(near=(15.98, 45.81), radius_m=1200))
+        self.assertEqual(result.metadata.scope, 'radius')
+        self.assertEqual(result.features[0].properties.distance_m, 1112)
+
     async def test_suitability_counts_and_sourced_programs_survive_geojson_conversion(self):
         row = dict(kindergarten_id=uuid4(),name='Synthetic',location_name='Synthetic',location_id=uuid4(),
             address=None,city='Zagreb',provider_kind='private',district=None,longitude=None,latitude=None,

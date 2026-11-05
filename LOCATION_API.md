@@ -15,6 +15,7 @@ read endpoint; the local server binds to `127.0.0.1` by default.
 | `program` | Trimmed program-name substring, at most 200 characters; ignores case and Croatian diacritics. Empty/omitted means no program filter. `%` and `_` remain literal. |
 | `include_unknown` | `true` (default) keeps separately labelled unconfirmed suitability; `false` returns confirmed matches only when age/program is set. No effect otherwise. HTTP requires literal `true` or `false`. |
 | `bbox` | Optional `west,south,east,north` in WGS84; finite ordered longitude/latitude bounds. Antimeridian wrapping is unsupported. |
+| `near`, `radius_m` | Optional `longitude,latitude` in WGS84 and an integer radius of 1–50000 metres; both or neither. Cannot be combined with `bbox`. |
 
 There is no pagination or result cap: `metadata.complete` is always `true` and
 `total` equals the feature count. `mapped + unmapped = total`. Without `bbox`,
@@ -22,6 +23,12 @@ There is no pagination or result cap: `metadata.complete` is always `true` and
 With `bbox`, `scope` is `bbox` and only points within the inclusive bounds are
 returned; unknown coordinates cannot be asserted inside the box. Analysis callers
 must omit `bbox` to obtain the complete selected city, independently of map view.
+With `near` and `radius_m`, `scope` is `radius` and only points whose straight-line
+(spheroid) distance from `near` is at most `radius_m` are returned. The same
+coordinate validity rules as `bbox` apply, so unlocated objects and seats without
+reviewed geocoding are excluded. Each feature then carries
+`properties.distance_m`, rounded to whole metres; it is null without `near`.
+Distance is not walking or travel time, and ordering is unchanged.
 Unsupported query parameters, repeated parameters and invalid filters return
 HTTP 422 with `{"error":"invalid_query"}`. Database unavailable returns HTTP 503
 with `{"error":"locations_unavailable"}`; internal exception text is never sent.

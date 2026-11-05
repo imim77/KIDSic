@@ -12,6 +12,8 @@ class LocationQueryTests(unittest.TestCase):
         query = LocationQuery(city=' Zagreb ', q=' Medo ', provider_kind='municipal')
         self.assertEqual((query.city, query.q), ('Zagreb', 'Medo'))
         self.assertEqual(LocationQuery(bbox=(15, 45, 16, 46)).bbox, (15, 45, 16, 46))
+        radius = LocationQuery(near=(15.98, 45.81), radius_m=1000)
+        self.assertEqual((radius.near, radius.radius_m), ((15.98, 45.81), 1000))
         self.assertEqual(LocationQuery(program=' Montessori ',age_months=0).program,'Montessori')
         self.assertEqual(LocationQuery(age_months=216).age_months,216)
         self.assertIsNone(LocationQuery().age_months)
@@ -28,7 +30,15 @@ class LocationQueryTests(unittest.TestCase):
                        {'bbox': [15, 45, 16]}, {'bbox': [16, 45, 15, 46]},
                        {'bbox': [15, 46, 16, 45]}, {'bbox': [-181, 45, 16, 46]},
                        {'bbox': [15, -91, 16, 46]}, {'bbox': [15, 45, float('inf'), 46]},
-                       {'bbox': [15, 45, float('nan'), 46]}):
+                       {'bbox': [15, 45, float('nan'), 46]},
+                       {'near': [15.98, 45.81]}, {'radius_m': 1000},
+                       {'near': [15.98], 'radius_m': 1000}, {'near': [181, 45], 'radius_m': 1000},
+                       {'near': [15, float('nan')], 'radius_m': 1000},
+                       {'near': [15.98, 45.81], 'radius_m': 0},
+                       {'near': [15.98, 45.81], 'radius_m': 50_001},
+                       {'near': [15.98, 45.81], 'radius_m': 1000.0},
+                       {'near': [15.98, 45.81], 'radius_m': '1000'},
+                       {'near': [15.98, 45.81], 'radius_m': 1000, 'bbox': [15, 45, 16, 46]}):
             with self.subTest(values=values), self.assertRaises(ValidationError):
                 LocationQuery(**values)
 

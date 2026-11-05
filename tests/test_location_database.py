@@ -286,6 +286,23 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             LocationQuery(city='Split')
 
+    async def test_radius_keeps_only_verified_points_and_reports_metres(self):
+        # 0.01° latitude is about 1112 m on the spheroid.
+        _, centre = await self.fixture('Centre', coords=(15.98, 45.81))
+        _, near = await self.fixture('Near', coords=(15.98, 45.82))
+        await self.fixture('Far', coords=(15.98, 45.85))
+        await self.fixture('Unlocated', coords=(None, None))
+        await self.fixture('Seat only', seat=True)
+        rows = await self.repository.list_locations(
+            LocationQuery(near=(15.98, 45.81), radius_m=1200))
+        self.assertEqual([(r['location_id'], r['distance_m']) for r in rows],
+                         [(centre, 0), (near, rows[1]['distance_m'])])
+        self.assertTrue(1100 <= rows[1]['distance_m'] <= 1120)
+        self.assertEqual([r['location_id'] for r in await self.repository.list_locations(
+            LocationQuery(near=(15.98, 45.81), radius_m=1000))], [centre])
+        self.assertTrue(all(r['distance_m'] is None
+                            for r in await self.repository.list_locations(LocationQuery())))
+
     async def test_complete_city_has_no_recommendation_limit(self):
         for i in range(101):
             await self.fixture(f'Facility {i}')
@@ -444,3 +461,5 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
                 self.assertNotIn('longitude', rows[0]['field_sources'])
                 self.assertEqual(await self.repository.list_locations(
                     LocationQuery(q='Target', bbox=(15, 45, 16, 46))), [])
+                self.assertEqual(await self.repository.list_locations(
+                    LocationQuery(q='Target', near=(15.98, 45.81), radius_m=1000)), [])

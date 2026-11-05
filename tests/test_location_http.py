@@ -35,6 +35,14 @@ class LocationHttpTests(unittest.TestCase):
         self.assertEqual((query.age_months,query.program,query.include_unknown),(24,'Montessori',False))
         self.assertEqual(query.bbox, (15, 45, 16, 46))
 
+    def test_radius_query_is_parsed(self):
+        service = SimpleNamespace(list_locations=AsyncMock(return_value=empty_collection()))
+        with TestClient(create_app(service)) as client:
+            response = client.get('/api/locations?near=15.98,45.81&radius_m=1500')
+        self.assertEqual(response.status_code, 200)
+        query = service.list_locations.await_args.args[0]
+        self.assertEqual((query.near, query.radius_m), ((15.98, 45.81), 1500))
+
     def test_invalid_queries_never_access_persistence(self):
         service = SimpleNamespace(list_locations=AsyncMock())
         with TestClient(create_app(service)) as client:
@@ -42,7 +50,11 @@ class LocationHttpTests(unittest.TestCase):
                            'city=Zagreb&city=Split', 'limit=1', 'q=' + 'a' * 201, 'area=' + 'a' * 201, 'area=Banfica&area=Centar',
                            'age_months=24.0','age_months=true','age_months=-1','age_months=217',
                            'age_months=','age_months=24&age_months=36','include_unknown=1',
-                           'include_unknown=False','program='+'a'*201):
+                           'include_unknown=False','program='+'a'*201,
+                           'near=15.98,45.81', 'radius_m=1000', 'near=bad&radius_m=1000',
+                           'near=15.98,45.81&radius_m=1.5', 'near=15.98,45.81&radius_m=-1',
+                           'near=15.98,45.81&radius_m=0',
+                           'near=15.98,45.81&radius_m=1000&bbox=15,45,16,46'):
                 with self.subTest(suffix=suffix):
                     response = client.get('/api/locations?' + suffix)
                     self.assertEqual(response.status_code, 422)

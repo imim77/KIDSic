@@ -3,7 +3,7 @@ from datetime import date, datetime
 import math
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from KIDSic.dto.municipality import supported_city_key
 from KIDSic.dto.subsidy import SubsidyPolicy
 from KIDSic.dto.historical import HistoricalEvidence
@@ -22,6 +22,10 @@ class LocationQuery(BaseModel):
     include_unknown: bool = Field(default=True, strict=True)
     provider_kind: ProviderKind | None = None
     bbox: tuple[float, float, float, float] | None = None
+    # near and radius_m select points within a straight-line radius; objects
+    # without verified coordinates cannot be asserted inside it.
+    near: tuple[float, float] | None = None
+    radius_m: int | None = Field(default=None, strict=True, ge=1, le=50_000)
 
     @field_validator('city', 'q', 'area', 'program', mode='before')
     @classmethod
@@ -44,6 +48,26 @@ class LocationQuery(BaseModel):
             ):
                 raise ValueError('bbox must be west,south,east,north within WGS84 bounds.')
         return value
+
+    @field_validator('near')
+    @classmethod
+    def validate_near(cls, value):
+        if value is not None:
+            longitude, latitude = value
+            if not all(math.isfinite(x) for x in value) or not (
+                -180 <= longitude <= 180 and -90 <= latitude <= 90
+            ):
+                raise ValueError('near must be longitude,latitude within WGS84 bounds.')
+        return value
+
+    # One spatial scope keeps metadata.scope unambiguous.
+    @model_validator(mode='after')
+    def validate_radius(self):
+        if (self.near is None) != (self.radius_m is None):
+            raise ValueError('near and radius_m must be given together.')
+        if self.near is not None and self.bbox is not None:
+            raise ValueError('Use either bbox or near with radius_m.')
+        return self
 
 
 class LocationSource(BaseModel):
@@ -111,6 +135,7 @@ class LocationProperties(BaseModel):
     programs: list[LocationProgram] = Field(default_factory=list)
     historical_data: list[HistoricalEvidence] = Field(default_factory=list)
     enrolment: list[LocationEnrolment] = Field(default_factory=list)
+    distance_m: int | None = None  # Straight-line metres from near; null without it.
     # Retained for older clients; the sourced programs carry explicit age bounds.
     age_groups: None = None
 
@@ -131,7 +156,7 @@ class LocationMetadata(BaseModel):
     total: int
     mapped: int
     unmapped: int
-    scope: Literal['city', 'bbox']
+    scope: Literal['city', 'bbox', 'radius']
     complete: Literal[True] = True
     confirmed: int = Field(default=0, ge=0)
     unknown: int = Field(default=0, ge=0)
