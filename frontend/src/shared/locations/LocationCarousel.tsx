@@ -11,7 +11,7 @@ interface LocationCarouselProps {
   selectedId: string | null
   reveal: { id: string; revision: number } | null
   onSelect: (id: string) => void
-  // caption names the count, active criteria and order above the deck.
+  // caption names the active criteria and order above the deck.
   caption?: string
   compare?: (feature: LocationFeature) => CompareChoice
 }

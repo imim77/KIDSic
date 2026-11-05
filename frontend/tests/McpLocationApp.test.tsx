@@ -238,7 +238,7 @@ it('searches around a map point with the retained criteria and tells the model a
   expect(host.call).toHaveBeenLastCalledWith({ name: 'prikazi_vrtice', arguments: {
     city: 'Zagreb', provider_kind: 'municipal', near: [16, 45.8], radius_m: 1000 } })
   expect(await screen.findByRole('button', { name: /Synthetic facility near.*120 m zračno/ })).toBeVisible()
-  expect(screen.getByText('1 rezultat · Gradski vrtić · do 1 km od točke · najbliži prvi')).toBeVisible()
+  expect(screen.getByText('Gradski vrtić · do 1 km od točke · najbliži prvi')).toBeVisible()
   expect(host.model).toHaveBeenLastCalledWith({ content: [{ type: 'text', text: expect.stringContaining('[16, 45.8] i zračni radijus 1000 m') }] })
   host.call.mockResolvedValueOnce(radiusResult('Zagreb', null, 'city'))
   await user.click(screen.getByRole('button', { name: 'Ukloni' }))

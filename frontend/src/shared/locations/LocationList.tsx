@@ -3,7 +3,6 @@ import { Building2 } from 'lucide-react'
 import { providerLabels, type LocationCollection } from './types'
 import { SuitabilityBadge } from './ProgramDetails'
 import { formatDistance } from './distance'
-import { results } from './criteria'
 import { useEntrance } from '../motion/useEntrance'
 
 interface LocationListProps {
@@ -34,7 +33,6 @@ export function LocationList({ collection, selectedId, onSelect, criteria }: Loc
   return <section className="location-list" aria-label="Popis vrtića">
     <header className="location-list-header">
       <h2>{city ? `Vrtići · ${city}` : 'Vrtići'}</h2>
-      <p>{results(collection.metadata.total)} · {collection.metadata.mapped} na karti</p>
       {!!criteria?.length && <p className="location-list-criteria" title="Aktivni kriteriji i redoslijed">{criteria.join(' · ')}</p>}
     </header>
     <div ref={scrollRef} className="location-list-scroll">
