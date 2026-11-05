@@ -1,16 +1,10 @@
 import type { MouseEvent } from 'react'
-import type { EnrolmentStatus, LocationEnrolment } from './types'
+import type { LocationEnrolment } from './types'
 import { websiteHref } from './links'
+import { enrolmentInstant as instant, enrolmentStatusLabels as statusLabels } from './enrolment'
 
-// Deadlines are Zagreb times whatever the viewer's zone.
-const instant = (value: string) => new Intl.DateTimeFormat('hr-HR', { day: '2-digit', month: '2-digit',
-  year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Zagreb' }).format(new Date(value))
 const day = (value: string) => new Intl.DateTimeFormat('hr-HR').format(new Date(`${value}T00:00:00`))
 
-const statusLabels: Record<EnrolmentStatus, string> = {
-  open: 'Otvoreno', upcoming: 'Uskoro', closed: 'Rok završen', not_accepting: 'Upisi se ne provode',
-  dates_unknown: 'Rok nije objavljen',
-}
 const channelLabels: Record<LocationEnrolment['channel'], string> = {
   city_system: 'Gradski sustav e-upisa', e_upisi: 'Nacionalni e-Upisi', kindergarten: 'Prema uputama vrtića',
 }
