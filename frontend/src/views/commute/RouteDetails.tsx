@@ -21,8 +21,8 @@ function Step({ at, kind, icon, title, children }: {
 // figures a parent decides on (arrival, total time, transfers) up front.
 export function RouteDetails({ result, option }: { result: CommuteResult; option: CommuteOption }) {
   const body = useRef<HTMLDivElement>(null)
-  // Remounted per option (keyed), so each selection replays the entrance.
-  useEntrance(body, [], { selector: '.route-details > *, .route-step', limit: 18 })
+  // Replays per option; the panel stays mounted while the map arrows step.
+  useEntrance(body, [option.facility_id], { selector: '.route-details > *, .route-step', limit: 18 })
   const rank = result.results.indexOf(option)
   const [toKindergarten, toWork] = option.journeys
   // OTP names the journey ends Origin and Destination; name them for people.

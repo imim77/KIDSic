@@ -15,16 +15,22 @@ export function CommuteView({ result, onSelect, hostFullscreen, openLink }: {
   result: CommuteResult; onSelect?: (id: string) => void; hostFullscreen?: HostFullscreen
   openLink?: (url: string) => void
 }) {
-  const [selection, setSelection] = useState<string | null>(result.results[0]?.facility_id ?? null)
+  // Each choice is a new object, so picking any option, even the shown one,
+  // gives the map a new route and draws it again.
+  const [pick, setPick] = useState<{ id: string | null }>({ id: result.results[0]?.facility_id ?? null })
+  const selection = pick.id
   const [tab, setTab] = useState<CommuteTab>('route')
   const option = result.results.find(r => r.facility_id === selection) ?? result.results[0]
   const feature = result.locations.features.find(item => item.id === option?.facility_id)
-  const route = useMemo<MapRoute | null>(() => option ? {
-    home: [result.home.lon, result.home.lat], work: [result.work.lon, result.work.lat],
-    legs: option.journeys.flatMap(journey => journey.legs),
-  } : null, [result, option])
+  const route = useMemo<MapRoute | null>(() => {
+    const chosen = result.results.find(r => r.facility_id === pick.id) ?? result.results[0]
+    return chosen ? {
+      home: [result.home.lon, result.home.lat], work: [result.work.lon, result.work.lat],
+      legs: chosen.journeys.flatMap(journey => journey.legs),
+    } : null
+  }, [result, pick])
   const select = (id: string | null) => {
-    setSelection(id)
+    setPick({ id })
     if (id) onSelect?.(id)
   }
   return <KindergartenExplorer data={result.locations} status="ready" selectedId={selection}
@@ -35,7 +41,7 @@ export function CommuteView({ result, onSelect, hostFullscreen, openLink }: {
       const item = result.results[index]
       return `${index === 0 ? 'Najbolja opcija' : `Alternativa ${index}`} · ${Math.ceil(item.elapsed_seconds / 60)} min · dolazak ${time(item.arrival)}`
     }}
-    mapNotice={option && <RouteSummary key={option.facility_id} result={result} option={option} />}
+    mapNotice={option && <RouteSummary result={result} option={option} onSelect={select} />}
     details={option && feature && <CommuteDetails result={result} option={option} feature={feature}
       tab={tab} onTab={setTab} onClose={() => select(null)} openLink={openLink} />} />
 }

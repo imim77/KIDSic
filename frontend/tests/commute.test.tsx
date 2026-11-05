@@ -21,14 +21,15 @@ vi.mock('@modelcontextprotocol/ext-apps', () => ({App: class {
   requestDisplayMode=bridge.requestDisplayMode
   getHostContext=()=>({displayMode:'inline',availableDisplayModes:['inline','fullscreen']})
 }}))
+const drawn = vi.hoisted(() => new Set<unknown>())
 vi.mock('../src/shared/map/KindergartenMap', () => ({KindergartenMap:({route,collection,onSelect,overlay}: {
   route?:MapRoute;collection?:LocationCollection;onSelect?:(id:string)=>void;overlay?:(ready:boolean)=>ReactNode
-}) => <div aria-label="Zajednička karta">
+}) => { if (route) drawn.add(route); return <div aria-label="Zajednička karta">
   <output aria-label="Odabrana geometrija">{route?.legs.map(leg=>leg.geometry).join(',')}</output>
   <output aria-label="Broj oznaka">{collection?.features.length ?? 0}</output>
   {collection?.features.map(feature=><button key={feature.id} onClick={()=>onSelect?.(feature.id)}>Oznaka {feature.id}</button>)}
   {overlay?.(true)}
-</div>}))
+</div> }}))
 
 beforeEach(()=> {Element.prototype.scrollTo=vi.fn()})
 afterEach(()=> {Reflect.deleteProperty(Element.prototype,'scrollTo')})
@@ -44,11 +45,29 @@ it('uses the city explorer and ranked cards, with only the requested options and
   fireEvent.click(screen.getByRole('button',{name:'Oznaka id2'}))
   expect(screen.getByLabelText('Odabrana geometrija')).toHaveTextContent('shape2')
   expect(select).toHaveBeenCalledWith('id2')
+  // Choosing the shown option again hands the map a new route, so it redraws.
+  const routes=drawn.size
+  fireEvent.click(screen.getByRole('button',{name:'Oznaka id2'}))
+  expect(drawn.size).toBe(routes+1)
   fireEvent.click(screen.getByRole('button',{name:'Vrtić 2 Test 2'}))
   // Details open on the route tab; the other tab shows the city-search details.
   expect(screen.getByRole('tab',{name:'Put'})).toHaveAttribute('aria-selected','true')
   expect(screen.getByRole('tabpanel')).toHaveTextContent('Predaja u vrtiću')
   expect(screen.getByRole('tabpanel')).not.toHaveTextContent('Uspoređeno')
+  // Arrows step through the ranked options and wrap around, keeping focus.
+  const next=screen.getByRole('button',{name:'Sljedeća opcija'})
+  next.focus()
+  fireEvent.click(next)
+  expect(screen.getByRole('heading',{name:'Vrtić 3'})).toBeInTheDocument()
+  expect(screen.getByText('4 / 4')).toBeInTheDocument()
+  expect(screen.getByLabelText('Odabrana geometrija')).toHaveTextContent('shape3')
+  expect(next).toHaveFocus()
+  fireEvent.click(next)
+  expect(screen.getByText('Najbolja opcija',{selector:'.route-rank'})).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button',{name:'Prethodna opcija'}))
+  fireEvent.click(screen.getByRole('button',{name:'Prethodna opcija'}))
+  expect(screen.getByText('Alternativa 2',{selector:'.route-rank'})).toBeInTheDocument()
+  expect(select).toHaveBeenLastCalledWith('id2')
   fireEvent.keyDown(screen.getByRole('tab',{name:'Put'}),{key:'ArrowRight'})
   expect(screen.getByRole('tab',{name:'Vrtić'})).toHaveAttribute('aria-selected','true')
   expect(screen.getByRole('tab',{name:'Vrtić'})).toHaveFocus()

@@ -76,3 +76,24 @@
 @media (prefers-reduced-motion: reduce) {
   .commute-tabs button { transition: none; }
 }
+
+/* Option arrows: mint pills like the carousel arrows, pinned to the route
+   card's top right. Only rank and name make room for them; the arrival line
+   runs full width and the chevron drops to the bottom corner below them. */
+.route-summary { position: relative; }
+.route-summary[data-stepper] summary { align-items: flex-end; }
+.route-summary[data-stepper] :is(.route-summary-rank, .route-summary-name) { margin-right: 108px; }
+.route-option-nav { position: absolute; top: 10px; right: 12px; z-index: 1; display: flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.route-option-nav button { display: grid; place-items: center; width: 32px; height: 32px; color: var(--ink); background: var(--mint); border: 0; border-radius: 100px; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+.route-option-nav button:hover { background: var(--lemon); }
+.route-option-nav button:active { transform: var(--press); box-shadow: none; }
+.route-option-nav button:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.route-option-nav svg { width: 17px; height: 17px; stroke-width: 2.6; }
+@media (prefers-reduced-motion: reduce) {
+  .route-option-nav button { transition: none; }
+}
+@media (max-width: 650px) {
+  /* Too narrow to share a row with the title: the arrows get their own. */
+  .route-option-nav { position: static; justify-content: flex-end; padding: 8px 10px 0; }
+  .route-summary[data-stepper] :is(.route-summary-rank, .route-summary-name) { margin-right: 0; }
+}

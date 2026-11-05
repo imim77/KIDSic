@@ -52,7 +52,7 @@ export function CommuteDetails({ result, option, feature, tab, onTab, onClose, o
     </div>
     <div className="commute-tab-panel" role="tabpanel" id={`${id}-panel`} aria-labelledby={`${id}-${tab}`}>
       {tab === 'route'
-        ? <RouteDetails key={option.facility_id} result={result} option={option} />
+        ? <RouteDetails result={result} option={option} />
         : <LocationDetails key={feature.id} feature={feature} openLink={openLink} />}
     </div>
   </section>
