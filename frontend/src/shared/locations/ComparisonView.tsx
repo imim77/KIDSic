@@ -1,8 +1,9 @@
 import { useEffect, useRef, type ComponentType, type MouseEvent, type ReactNode } from 'react'
 import {
   ArrowRight, BookOpen, Building2, CalendarCheck, Check, Info, Link2, MapPin, Phone, Ruler, Search, Sparkles,
-  Tag, Wallet, X,
+  Wallet, X,
 } from 'lucide-react'
+import { useMediaQuery } from '../explorer/useMediaQuery'
 import { compareOptions } from './comparison'
 import { currentRound, enrolmentInstant, enrolmentStatusLabels } from './enrolment'
 import { formatDistance } from './distance'
@@ -27,10 +28,12 @@ function ages(program: LocationProgram) {
 }
 
 // ComparisonView sets up to three options side by side, one criterion per row.
-// Each option keeps one colour from header to last row so the eye can follow
-// a column. Unknown values say so explicitly; they are things to check, not a "no".
+// Each option keeps one card colour from header to last row so the eye can
+// follow it. Phones get one criterion per section instead of a wide table.
+// Unknown values say so explicitly; they are things to check, not a "no".
 export function ComparisonView({ features, onRemove, onClose, openLink }: ComparisonViewProps) {
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const stacked = useMediaQuery('(max-width: 650px)', false)
   useEffect(() => { headingRef.current?.focus({ preventScroll: true }) }, [])
   const notes = compareOptions(features)
   // Sandboxed MCP hosts block plain navigation, so links go through the host.
@@ -48,7 +51,7 @@ export function ComparisonView({ features, onRemove, onClose, openLink }: Compar
         : <><strong className="comparison-figure">{formatDistance(feature.properties.distance_m)}</strong> zračno</> }] : []),
     { label: 'Adresa', icon: MapPin, tone: 'blush', cell: (feature) => <>
       <span className="comparison-address">{feature.properties.address ?? 'Adresa nije poznata'}</span>
-      {feature.properties.district && <span className="comparison-chip">{feature.properties.district}</span>}
+      {feature.properties.district && <span className="comparison-sticker">{feature.properties.district}</span>}
     </> },
     { label: 'Programi i dob', icon: BookOpen, tone: 'lilac', cell: (feature) => (feature.properties.programs ?? []).length
       ? <ul className="comparison-tags">{feature.properties.programs!.map((program) =>
@@ -100,6 +103,16 @@ export function ComparisonView({ features, onRemove, onClose, openLink }: Compar
     </ul> },
   ]
 
+  const option = (feature: LocationFeature, index: number) => <div className="comparison-option" data-col={index}>
+    <span className="comparison-option-icon" aria-hidden="true"><Building2 /></span>
+    <span className="comparison-option-text">
+      <span className="comparison-kind">{providerLabels[feature.properties.provider_kind]}</span>
+      <span className="comparison-option-name">{feature.properties.location_name}</span>
+    </span>
+    <button type="button" className="comparison-remove" onClick={() => onRemove(feature.id)}
+      aria-label={`Ukloni iz usporedbe: ${feature.properties.location_name}`}><X aria-hidden="true" /></button>
+  </div>
+
   return <section className="comparison-view" aria-labelledby="comparison-title"
     onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); onClose() } }}>
     <header className="comparison-header">
@@ -109,34 +122,37 @@ export function ComparisonView({ features, onRemove, onClose, openLink }: Compar
       </div>
       <button type="button" className="location-details-close" aria-label="Zatvori usporedbu" onClick={onClose}><X aria-hidden="true" /></button>
     </header>
-    <div className="comparison-sheet">
-      <div className="comparison-scroll">
-        <table>
-          <thead>
-            <tr>
-              <td />
-              {features.map((feature, index) => <th key={feature.id} scope="col" data-col={index}>
-                <div className="comparison-option">
-                  <span className="comparison-option-icon" aria-hidden="true"><Building2 /></span>
-                  <span className="comparison-option-text">
-                    <span className="comparison-option-kind"><Tag aria-hidden="true" />{providerLabels[feature.properties.provider_kind]}</span>
-                    <span className="comparison-option-name">{feature.properties.location_name}</span>
-                  </span>
-                  <button type="button" className="comparison-remove" onClick={() => onRemove(feature.id)}
-                    aria-label={`Ukloni iz usporedbe: ${feature.properties.location_name}`}><X aria-hidden="true" /></button>
-                </div>
-              </th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ label, icon: Icon, tone, cell }) => <tr key={label}>
-              <th scope="row"><span className="comparison-row-label"><span className="comparison-row-icon" data-tone={tone}><Icon aria-hidden /></span>{label}</span></th>
-              {features.map((feature, index) => <td key={feature.id} data-col={index}>{cell(feature)}</td>)}
-            </tr>)}
-          </tbody>
-        </table>
+    {stacked
+      ? <div className="comparison-sheet comparison-stack">
+        <ul className="comparison-options" aria-label="Vrtići u usporedbi">
+          {features.map((feature, index) => <li key={feature.id}>{option(feature, index)}</li>)}
+        </ul>
+        {rows.map(({ label, icon: Icon, tone, cell }) => <section key={label} className="comparison-criterion" aria-label={label}>
+          <h3 className="comparison-row-label"><span className="comparison-row-icon" data-tone={tone}><Icon aria-hidden /></span>{label}</h3>
+          {features.map((feature, index) => <div key={feature.id} className="comparison-cell" data-col={index}>
+            <p className="comparison-cell-name">{feature.properties.location_name}</p>
+            {cell(feature)}
+          </div>)}
+        </section>)}
       </div>
-    </div>
+      : <div className="comparison-sheet">
+        <div className="comparison-scroll">
+          <table>
+            <thead>
+              <tr>
+                <td />
+                {features.map((feature, index) => <th key={feature.id} scope="col">{option(feature, index)}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ label, icon: Icon, tone, cell }) => <tr key={label}>
+                <th scope="row"><span className="comparison-row-label"><span className="comparison-row-icon" data-tone={tone}><Icon aria-hidden /></span>{label}</span></th>
+                {features.map((feature, index) => <td key={feature.id}><div className="comparison-cell" data-col={index}>{cell(feature)}</div></td>)}
+              </tr>)}
+            </tbody>
+          </table>
+        </div>
+      </div>}
     <p className="comparison-footnote"><Info aria-hidden="true" />Objavljena slobodna mjesta još nisu dio podataka. „Nije potvrđeno” znači da podatak treba provjeriti, a ne da uvjet nije ispunjen. Usporedba nije jamstvo upisa.</p>
   </section>
 }
