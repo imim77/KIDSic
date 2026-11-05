@@ -2,6 +2,7 @@ import { currentRound, enrolmentInstant } from './enrolment'
 import { formatDistance } from './distance'
 import { websiteHref } from './links'
 import type { LocationFeature } from './types'
+import { publishedVacancies, vacancyDate, vacancyLabel } from './vacancies'
 
 export const comparisonLimit = 3
 
@@ -49,6 +50,15 @@ export function compareOptions(features: LocationFeature[]): Map<string, Compari
     else if (round.status === 'not_accepting') checks.push(`Upisi za ${round.academic_year} se ne provode`)
     else checks.push('Rok upisa nije objavljen')
 
+    const vacancies = publishedVacancies(location)
+    if (vacancies.state === 'unpublished') checks.push('Slobodna mjesta nisu objavljena')
+    else {
+      const date = vacancyDate(vacancies.record.reference_date)
+      if (vacancies.total === null) checks.push(`Broj slobodnih mjesta nije potpuno objavljen (stanje ${date})`)
+      else if (vacancies.total > 0) strengths.push(`Objavljeno ${vacancyLabel(vacancies.total)} (stanje ${date})`)
+      else checks.push(`Objavljeno 0 slobodnih mjesta (stanje ${date})`)
+      if (vacancies.stale) checks.push('Podatak o slobodnim mjestima stariji je od godinu dana')
+    }
     if (!(location.programs ?? []).length) checks.push('Programi i dobni uvjeti nisu potvrđeni')
     if (location.suitability_status === 'unknown') checks.push('Zadana dob ili program nisu potvrđeni')
     if (!(location.subsidy_policies ?? []).length) checks.push('Gradsko sufinanciranje nije potvrđeno')

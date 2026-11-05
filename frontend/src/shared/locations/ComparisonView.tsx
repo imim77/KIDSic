@@ -2,7 +2,7 @@ import { useEffect, useRef, type ComponentType, type CSSProperties, type MouseEv
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import {
-  ArrowRight, BookOpen, Building2, CalendarCheck, Check, Link2, MapPin, Phone, Ruler, Search, Sparkles,
+  ArrowRight, BookOpen, Building2, CalendarCheck, Check, Link2, MapPin, Phone, Ruler, Search, Sparkles, Users,
   Wallet, X,
 } from 'lucide-react'
 import { reducedMotion } from '../motion/reducedMotion'
@@ -11,6 +11,7 @@ import { currentRound, enrolmentInstant, enrolmentStatusLabels } from './enrolme
 import { formatDistance } from './distance'
 import { websiteHref } from './links'
 import { providerLabels, type LocationFeature, type LocationProgram } from './types'
+import { publishedVacancies, vacancyDate, vacancyLabel } from './vacancies'
 
 interface ComparisonViewProps {
   features: LocationFeature[]
@@ -76,6 +77,16 @@ export function ComparisonView({ features, onRemove, onClose, openLink }: Compar
         <span className="enrolment-status" data-status={round.status}>{enrolmentStatusLabels[round.status]}</span>
         <p>{round.round === 'main' ? 'Glavni upis' : 'Upis tijekom godine'} {round.academic_year}</p>
         {round.closes_at && <p className="comparison-fine">Rok {enrolmentInstant(round.closes_at)}</p>}
+      </>
+    } },
+    { label: 'Slobodna mjesta', icon: Users, tone: 'sky', cell: (feature) => {
+      const vacancies = publishedVacancies(feature.properties)
+      if (vacancies.state === 'unpublished') return unknown('Nisu objavljena')
+      const { total, record, stale } = vacancies
+      return <>
+        <strong className="comparison-figure">{total === null ? 'Nepotpuno' : vacancyLabel(total)}</strong>
+        <span className="comparison-sticker" data-stale={stale}>Stanje {vacancyDate(record.reference_date)}</span>
+        {record.scope === 'institution' && <p className="comparison-fine">Za cijelu ustanovu</p>}
       </>
     } },
     { label: 'Sufinanciranje', icon: Wallet, tone: 'apricot', cell: (feature) => (feature.properties.subsidy_policies ?? []).length

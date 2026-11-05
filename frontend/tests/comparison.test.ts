@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { compareOptions } from '../src/shared/locations/comparison'
-import { enrolmentRound, facility, programEvidence } from './fixtures'
+import { enrolmentRound, facility, historicalEvidence, programEvidence } from './fixtures'
 
 describe('compareOptions', () => {
   it('credits only the nearest option and a program no other option confirms', () => {
@@ -19,7 +19,7 @@ describe('compareOptions', () => {
     const unknown = facility('unknown')
     expect(compareOptions([unknown]).get('unknown')).toEqual({
       strengths: [],
-      checks: ['Kanal upisa nije potvrđen', 'Programi i dobni uvjeti nisu potvrđeni',
+      checks: ['Kanal upisa nije potvrđen', 'Slobodna mjesta nisu objavljena', 'Programi i dobni uvjeti nisu potvrđeni',
         'Gradsko sufinanciranje nije potvrđeno', 'Nema potvrđenog kontakta'],
       next: { label: 'Provjeri kod nadležnog gradskog ureda' },
     })
@@ -36,5 +36,16 @@ describe('compareOptions', () => {
     expect(notes.get('open')!.next).toEqual({ label: 'Otvori službeni upis', href: 'https://upis.example.invalid/' })
     expect(notes.get('closed')!.checks).toContain('Rok upisa za 2026./2027. je završio')
     expect(notes.get('closed')!.next).toEqual({ label: 'Nazovi vrtić: 01 2345 678' })
+  })
+
+  it('credits published free places and flags a published zero and an old snapshot', () => {
+    const free = facility('free')
+    free.properties.historical_data = [historicalEvidence({ vacancies: [{ age_label: null, program: null, free_places: 4 }] })]
+    const full = facility('full')
+    full.properties.historical_data = [historicalEvidence()]
+    const notes = compareOptions([free, full])
+    expect(notes.get('free')!.strengths).toContain('Objavljeno 4 slobodna mjesta (stanje 01. 01. 2025.)')
+    expect(notes.get('full')!.checks).toContain('Objavljeno 0 slobodnih mjesta (stanje 01. 01. 2025.)')
+    expect(notes.get('full')!.checks).toContain('Podatak o slobodnim mjestima stariji je od godinu dana')
   })
 })
