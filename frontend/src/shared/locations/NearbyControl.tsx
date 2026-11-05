@@ -53,7 +53,7 @@ export function NearbyControl({ value, radius, picking, canPick, onLocate, onRad
       <label>
         <span>Radijus</span>
         <select value={radius} onChange={(event) => onRadius(Number(event.target.value))}>
-          {nearbyRadii.map((option) => <option key={option} value={option}>{formatDistance(option)}</option>)}
+          {[...new Set([...nearbyRadii, radius])].sort((a, b) => a - b).map((option) => <option key={option} value={option}>{formatDistance(option)}</option>)}
         </select>
       </label>
     </div>

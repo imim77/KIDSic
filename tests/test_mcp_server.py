@@ -97,7 +97,8 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
             tool = tools[0]
             self.assertEqual(tool.inputSchema['required'], ['city'])
             self.assertNotIn('default', tool.inputSchema['properties']['city'])
-            self.assertEqual(set(tool.inputSchema['properties']), {'city', 'name', 'provider_kind', 'area', 'age_months', 'program', 'include_unknown'})
+            self.assertEqual(set(tool.inputSchema['properties']), {'city', 'name', 'provider_kind', 'area', 'age_months', 'program', 'include_unknown',
+                              'near', 'radius_m'})
             self.assertEqual(set(tool.inputSchema['properties']['provider_kind']['anyOf'][0]['enum']),
                              {'municipal', 'private', 'religious', 'childminder', 'other', 'unknown'})
             self.assertEqual(tool.inputSchema['properties']['name']['maxLength'], 200)
@@ -157,7 +158,8 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result.meta['locations']['encoding'], 'gzip+base64')
             self.assertEqual(decoded_locations(result), payload.model_dump(mode='json'))
             self.assertEqual(result.structuredContent, {
-                'city': 'Rijeka', 'name': '', 'provider_kind': None, 'area': '', 'age_months': None, 'program': '', 'include_unknown': True, 'metadata': payload.metadata.model_dump(mode='json'),
+                'city': 'Rijeka', 'name': '', 'provider_kind': None, 'area': '', 'age_months': None, 'program': '', 'include_unknown': True, 'near': None, 'radius_m': None,
+                'metadata': payload.metadata.model_dump(mode='json'),
             })
             self.assertNotIn('Synthetic', str(result.structuredContent))
 
@@ -296,6 +298,39 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
             result = await session.call_tool('prikazi_vrtice',{'age_months':24,'program':'Montessori'})
             self.assertTrue(result.isError)
             self.assertIn('U kojem gradu',result.content[0].text)
+        service.list_locations.assert_not_awaited()
+
+    async def test_radius_search_passes_the_point_and_reports_straight_line_scope(self):
+        service = SimpleNamespace(list_locations=AsyncMock(return_value=LocationCollection(features=[], metadata={
+            'total': 0, 'mapped': 0, 'unmapped': 0, 'scope': 'radius'})))
+        async with connected(service) as (session, _):
+            result = await session.call_tool('prikazi_vrtice', {
+                'city': 'Zagreb', 'provider_kind': 'municipal', 'near': [15.9775, 45.8131], 'radius_m': 1000})
+            self.assertFalse(result.isError)
+            query = service.list_locations.await_args.args[0]
+            self.assertEqual((query.near, query.radius_m, query.provider_kind), ((15.9775, 45.8131), 1000, 'municipal'))
+            self.assertEqual((result.structuredContent['near'], result.structuredContent['radius_m']),
+                             ([15.9775, 45.8131], 1000))
+            self.assertEqual(result.structuredContent['metadata']['scope'], 'radius')
+            self.assertIn('Zračno do 1000 m', result.content[0].text)
+            self.assertIn('Predloži veći radijus', result.content[0].text)
+            plain = await session.call_tool('prikazi_vrtice', {'city': 'Zagreb'})
+            self.assertIsNone(plain.structuredContent['near'])
+            self.assertIsNone(plain.structuredContent['radius_m'])
+
+    async def test_invalid_radius_arguments_never_read_database(self):
+        service = SimpleNamespace(list_locations=AsyncMock())
+        async with connected(service) as (session, _):
+            for arguments in ({'near': [15.98, 45.81]}, {'radius_m': 1000},
+                              {'near': [15.98], 'radius_m': 1000}, {'near': [181, 45], 'radius_m': 1000},
+                              {'near': ['15.98', '45.81'], 'radius_m': 1000}, {'near': [True, 45], 'radius_m': 1000},
+                              {'near': 'Trg bana Jelačića', 'radius_m': 1000},
+                              {'near': [15.98, 45.81], 'radius_m': 0}, {'near': [15.98, 45.81], 'radius_m': 1000.5},
+                              {'near': [15.98, 45.81], 'radius_m': '1000'}):
+                with self.subTest(arguments=arguments):
+                    result = await session.call_tool('prikazi_vrtice', {'city': 'Zagreb', **arguments})
+                    self.assertTrue(result.isError)
+                    self.assertIn('odabere točku na karti', result.content[0].text)
         service.list_locations.assert_not_awaited()
 
     async def test_service_errors_are_sanitized_without_false_empty_map(self):

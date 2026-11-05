@@ -1,4 +1,4 @@
-import { isAgeMonths, isProviderKind, type LocationCollection, type LocationProgram, type ProviderKind, type SearchCriteria } from '../locations/types'
+import { isAgeMonths, isProviderKind, type LocationCollection, type LocationProgram, type Nearby, type ProviderKind, type SearchCriteria } from '../locations/types'
 
 function record(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -9,6 +9,15 @@ function textKey(value: string): string {
 }
 
 const areaKey = (value: string) => textKey(value).replace(/^mjesni odbor /, '')
+
+// nearby reads the tool's near/radius_m pair; null or absent means a city search.
+function nearby(near: unknown, radius: unknown): Nearby | null {
+  if (near == null && radius == null) return null
+  if (!Array.isArray(near) || near.length !== 2 || !near.every((n) => typeof n === 'number' && Number.isFinite(n))
+    || Math.abs(near[0]) > 180 || Math.abs(near[1]) > 90
+    || typeof radius !== 'number' || !Number.isInteger(radius) || radius < 1 || radius > 50_000) throw new Error('Invalid nearby')
+  return { near: [near[0], near[1]], radius_m: radius }
+}
 
 function date(value: unknown): value is string {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
@@ -76,12 +85,13 @@ export class LocationToolResult {
       locations = await new Response(stream).json()
     }
     const parsed = this.parse({ city: summary.city, name: summary.name, provider_kind: summary.provider_kind, area: summary.area,
-      age_months: summary.age_months, program: summary.program, include_unknown: summary.include_unknown, locations })
+      age_months: summary.age_months, program: summary.program, include_unknown: summary.include_unknown,
+      near: summary.near, radius_m: summary.radius_m, locations })
     const metadata = summary.metadata
     if (!record(metadata) || metadata.total !== parsed.locations.metadata.total
       || metadata.mapped !== parsed.locations.metadata.mapped || metadata.unmapped !== parsed.locations.metadata.unmapped
       || metadata.confirmed !== parsed.locations.metadata.confirmed || metadata.unknown !== parsed.locations.metadata.unknown
-      || metadata.scope !== 'city' || metadata.complete !== true) throw new Error('Mismatched summary')
+      || metadata.scope !== parsed.locations.metadata.scope || metadata.complete !== true) throw new Error('Mismatched summary')
     return parsed
   }
 
@@ -96,9 +106,10 @@ export class LocationToolResult {
     const area = typeof value.area === 'string' ? value.area.trim() : ''
     const program = typeof value.program === 'string' ? value.program.trim() : ''
     const evaluated = value.age_months != null || !!program
+    const around = nearby(value.near, value.radius_m)
     const data = value.locations
     if (!record(data) || data.type !== 'FeatureCollection' || !Array.isArray(data.features)
-      || !record(data.metadata) || data.metadata.complete !== true || data.metadata.scope !== 'city'
+      || !record(data.metadata) || data.metadata.complete !== true || data.metadata.scope !== (around ? 'radius' : 'city')
       || data.metadata.total !== data.features.length) throw new Error('Invalid locations')
     const ids = new Set<string>()
     let mapped = 0
@@ -137,6 +148,9 @@ export class LocationToolResult {
       }
       if (['website_url', 'email', 'phone'].some((field) =>
         p[field] != null && typeof p[field] !== 'string')) throw new Error('Invalid contact')
+      // A radius result asserts a verified point no further than the radius.
+      if (around && (feature.geometry === null || typeof p.distance_m !== 'number' || !Number.isInteger(p.distance_m)
+        || p.distance_m < 0 || p.distance_m > around.radius_m)) throw new Error('Invalid distance')
       if (feature.geometry !== null) {
         const g = feature.geometry
         if (!record(g) || g.type !== 'Point' || !Array.isArray(g.coordinates) || g.coordinates.length !== 2
@@ -154,6 +168,7 @@ export class LocationToolResult {
       ...(value.age_months !== undefined ? { age_months: value.age_months as number | null } : {}),
       ...(value.program !== undefined ? { program } : {}),
       ...(value.include_unknown !== undefined ? { include_unknown: value.include_unknown as boolean } : {}),
+      ...(value.near !== undefined || value.radius_m !== undefined ? { nearby: around } : {}),
       locations: data as unknown as LocationCollection }
   }
 }

@@ -13,7 +13,7 @@ const host = vi.hoisted(() => ({
     onhostcontextchanged: () => void
     ontoolcancelled: () => void
   },
-  call: vi.fn(), close: vi.fn(), display: vi.fn(), link: vi.fn(),
+  call: vi.fn(), close: vi.fn(), display: vi.fn(), link: vi.fn(), model: vi.fn(async () => ({})),
   context: { availableDisplayModes: ['inline', 'fullscreen'], displayMode: 'inline' },
 }))
 vi.mock('@modelcontextprotocol/ext-apps', () => ({ App: class {
@@ -23,10 +23,18 @@ vi.mock('@modelcontextprotocol/ext-apps', () => ({ App: class {
   callServerTool = host.call
   requestDisplayMode = host.display
   openLink = host.link
+  updateModelContext = host.model
   getHostContext = () => host.context
 } }))
 vi.mock('../src/shared/map/KindergartenMap', () => ({
-  KindergartenMap: ({ overlay }: { overlay?: (mapReady: boolean) => ReactNode }) => <div aria-label="Test map">{overlay?.(true)}</div>,
+  KindergartenMap: ({ overlay, picking, onPick }: {
+    overlay?: (mapReady: boolean) => ReactNode
+    picking?: boolean
+    onPick?: (near: [number, number]) => void
+  }) => <div aria-label="Test map">
+    {overlay?.(true)}
+    {picking && <button onClick={() => onPick?.([16, 45.8])}>Map pick</button>}
+  </div>,
 }))
 
 beforeEach(() => {
@@ -207,3 +215,45 @@ it('shows confirmed badges and sourced program details without unknown-condition
   await userEvent.click(screen.getByRole('link', { name: /Synthetic program source/ }))
   expect(host.link).toHaveBeenLastCalledWith({ url: 'https://example.invalid/program' })
 })
+
+function radiusResult(city: string, nearby: { near: [number, number]; radius_m: number } | null, ...ids: string[]) {
+  const locations = collection(...ids.map((id) => facility(id)))
+  if (nearby) {
+    locations.metadata.scope = 'radius'
+    locations.features.forEach((feature) => { feature.properties.distance_m = 120 })
+  }
+  return { structuredContent: { city, provider_kind: 'municipal', near: nearby?.near ?? null, radius_m: nearby?.radius_m ?? null,
+    metadata: locations.metadata }, _meta: { locations } }
+}
+
+it('searches around a map point with the retained criteria and tells the model about the new point', async () => {
+  const user = userEvent.setup()
+  render(<McpLocationApp />)
+  await act(async () => host.instance.ontoolinput({ arguments: { city: 'Zagreb', provider_kind: 'municipal' } }))
+  await act(async () => host.instance.ontoolresult(radiusResult('Zagreb', null, 'city')))
+  host.call.mockResolvedValueOnce(radiusResult('Zagreb', { near: [16, 45.8], radius_m: 1000 }, 'near'))
+  await user.click(screen.getByRole('button', { name: 'Odaberi na karti' }))
+  await user.click(screen.getByRole('button', { name: 'Map pick' }))
+  expect(host.call).toHaveBeenLastCalledWith({ name: 'prikazi_vrtice', arguments: {
+    city: 'Zagreb', provider_kind: 'municipal', near: [16, 45.8], radius_m: 1000 } })
+  expect(await screen.findByRole('button', { name: /Synthetic facility near.*120 m zračno/ })).toBeVisible()
+  expect(host.model).toHaveBeenLastCalledWith({ content: [{ type: 'text', text: expect.stringContaining('[16, 45.8] i zračni radijus 1000 m') }] })
+  host.call.mockResolvedValueOnce(radiusResult('Zagreb', null, 'city'))
+  await user.click(screen.getByRole('button', { name: 'Ukloni' }))
+  expect(host.call).toHaveBeenLastCalledWith({ name: 'prikazi_vrtice', arguments: { city: 'Zagreb', provider_kind: 'municipal' } })
+  await screen.findByRole('button', { name: /Synthetic facility city/ })
+  expect(host.model).toHaveBeenLastCalledWith({ content: [{ type: 'text', text: expect.stringContaining('uklonio točku') }] })
+})
+
+it('shows a radius the model chose and keeps it on retry', async () => {
+  render(<McpLocationApp />)
+  const nearby = { near: [15.97, 45.81] as [number, number], radius_m: 1500 }
+  await act(async () => host.instance.ontoolinput({ arguments: { city: 'Zagreb', provider_kind: 'municipal', ...nearby } }))
+  await act(async () => host.instance.ontoolresult(radiusResult('Zagreb', nearby)))
+  expect(screen.getByRole('combobox', { name: 'Radijus' })).toHaveValue('1500')
+  expect(screen.getByText(/zračno do 1,5 km od odabrane točke/)).toBeVisible()
+  host.model.mockClear()
+  await expectRetry({ city: 'Zagreb', provider_kind: 'municipal', near: [15.97, 45.81], radius_m: 1500 })
+  expect(host.model).not.toHaveBeenCalled()
+})
+

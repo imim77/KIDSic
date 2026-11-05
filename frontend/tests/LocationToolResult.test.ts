@@ -138,3 +138,22 @@ it('rejects invalid age and program criteria, missing suitability and misleading
   locations.metadata.confirmed = 1
   expect(() => LocationToolResult.parse({ ...criteria, locations })).toThrow('Invalid suitability counts')
 })
+
+it('requires a radius scope with in-range distances when the result names a point', () => {
+  const locations = collection(facility('near'))
+  locations.metadata.scope = 'radius'
+  locations.features[0].properties.distance_m = 900
+  expect(LocationToolResult.parse({ city: 'Zagreb', near: [15.98, 45.81], radius_m: 1000, locations }).nearby)
+    .toEqual({ near: [15.98, 45.81], radius_m: 1000 })
+  expect(LocationToolResult.parse({ city: 'Zagreb', near: null, radius_m: null, locations: collection() }).nearby).toBeNull()
+  expect(() => LocationToolResult.parse({ city: 'Zagreb', near: [15.98, 45.81], radius_m: 800, locations })).toThrow('Invalid distance')
+  expect(() => LocationToolResult.parse({ city: 'Zagreb', locations })).toThrow('Invalid locations')
+  expect(() => LocationToolResult.parse({ city: 'Zagreb', near: [15.98, 45.81], radius_m: 1000, locations: collection() })).toThrow('Invalid locations')
+  for (const [near, radius_m] of [[[15.98], 1000], [[181, 45], 1000], [[15.98, 45.81], 0], [[15.98, 45.81], null], [null, 1000]]) {
+    expect(() => LocationToolResult.parse({ city: 'Zagreb', near, radius_m, locations })).toThrow('Invalid nearby')
+  }
+  const unlocated = collection(facility('unlocated', false))
+  unlocated.metadata.scope = 'radius'
+  expect(() => LocationToolResult.parse({ city: 'Zagreb', near: [15.98, 45.81], radius_m: 1000, locations: unlocated })).toThrow('Invalid distance')
+})
+

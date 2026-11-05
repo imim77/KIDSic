@@ -55,6 +55,20 @@ Nakon povezivanja odabrati KIDSic aplikaciju u chatu i pokušati:
 - „Tražim Čarobnu kućicu.” → pitati za grad, bez pretrage po pretpostavljenom gradu.
 - „Prikaži mi vrtiće u Splitu.” → poruka da su podržani Zagreb, Varaždin i Rijeka, bez čitanja baze.
 - „Prikaži mi vrtiće.” → AI pita „U kojem gradu želiš prikaz vrtića?” prije poziva.
+- „Gradski vrtići u Zagrebu u krugu 1 km od mene.” → `{"city":"Zagreb","provider_kind":"municipal"}`
+  i molba da korisnik odabere točku na karti (gumb „Odaberi na karti” ili „Moja lokacija”);
+  AI ne procjenjuje koordinate iz adrese.
+- Točka odabrana na karti → app sam poziva alat s istim kriterijima i
+  `"near":[dužina,širina],"radius_m":1000`, a modelu kroz `updateModelContext`
+  javlja točku i radijus kako bi ih zadržao u sljedećem pozivu.
+
+Opcionalni `near` (`[dužina, širina]` u WGS84) i `radius_m` (cijeli metri,
+1–50000) šalju se zajedno i ograničavaju rezultate na zračni radijus, kao
+`GET /api/locations` ([LOCATION_API.md](LOCATION_API.md)). Objekti bez potvrđenih
+koordinata nisu uključeni, a svaki rezultat nosi `distance_m`. Udaljenost nije
+vrijeme putovanja. Model koristi samo koordinate iz karte ili brojeve koje je
+korisnik izričito naveo. „Moja lokacija” ovisi o tome dopušta li sandbox hosta
+geolokaciju; ako ne, kontrola upućuje na odabir na karti.
 
 Grad je obavezan string od 1 do 100 znakova nakon trimanja, bez defaulta. Poziv
 bez grada, s praznim/nepodržanim gradom ili nepoznatim argumentima vraća `isError` i uputu za

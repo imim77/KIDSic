@@ -37,7 +37,9 @@ export function KindergartenExplorer({ hostFullscreen, ...props }: KindergartenE
 function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emptyNotice, openLink, nearby }: Omit<KindergartenExplorerProps, 'hostFullscreen'>) {
   const { expanded, expand } = useFrameControls()
   const [picking, setPicking] = useState(false)
-  const [radius, setRadius] = useState(nearby?.value?.radius_m ?? 1000)
+  const [chosenRadius, setRadius] = useState(1000)
+  // An active search, also one the host's model made, owns the shown radius.
+  const radius = nearby?.value?.radius_m ?? chosenRadius
   const place = (near: [number, number]) => {
     setPicking(false)
     nearby?.onChange({ near, radius_m: radius })

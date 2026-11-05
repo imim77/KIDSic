@@ -27,6 +27,7 @@ export interface SearchCriteria {
   age_months?: number | null
   program?: string
   include_unknown?: boolean
+  nearby?: Nearby | null
 }
 
 export type SuitabilityStatus = 'not_evaluated' | 'confirmed' | 'unknown'
