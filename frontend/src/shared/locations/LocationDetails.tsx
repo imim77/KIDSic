@@ -12,7 +12,8 @@ import { CompareToggle, type CompareChoice } from './CompareToggle'
 
 interface LocationDetailsProps {
   feature: LocationFeature
-  onClose: () => void
+  // onClose adds the close button; hosts that wrap the details close them.
+  onClose?: () => void
   openLink?: (url: string) => void
   compare?: CompareChoice
 }
@@ -50,11 +51,11 @@ export function LocationDetails({ feature, onClose, openLink, compare }: Locatio
   const place = [location.district, location.city].filter(Boolean).join(', ')
 
   return <section ref={sectionRef} tabIndex={-1} className="location-details" aria-label={`Detalji: ${location.location_name}`}
-    onKeyDown={(event) => { if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); onClose() } }}>
+    onKeyDown={(event) => { if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); onClose?.() } }}>
     <div className="location-details-scroll">
       <div className="location-details-hero">
         <Building2 aria-hidden="true" />
-        <button type="button" className="location-details-close" aria-label="Zatvori detalje" onClick={onClose}><X aria-hidden="true" /></button>
+        {onClose && <button type="button" className="location-details-close" aria-label="Zatvori detalje" onClick={onClose}><X aria-hidden="true" /></button>}
       </div>
       <div className="location-details-body">
         <div className="location-details-top">

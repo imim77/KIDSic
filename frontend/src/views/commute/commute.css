@@ -24,3 +24,54 @@
   .route-summary summary { padding: 8px 10px; }
   .route-summary-name { font-size: 13px; }
 }
+
+/* CommuteDetails: pill tabs above one scrolling panel (DESIGN.md pills). */
+.commute-details { display: flex; flex-direction: column; }
+.commute-tabs-bar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 12px; border-bottom: 2px solid var(--ink-wash); }
+.commute-tabs { display: flex; gap: 8px; }
+.commute-tabs button { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 16px; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 100px; font-family: var(--display); font-size: 13px; line-height: 1; letter-spacing: .5px; text-transform: uppercase; cursor: pointer; transition: transform 120ms ease-out, box-shadow 120ms ease-out, background-color 120ms ease-out; }
+.commute-tabs button svg { width: 16px; height: 16px; stroke-width: 2.4; }
+.commute-tabs button:hover { background: var(--lemon); }
+.commute-tabs button[aria-selected="true"] { background: var(--mint); box-shadow: var(--shadow-sm); transform: translate(2px, -2px); }
+.commute-tabs button:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.commute-tabs-bar .location-details-close { position: static; flex: 0 0 auto; border: 2px solid var(--ink); box-shadow: none; } /* cream on cream needs the outline */
+.commute-tab-panel { flex: 1 1 auto; min-height: 0; }
+/* The kindergarten tab reuses LocationDetails inside this panel, so it must
+   not take the column's place in the grid or cover the map on its own. */
+.explorer-layout .commute-details .commute-tab-panel > .location-details { position: static; inset: auto; height: 100%; border: 0; }
+
+/* RouteDetails: headline figures, then a timetable along an ink rail. */
+.route-rank { display: inline-block; padding: 6px 12px; font-family: var(--display); font-size: 12px; letter-spacing: .5px; text-transform: uppercase; background: var(--sky); border-radius: 100px; box-shadow: var(--shadow-sm); }
+.route-rank[data-best] { background: var(--lemon); }
+.location-details .route-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+.route-stats > div { display: flex; flex-direction: column; gap: 6px; padding: 12px 10px; border: 2px solid var(--ink); border-radius: 20px; box-shadow: var(--shadow-md); }
+.route-stats > div:nth-child(1) { background: var(--mint); }
+.route-stats > div:nth-child(2) { background: var(--sky); }
+.route-stats > div:nth-child(3) { background: var(--blush); }
+.route-stats dt { font-family: var(--display); font-size: 11px; font-weight: 400; letter-spacing: .5px; text-transform: uppercase; }
+.route-stats dd { font-family: var(--display); font-size: 24px; line-height: 1; letter-spacing: .01em; white-space: nowrap; }
+.route-facts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.route-facts span { padding: 5px 10px; font-size: 12px; font-weight: 600; background: var(--surface); border: 1.5px solid var(--ink); border-radius: 100px; }
+.route-timeline { margin: 0; padding: 0; list-style: none; }
+.route-step { position: relative; display: grid; grid-template-columns: 44px 32px minmax(0, 1fr); column-gap: 10px; padding-bottom: 14px; }
+/* The rail joins one marker to the next; the last step has nowhere to go. */
+.route-step:not(:last-child)::before { content: ''; position: absolute; top: 30px; bottom: 0; left: calc(44px + 10px + 15px); width: 2px; background: var(--ink); }
+.route-step[data-kind="walk"]:not(:last-child)::before { background: repeating-linear-gradient(var(--ink) 0 4px, transparent 4px 8px); }
+.route-step-time { padding-top: 7px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.route-step-marker { position: relative; z-index: 1; display: grid; place-items: center; width: 32px; height: 32px; background: var(--surface); border: 2px solid var(--ink); border-radius: 50%; }
+.route-step-marker svg { width: 16px; height: 16px; stroke-width: 2.3; }
+.route-step[data-kind="transit"] .route-step-marker { background: var(--sky); }
+.route-step[data-kind="dropoff"] .route-step-marker { background: var(--lemon); box-shadow: var(--shadow-sm); }
+.route-step[data-kind="finish"] .route-step-marker { background: var(--mint); box-shadow: var(--shadow-sm); }
+.route-step-text { min-width: 0; padding-top: 6px; }
+.route-step-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; }
+.route-step[data-kind="stop"] .route-step-title,
+.route-step[data-kind="dropoff"] .route-step-title,
+.route-step[data-kind="finish"] .route-step-title { font-family: var(--display); font-size: 15px; font-weight: 400; letter-spacing: .01em; }
+.route-step[data-kind="dropoff"] .route-step-text { margin-right: -4px; padding: 6px 10px 8px; background: var(--lemon); border-radius: 14px; }
+.route-step-duration { margin-left: auto; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.route-step-path { margin-top: 2px; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.route-line { padding: 3px 9px; font-family: var(--display); font-size: 12px; font-weight: 400; letter-spacing: .5px; text-transform: uppercase; background: var(--sky); border: 1.5px solid var(--ink); border-radius: 100px; }
+@media (prefers-reduced-motion: reduce) {
+  .commute-tabs button { transition: none; }
+}

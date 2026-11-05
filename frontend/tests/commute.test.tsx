@@ -45,15 +45,25 @@ it('uses the city explorer and ranked cards, with only the requested options and
   expect(screen.getByLabelText('Odabrana geometrija')).toHaveTextContent('shape2')
   expect(select).toHaveBeenCalledWith('id2')
   fireEvent.click(screen.getByRole('button',{name:'Vrtić 2 Test 2'}))
-  // Details show the kindergarten as in a city search; the route sits on the map.
+  // Details open on the route tab; the other tab shows the city-search details.
+  expect(screen.getByRole('tab',{name:'Put'})).toHaveAttribute('aria-selected','true')
+  expect(screen.getByRole('tabpanel')).toHaveTextContent('Predaja u vrtiću')
+  expect(screen.getByRole('tabpanel')).not.toHaveTextContent('Uspoređeno')
+  fireEvent.keyDown(screen.getByRole('tab',{name:'Put'}),{key:'ArrowRight'})
+  expect(screen.getByRole('tab',{name:'Vrtić'})).toHaveAttribute('aria-selected','true')
+  expect(screen.getByRole('tab',{name:'Vrtić'})).toHaveFocus()
   expect(screen.getByRole('region',{name:'Detalji: Vrtić 2'})).toBeVisible()
+  // The chosen tab stays when another kindergarten is selected.
+  fireEvent.click(screen.getByRole('button',{name:'Oznaka id1'}))
+  expect(screen.getByRole('region',{name:'Detalji: Vrtić 1'})).toBeVisible()
+  fireEvent.click(screen.getByRole('button',{name:'Oznaka id2'}))
   const route=screen.getByRole('region',{name:'Ruta: Vrtić 2'})
   expect(route.querySelector('details')).not.toHaveAttribute('open')
   fireEvent.click(screen.getByText('Vrtić 2',{selector:'.route-summary-name'}))
   expect(route.querySelector('details')).toHaveAttribute('open')
   expect(screen.getByText(/^Uspoređeno 10, s rutom 8\./)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button',{name:'Zatvori detalje'}))
-  expect(screen.queryByRole('region',{name:'Detalji: Vrtić 2'})).not.toBeInTheDocument()
+  expect(screen.queryByRole('region',{name:'Vrtić na putu: Vrtić 2'})).not.toBeInTheDocument()
 })
 
 it('validates variable top_k and rejects extra, unsorted, or mismatched map results', () => {
