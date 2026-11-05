@@ -28,7 +28,9 @@ With `near` and `radius_m`, `scope` is `radius` and only points whose straight-l
 coordinate validity rules as `bbox` apply, so unlocated objects and seats without
 reviewed geocoding are excluded. Each feature then carries
 `properties.distance_m`, rounded to whole metres; it is null without `near`.
-Distance is not walking or travel time, and ordering is unchanged.
+Distance is not walking or travel time. Results are ordered nearest first,
+after the confirmed-before-unknown grouping below; equal distances fall back to
+name ordering.
 Unsupported query parameters, repeated parameters and invalid filters return
 HTTP 422 with `{"error":"invalid_query"}`. Database unavailable returns HTTP 503
 with `{"error":"locations_unavailable"}`; internal exception text is never sent.
@@ -84,10 +86,10 @@ answer or a recommendation of suitability. Known complete ranges that all exclud
 the age are omitted. Other named programs do not establish the absence of the
 requested one. Program-only matching does not assert age suitability.
 
-Confirmed results precede unknown results; normal deterministic name ordering
-applies within each group. `metadata.confirmed` and `metadata.unknown` count the
-returned groups; both are zero when not evaluated. With criteria their sum equals
-`total`. Counts do not estimate missing or excluded records, vacancies or enrolment
+Confirmed results precede unknown results; within each group results are
+ordered nearest first when `near` is set, otherwise by deterministic name.
+`metadata.confirmed` and `metadata.unknown` count the returned groups; both are
+zero when not evaluated. With criteria their sum equals `total`. Counts do not estimate missing or excluded records, vacancies or enrolment
 chances. All filters combine with AND before counts; there is no result limit.
 
 `properties.field_sources` separately attributes stored fields to their accepted,

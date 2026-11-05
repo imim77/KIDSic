@@ -290,16 +290,19 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         # 0.01° latitude is about 1112 m on the spheroid.
         _, centre = await self.fixture('Centre', coords=(15.98, 45.81))
         _, near = await self.fixture('Near', coords=(15.98, 45.82))
+        # Alphabetically first but farther than Centre: distance must win over name.
+        _, alpha = await self.fixture('Alpha', coords=(15.98, 45.817))
         await self.fixture('Far', coords=(15.98, 45.85))
         await self.fixture('Unlocated', coords=(None, None))
         await self.fixture('Seat only', seat=True)
         rows = await self.repository.list_locations(
             LocationQuery(near=(15.98, 45.81), radius_m=1200))
         self.assertEqual([(r['location_id'], r['distance_m']) for r in rows],
-                         [(centre, 0), (near, rows[1]['distance_m'])])
-        self.assertTrue(1100 <= rows[1]['distance_m'] <= 1120)
+                         [(centre, 0), (alpha, rows[1]['distance_m']), (near, rows[2]['distance_m'])])
+        self.assertTrue(770 <= rows[1]['distance_m'] <= 790)
+        self.assertTrue(1100 <= rows[2]['distance_m'] <= 1120)
         self.assertEqual([r['location_id'] for r in await self.repository.list_locations(
-            LocationQuery(near=(15.98, 45.81), radius_m=1000))], [centre])
+            LocationQuery(near=(15.98, 45.81), radius_m=1000))], [centre, alpha])
         self.assertTrue(all(r['distance_m'] is None
                             for r in await self.repository.list_locations(LocationQuery())))
 

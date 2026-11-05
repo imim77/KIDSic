@@ -209,7 +209,9 @@ class AsyncpgLocationRepository(LocationRepository):
                 '^mjesni odbor ','')=$5))
             AND suitability_status<>'excluded'
             AND ($8::boolean OR suitability_status<>'unknown')
-          ORDER BY suitability_status='confirmed' DESC,name,location_name,kindergarten_id,location_id
+          -- Nearest first within each suitability group; distance is NULL without near.
+          ORDER BY suitability_status='confirmed' DESC,distance_m NULLS LAST,
+            name,location_name,kindergarten_id,location_id
         ''', supported_city_key(query.city), normalize(query.q), query.provider_kind,
             list(query.bbox) if query.bbox is not None else None,
             normalize(query.area).removeprefix('mjesni odbor '),
