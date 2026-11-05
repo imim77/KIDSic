@@ -35,11 +35,16 @@ class RagEvidenceBuilder:
                 if chunk['kindergarten_id'] != row['kindergarten_id'] or (
                     chunk['location_id'] is not None and chunk['location_id'] != row['location_id']):
                     continue
+                reference = chunk['observed_on'] or chunk.get('published_on')
                 item = self.evidence(row, topic='document', content=chunk['content'],
-                    scope='facility' if chunk['location_id'] else 'institution',
+                    scope='facility' if chunk['location_id'] else (
+                        'municipality' if chunk.get('document_scope') == 'municipality' else 'institution'),
                     sources=[RagSource(title=chunk['source_title'], url=chunk['source_url'], license=chunk.get('license'))],
-                    reference_date=chunk['observed_on'], date_kind='observed' if chunk['observed_on'] else 'unknown',
-                    temporal_status='historical' if chunk['observed_on'] else 'undated')
+                    reference_date=reference, date_kind='observed' if chunk['observed_on'] else (
+                        'published' if reference else 'unknown'),
+                    # Current only while the governed period lasts; deadlines inside it stay dated.
+                    temporal_status='current' if chunk.get('in_effect') else (
+                        'historical' if reference else 'undated'))
                 add(item)
         return list(evidence.values())
 

@@ -48,3 +48,52 @@ prihoda izraženi su propisanim udjelom prosječne plaće RH, bez nagađanja
 aktualne eurske protuvrijednosti. Dadilje 260 €; 310 € ostaje prijedlog u
 savjetovanju do 6. studenoga 2026. Godišnji gradski limit djece za dadilje nije
 potvrđen broj i ne predstavlja broj djece u jednoj obitelji.
+
+# Upisni dokumenti
+
+[Snimka od 5. studenoga 2026.](2026-11-05_zagreb_enrolment.json) sadrži odlomke
+triju službenih izvora Grada Zagreba za gradske vrtiće:
+
+| Izvor | Opseg | Datum |
+| --- | --- | --- |
+| [Obavijest o upisu 2026./2027.](https://vrtici.zagreb.hr/UserDocsImages/Upisi/Obavijest_upisi_dv_2627.pdf) (KLASA 601-01/26-001/249, URBROJ 251-07-11-26-1) | svi gradski vrtići; dio odlomaka samo imenovane ustanove | objavljeno 11. 5. 2026. |
+| [Obavijest o upisu u program predškole 2026./2027.](https://vrtici.zagreb.hr/UserDocsImages/Upisi/Obavijest_upisi_pred%C5%A1kola_2627.pdf) (URBROJ 251-07-11-26-2) | 22 imenovana vrtića koji provode predškolu | objavljeno 11. 5. 2026. |
+| [Upisi u gradske vrtiće](https://vrtici.zagreb.hr/upisi-u-gradske-vrtice-111/111) | svi gradski vrtići | stanje stranice 5. 11. 2026. |
+
+Licenca: [Uvjeti korištenja www.zagreb.hr](https://www.zagreb.hr/uvjeti-koristenja/2048)
+(29. 12. 2020.) dopuštaju preuzimanje i ponovnu uporabu izvornih dokumenata uz
+navođenje izvora. Obavijesti su službeni tekstovi uprave objavljeni radi
+informiranja javnosti, pa nisu zaštićene autorskim pravom (ZAPSP, NN 111/21,
+čl. 18. st. 3.). `vrtici.zagreb.hr` nema vlastite uvjete korištenja.
+
+Odlomci su prepisani cijeli, bez rezanja kroz uvjete i datume. Svaki dokument
+ima URL, licencu, `reference_date` i `date_kind` (`published` za obavijesti,
+`observed` za stranicu bez datuma) te `valid_until` (kraj pedagoške godine).
+Dokument je `current` dok traje to razdoblje, ali rokovi unutar njega mogu
+biti istekli. Za PDF-ove je zabilježen `sha256` preuzete datoteke.
+
+Uvoz (`kidsic-sync-enrolment`) za svaki izvor upisuje `data_source`, novu aktivnu
+seriju i po jedan `accepted` `source_record` za ustanovu i opseg, a odlomke u
+`knowledge_chunk` bez `location_id`. Odlomak bez `institutions` vrijedi za sve
+aktivne ustanove navedenih vrsta u gradu (opseg `municipality`). Imenovane
+ustanove moraju se jednoznačno podudarati prema normaliziranom nazivu, inače
+se prekida cijeli uvoz. Upisni zapisi ne dokazuju da je ustanova aktivna;
+to određuju samo zapisi imenika. Opozvani izvor (`import_allowed=false`) ostaje
+opozvan i pri ponovnom uvozu.
+
+Nije uvezeno, jer licenca nije potvrđena:
+
+- **Varaždin**: [Natječaj za upis u DV „Varaždin” 2026./2027.](https://djecjivrticvz.hr/wp-content/uploads/2026/03/Natjecaj-za-upis-djece-u-pedagosku-godinu-2026-2027.pdf)
+  (31. 3. 2026., rok 1.–30. 4. 2026., osobna predaja u Upravi vrtića). Stranica
+  vrtića nema uvjete ponovne uporabe. Primjenjuje li se ZAPSP čl. 18. st. 3.
+  na natječaj javne ustanove, treba potvrditi.
+- **Rijeka**: [Uvjeti korištenja rijeka.hr](https://www.rijeka.hr/uvjeti-koristenja/)
+  zabranjuju reprodukciju bez pisane suglasnosti. Službeni javni poziv za upis
+  2026./2027. nije pronađen na rijeka.hr.
+- Privatni i vjerski vrtići te obrti dadilja nemaju zajednički gradski izvor;
+  za njih RAG vraća `no_evidence`.
+
+Skup [Upisi u vrtiće u gradu Rijeka po godinama](https://data.gov.hr/ckan/dataset/upisi-u-vrtice)
+(CC BY 4.0) sadrži samo broj upisane djece 2015.–2018., a ne postupak upisa.
+Nova pedagoška godina dobiva novu snimku i nove ključeve obavijesti, a stare
+ostaju za povijest. Stranica `zagreb-enrolment-page` zamjenjuje se novijim stanjem.

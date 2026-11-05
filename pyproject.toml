@@ -19,6 +19,7 @@ kidsic-search = "KIDSic.commands.search:main"
 kidsic-register-sources = "KIDSic.commands.register_sources:main"
 kidsic-sync-kindergartens = "KIDSic.commands.sync_kindergartens:main"
 kidsic-sync-historical = "KIDSic.commands.sync_historical:main"
+kidsic-sync-enrolment = "KIDSic.commands.sync_enrolment:main"
 
 [build-system]
 requires = ["hatchling"]

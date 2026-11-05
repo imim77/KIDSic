@@ -48,7 +48,8 @@
 
 - [ ] Povezati razgovorni upit o gradu i dobi djeteta sa strukturiranom pretragom te odvojiti potvrđenu dobnu prikladnost od nepoznatih uvjeta.
 - [x] Dohvaćati RAG kontekst samo za odabranu ustanovu/objekt, uz provjerljive izvore, datume i odvajanje povijesnih podataka; teme bira model klijenta, a server vraća sve dokaze tih tema bez rangiranja ([RAG.md](RAG.md)).
-- [ ] Proširiti RAG korpus otvorenim službenim upisnim dokumentima; ako dokumenti po vrtiću premaše ograničenje odgovora, uvesti i evaluirati dohvat nad njima.
+- [x] Proširiti RAG korpus otvorenim službenim upisnim dokumentima za gradske vrtiće Zagreba; mjerenje pokazuje da dokumenti po vrtiću ne premašuju ograničenje odgovora, pa dohvat nad njima nije potreban ([RAG.md](RAG.md)).
+- [ ] Uvesti upisne dokumente Varaždina i Rijeke nakon potvrde uvjeta ponovne uporabe ([seeds/README.md](src/KIDSic/db/seeds/README.md#upisni-dokumenti)).
 - [ ] Omogućiti pretragu, dohvat detalja, usporedbu i vodič za upis kroz MCP alate.
 - [ ] Pretvarati upit roditelja prirodnim jezikom u vidljive kriterije pretrage nad stvarnim podacima.
 - [ ] Zatražiti pojašnjenje kada za pretragu nedostaje ključan podatak poput lokacije ili željene dobne skupine.
@@ -58,9 +59,9 @@
 
 ## Priprema i nastavak upisa
 
-- [ ] Povezivati svaku ustanovu s odgovarajućim službenim kanalom upisa: nacionalnim e-Upisima, gradskim sustavom ili uputama vrtića.
-- [ ] Prikazivati službeni poziv, pedagošku godinu i objavljene rokove te razlikovati otvorene, buduće i završene rokove.
-- [ ] Prikazivati korake i popis potrebnih dokumenata prema važećem službenom izvoru za odabranu ustanovu.
+- [ ] Povezivati svaku ustanovu s odgovarajućim službenim kanalom upisa: nacionalnim e-Upisima, gradskim sustavom ili uputama vrtića. RAG zasad pokriva gradske vrtiće Zagreba (eupisi.zgvrtici.hr).
+- [ ] Prikazivati službeni poziv, pedagošku godinu i objavljene rokove te razlikovati otvorene, buduće i završene rokove. RAG vraća datirane rokove za Zagreb 2026./2027.; usporedbu s današnjim datumom radi model klijenta.
+- [ ] Prikazivati korake i popis potrebnih dokumenata prema važećem službenom izvoru za odabranu ustanovu. RAG pokriva gradske vrtiće Zagreba; prikaz u sučelju nedostaje.
 - [ ] Omogućiti nastavak na službeni sustav upisa uz jasno označen prijelaz na vanjsku uslugu.
 - [ ] Razlikovati pripremu upisa i otvaranje službenog portala od stvarno predanog zahtjeva i potvrđenog upisa.
 

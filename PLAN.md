@@ -176,6 +176,13 @@ Posljedica za plan: `topics` postaje neobavezan i bez njega se vraćaju sve
 teme. Granica broja odlomaka uklanja se, a budžet znakova ostaje kao zaštita.
 Pristup D je zapravo podskup pristupa A.
 
+**Ponovljeno mjerenje nakon uvoza upisnih dokumenata (5. 11. 2026.).** Ista
+metoda, nakon `kidsic-sync-enrolment` (787 novih odlomaka za 61 gradski vrtić
+Zagreba). Po ustanovi: 1.468 / 10.947 / 12.423 znakova (medijan / p90 / max) i
+4 / 27 / 41 odlomak; svih 304 stane u 24.000 znakova. Tema `document` ima
+najviše 8.394 znakova i 15 odlomaka (DV Duga), ispod granice od 30 dokumenata.
+Zaključak koraka 0 vrijedi: dohvat nad dokumentima nije potreban.
+
 ### Ugovor alata (`src/KIDSic/dto/rag.py`)
 
 - Dodati `Topic = Literal['programs', 'vacancies', 'subsidies', 'contacts',

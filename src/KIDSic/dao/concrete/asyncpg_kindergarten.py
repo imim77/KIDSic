@@ -138,6 +138,12 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
         return await self._connection.fetch('''
           SELECT c.id,c.kindergarten_id,c.location_id,c.content,c.source_url,c.source_record_id,
                  r.observed_on,r.fetched_at,s.title AS source_title,s.license,
+                 -- Reviewed documents carry their own scope and governed period.
+                 CASE WHEN r.raw_data->>'kind'='enrolment_document' THEN r.raw_data->>'scope' END AS document_scope,
+                 CASE WHEN r.raw_data->>'kind'='enrolment_document' AND r.raw_data->>'date_kind'='published'
+                   THEN (r.raw_data->>'reference_date')::date END AS published_on,
+                 CASE WHEN r.raw_data->>'kind'='enrolment_document'
+                   THEN (r.raw_data->>'valid_until')::date>=current_date END AS in_effect,
                  CASE WHEN $3::vector IS NULL THEN NULL ELSE c.embedding <=> $3::vector END AS distance
           FROM knowledge_chunk c
           JOIN source_record r ON r.id=c.source_record_id

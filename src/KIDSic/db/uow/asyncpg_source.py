@@ -4,6 +4,7 @@ from KIDSic.db.uow.source import SourceUnitOfWork
 from KIDSic.exceptions import PersistenceError
 from KIDSic.dao.concrete.asyncpg_source import AsyncpgSourceRepository
 from KIDSic.dao.concrete.asyncpg_historical import AsyncpgHistoricalRepository
+from KIDSic.dao.concrete.asyncpg_enrolment import AsyncpgEnrolmentDocumentRepository
 
 
 class AsyncpgSourceUnitOfWork(SourceUnitOfWork):
@@ -25,6 +26,7 @@ class AsyncpgSourceUnitOfWork(SourceUnitOfWork):
             await self._connection.execute('SELECT pg_advisory_xact_lock(194733, 1)')
             self.sources = AsyncpgSourceRepository(self._connection)
             self.historical = AsyncpgHistoricalRepository(self._connection)
+            self.enrolment = AsyncpgEnrolmentDocumentRepository(self._connection)
             return self
         except BaseException as error:
             try:

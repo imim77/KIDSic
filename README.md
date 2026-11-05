@@ -155,6 +155,20 @@ uvoz čuva povijest, ali API prikazuje samo aktivnu snimku. Ovi povijesni zapisi
 ne potvrđuju aktualnu dobnu prikladnost, današnja slobodna mjesta ni pravo upisa.
 Iz ovog skupa nema podataka o slobodnim mjestima privatnih i vjerskih vrtića.
 
+### Upisni dokumenti
+
+`kidsic-sync-enrolment` uvozi pregledanu snimku službenih upisnih dokumenata
+([2026-11-05_zagreb_enrolment.json](src/KIDSic/db/seeds/2026-11-05_zagreb_enrolment.json))
+kao RAG odlomke teme `document`. Opis izvora, licenci i opsega je u
+[seeds/README.md](src/KIDSic/db/seeds/README.md#upisni-dokumenti).
+
+```bash
+uv run kidsic-sync-enrolment --dry-run
+uv run kidsic-sync-enrolment
+```
+
+Uvoz ide nakon imenika. Ne stvara ustanove ni objekte i ne šalje mrežne zahtjeve.
+
 ### Riječki objekti vrtića
 
 Primarni katalog Grada Rijeke daje CSV resurs

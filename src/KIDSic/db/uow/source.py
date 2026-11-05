@@ -4,11 +4,13 @@ from collections.abc import Callable
 
 from KIDSic.dao.interfaces.source import SourceRepository
 from KIDSic.dao.interfaces.historical import HistoricalRepository
+from KIDSic.dao.interfaces.enrolment import EnrolmentDocumentRepository
 
 
 class SourceUnitOfWork(ABC):
     sources: SourceRepository
     historical: HistoricalRepository
+    enrolment: EnrolmentDocumentRepository
 
     @abstractmethod
     async def __aenter__(self):

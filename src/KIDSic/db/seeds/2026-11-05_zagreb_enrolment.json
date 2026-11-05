@@ -1,0 +1,139 @@
+{
+  "snapshot_key": "zagreb-enrolment-20261105",
+  "verified_on": "2026-11-05",
+  "documents": [
+    {
+      "dataset_key": "zagreb-enrolment-notice-2026-2027",
+      "title": "Obavijest o upisu djece rane i predškolske dobi u programe predškolskog odgoja i obrazovanja za pedagošku godinu 2026./2027. na području Grada Zagreba",
+      "publisher": "Grad Zagreb, Gradski ured za obrazovanje, sport i mlade",
+      "url": "https://vrtici.zagreb.hr/UserDocsImages/Upisi/Obavijest_upisi_dv_2627.pdf",
+      "license": "Uvjeti korištenja www.zagreb.hr: ponovna uporaba uz navođenje izvora; službeni tekst (ZAPSP čl. 18. st. 3.)",
+      "license_url": "https://www.zagreb.hr/uvjeti-koristenja/2048",
+      "municipality": "zagreb",
+      "provider_kinds": ["municipal"],
+      "reference_date": "2026-05-11",
+      "date_kind": "published",
+      "valid_until": "2027-08-31",
+      "sha256": "2f44e020839cca8a6313061a1415b6b6a454f252da127a9a0fb7ad7df9b46f85",
+      "excerpts": [
+        {
+          "content": "Redoviti upis u gradske dječje vrtiće za pedagošku godinu 2026./2027.: zahtjevi su se zaprimali od 13. svibnja 2026. od 9:00 sati do 22. svibnja 2026. do 16:00 sati elektroničkom prijavom na eupisi.zgvrtici.hr. Na toj stranici je i popis potrebne dokumentacije za prijavu. Redoviti cjelodnevni 10-satni program provode svi dječji vrtići Grada Zagreba za djecu koja do 31. kolovoza 2026. navršavaju jednu godinu života pa do polaska u osnovnu školu."
+        },
+        {
+          "content": "Zahtjev za upis roditelj/skrbnik podnosi samo jednom gradskom dječjem vrtiću (prioritetni izbor). U zahtjevu može odabrati i drugi gradski vrtić kao alternativnu opciju; taj vrtić razmatra takve prijave tek nakon obrade zahtjeva djece kojima je bio prioritetni izbor, i to isključivo ako ostanu slobodna mjesta. Za predaju na eupisi.zgvrtici.hr potrebni su vjerodajnica značajne ili visoke razine sigurnosti (NIAS) te adresa e-pošte i/ili osobni korisnički pretinac u sustavu e-Građani. Pomoć pruža odabrani vrtić telefonom ili e-poštom tijekom radnog vremena; tehnička podrška tijekom razdoblja prijave: e-upisi.vrtici@zagreb.hr. Kod osobne predaje u vrtiću prilaže se ispunjeni obrazac zahtjeva i dokazna dokumentacija objavljeni na vrtici.zagreb.hr/upisi."
+        },
+        {
+          "content": "Prednost pri upisu ostvaruje se prema Odluci o načinu ostvarivanja prednosti pri upisu djece u dječje vrtiće kojima je osnivač Grad Zagreb (Službeni glasnik Grada Zagreba 15/23, 36/24 i 12/26) i Pravilniku o upisu djece u dječji vrtić."
+        },
+        {
+          "content": "Rezultati upisa za pedagošku godinu 2026./2027. objavljuju se 17. lipnja 2026. na oglasnim pločama i mrežnim stranicama dječjih vrtića, pod šifrom djeteta. Roditelj/skrbnik nezadovoljan rezultatom može podnijeti prigovor ravnatelju vrtića prioritetnog izbora do 25. lipnja 2026.; ravnatelj odlučuje u roku od 8 dana od zaprimanja prigovora."
+        },
+        {
+          "content": "Djeca se upisuju ugovorom roditelja/skrbnika i vrtića, u pravilu u roku od mjesec dana od objave rezultata, a iznimno najkasnije do 31. kolovoza 2026., odnosno do uključivanja djeteta u program. Prije sklapanja ugovora roditelj/skrbnik vrtiću dostavlja: potvrdu nadležnog liječnika o obavljenom sistematskom zdravstvenom pregledu predškolskog djeteta prije upisa u dječji vrtić; presliku zdravstvene iskaznice djeteta; presliku iskaznice imunizacije (uredna procijepljenost prema Programu obveznog cijepljenja) uz predočenje originala te, ako su utvrđene privremene ili trajne kontraindikacije za cijepljenje, potvrdu izabranog pedijatra ili obiteljskog liječnika. Upisano dijete započinje program 1. rujna 2026., osim ako ugovorom nije drukčije utvrđeno. Sudjelovanje roditelja u cijeni utvrđuje se aktima Grada Zagreba, ovisno o vrsti i trajanju programa."
+        },
+        {
+          "content": "Upis tijekom pedagoške godine 2026./2027.: djeca se mogu upisivati tijekom cijele pedagoške godine prema Pravilniku o upisu djece u dječji vrtić, ako vrtić ima slobodnih mjesta ili dođe do proširenja kapaciteta. Prijave tijekom godine provode se prema Odluci o načinu ostvarivanja prednosti (Službeni glasnik Grada Zagreba 15/23, 36/24 i 12/26) i Pravilniku o upisu. Podaci o slobodnim mjestima u gradskim vrtićima objavljuju se početkom svakog mjeseca na vrtici.zagreb.hr/slobodna-mjesta."
+        },
+        {
+          "institutions": ["Dječji vrtić Duga"],
+          "content": "Dječji vrtić Duga provodi 10-satni program za djecu koja do 31. kolovoza 2026. navršavaju od šest do jedanaest mjeseci života, za djecu zaposlenih roditelja/skrbnika koji ne koriste roditeljski dopust do godine dana života djeteta."
+        },
+        {
+          "institutions": ["Dječji vrtić Bajka"],
+          "content": "Dječji vrtić Bajka provodi cjelodnevni 10-satni smjenski program te poseban program za djecu s obilježjima iz spektra autizma."
+        },
+        {
+          "institutions": ["Dječji vrtić Vladimira Nazora"],
+          "content": "Dječji vrtić Vladimira Nazora provodi poseban program za djecu s motoričkim oštećenjima."
+        },
+        {
+          "institutions": ["Dječji vrtić Potočnica"],
+          "content": "Dječji vrtić Potočnica provodi poseban program za djecu s motoričkim oštećenjima i sniženim intelektualnim sposobnostima te dvojezični hrvatsko-mađarski 10-satni program za djecu pripadnike nacionalnih manjina."
+        },
+        {
+          "institutions": ["Dječji vrtić Budućnost", "Dječji vrtić Različak", "Dječji vrtić Sunce"],
+          "content": "Poseban program za djecu s višestrukim teškoćama provode Dječji vrtić Budućnost, Dječji vrtić Različak i Dječji vrtić Sunce."
+        },
+        {
+          "institutions": ["Dječji vrtić Budućnost"],
+          "content": "Dječji vrtić Budućnost privremeno provodi sve aktivnosti upisa u novi objekt Podbrežje (Avenija Većeslava Holjevca 38/1). Za taj objekt zahtjev se podnosi Dječjem vrtiću Budućnost kao prioritetnom izboru, a u aplikaciji se u izborniku „Odabir programa dječjeg vrtića” bira PO PODBREŽJE - Redoviti 10-satni program jaslice ili PO PODBREŽJE - Redoviti 10-satni program vrtić; uz to se može odabrati drugi gradski vrtić kao alternativna opcija."
+        },
+        {
+          "institutions": ["Dječji vrtić Izvor"],
+          "content": "Dječji vrtić Izvor privremeno provodi sve aktivnosti upisa u novi objekt Stenjevec (Marije Radić 1). Za taj objekt zahtjev se podnosi Dječjem vrtiću Izvor kao prioritetnom izboru, a u aplikaciji se u izborniku „Odabir programa dječjeg vrtića” bira PO STENJEVEC - Redoviti 10-satni program jaslice ili PO STENJEVEC - Redoviti 10-satni program vrtić; uz to se može odabrati drugi gradski vrtić kao alternativna opcija."
+        },
+        {
+          "institutions": ["Dječji vrtić Remetinec"],
+          "content": "Zbog izgradnje novog i većeg objekta Dječjeg vrtića Remetinec (Ulica Vice Vukova 9) za pedagošku godinu 2026./2027. neće se provoditi upisi u taj vrtić. Dodatni kapaciteti osigurani su u novom objektu u Podbrežju; roditelji mogu podnijeti zahtjev i drugim gradskim vrtićima."
+        },
+        {
+          "institutions": ["Dječji vrtić Ivane Brlić Mažuranić"],
+          "content": "Zbog gradnje novog i većeg objekta Dječjeg vrtića Ivane Brlić Mažuranić (Cerska 22) za pedagošku godinu 2026./2027. neće se provoditi upisi u taj vrtić; roditelji/skrbnici mogu podnijeti zahtjev drugim gradskim vrtićima."
+        }
+      ]
+    },
+    {
+      "dataset_key": "zagreb-preschool-notice-2026-2027",
+      "title": "Obavijest o upisu u program predškole djece obveznika predškole koja nisu uključena u programe predškolskog odgoja i obrazovanja u dječjem vrtiću za pedagošku godinu 2026./2027. na području Grada Zagreba",
+      "publisher": "Grad Zagreb, Gradski ured za obrazovanje, sport i mlade",
+      "url": "https://vrtici.zagreb.hr/UserDocsImages/Upisi/Obavijest_upisi_predškola_2627.pdf",
+      "license": "Uvjeti korištenja www.zagreb.hr: ponovna uporaba uz navođenje izvora; službeni tekst (ZAPSP čl. 18. st. 3.)",
+      "license_url": "https://www.zagreb.hr/uvjeti-koristenja/2048",
+      "municipality": "zagreb",
+      "provider_kinds": ["municipal"],
+      "institutions": [
+        "Dječji vrtić Bukovac", "Dječji vrtić Duga", "Dječji vrtić Milana Sachsa", "Dječji vrtić Zrno",
+        "Dječji vrtić Savica", "Dječji vrtić Tratinčica", "Dječji vrtić Botinec", "Dječji vrtić Hrvatski Leskovac",
+        "Dječji vrtić Matije Gupca", "Dječji vrtić Petar Pan", "Dječji vrtić Kolibri", "Dječji vrtić Medo Brundo",
+        "Dječji vrtić Pčelica", "Dječji vrtić Poletarac", "Dječji vrtić Sunce", "Dječji vrtić Jabuka",
+        "Dječji vrtić Malešnica", "Dječji vrtić Gajnice", "Dječji vrtić Vrapče", "Dječji vrtić Leptir",
+        "Dječji vrtić Sesvete", "Dječji vrtić Šegrt Hlapić"
+      ],
+      "reference_date": "2026-05-11",
+      "date_kind": "published",
+      "valid_until": "2027-08-31",
+      "sha256": "a878ad757a6e9513e116411ca695477f6cfc806011ed267124adc6780d99b4a6",
+      "excerpts": [
+        {
+          "content": "Ovaj dječji vrtić naveden je među gradskim vrtićima koji provode verificirani program predškole u trajanju od 250 sati godišnje za pedagošku godinu 2026./2027. Program predškole obvezan je i besplatan za djecu u godini prije polaska u osnovnu školu koja nisu uključena u programe predškolskog odgoja i obrazovanja u dječjem vrtiću. Zahtjevi su se zaprimali od 13. svibnja 2026. od 9:00 sati do 22. svibnja 2026. do 16:00 sati na eupisi.zgvrtici.hr, gdje je i popis potrebne dokumentacije; zahtjev se podnosi samo jednom gradskom vrtiću koji provodi program predškole. Za predaju su potrebni NIAS vjerodajnica značajne ili visoke razine sigurnosti te e-pošta i/ili osobni korisnički pretinac u sustavu e-Građani. Kod osobne predaje u vrtiću prilaže se obrazac zahtjeva i dokazna dokumentacija s vrtici.zagreb.hr/upisi."
+        },
+        {
+          "content": "Rezultati upisa u program predškole objavljuju se 17. lipnja 2026. na oglasnim pločama i mrežnim stranicama vrtića, pod šifrom djeteta; prigovor ravnatelju vrtića može se podnijeti do 25. lipnja 2026., a ravnatelj odlučuje u roku od 8 dana. Program predškole ostvaruje se od 1. listopada 2026. do 31. svibnja 2027.; upis u program predškole moguć je i tijekom pedagoške godine."
+        }
+      ]
+    },
+    {
+      "dataset_key": "zagreb-enrolment-page",
+      "title": "Upisi u gradske vrtiće — Centralna stranica vrtića Grada Zagreba",
+      "publisher": "Grad Zagreb, Gradski ured za obrazovanje, sport i mlade",
+      "url": "https://vrtici.zagreb.hr/upisi-u-gradske-vrtice-111/111",
+      "license": "Uvjeti korištenja www.zagreb.hr: ponovna uporaba uz navođenje izvora",
+      "license_url": "https://www.zagreb.hr/uvjeti-koristenja/2048",
+      "municipality": "zagreb",
+      "provider_kinds": ["municipal"],
+      "reference_date": "2026-11-05",
+      "date_kind": "observed",
+      "valid_until": "2027-08-31",
+      "excerpts": [
+        {
+          "content": "Zahtjevi za upis u gradske vrtiće podnose se online, a podnošenje zahtjeva za upis u pedagošku godinu 2026./2027. otvoreno je tijekom cijele godine, na eupisi.zgvrtici.hr. Roditelj/skrbnik prijavljuje se NIAS vjerodajnicom značajne ili visoke razine. Tijekom pedagoške godine nema ograničenja broja zahtjeva: zahtjev se može podnijeti jednom ili više vrtića. Ako vrtić ima slobodnih mjesta i dijete ispunjava uvjete, upis će biti omogućen; ako nema mjesta za svu djecu, vrtić na svojim mrežnim stranicama objavljuje listu prednosti i po oslobađanju mjesta upisuje djecu redoslijedom s te liste. Vrijeme predaje zahtjeva ne donosi prednost ni bodove."
+        },
+        {
+          "content": "Sustav e-upisa dohvaća većinu podataka iz državnih i javnih registara. Ako je primjenjivo, za dodatne bodove u digitalni zahtjev prilažu se: za dijete roditelja koji primaju doplatak za djecu ili su korisnici zajamčene minimalne naknade — rješenje o pravu na doplatak za djecu ili rješenje područnog ureda Hrvatskog zavoda za socijalni rad; za dijete s teškoćama u razvoju i kroničnim bolestima — nalaz i mišljenje tijela vještačenja ili potvrda izabranog pedijatra ili obiteljskog liječnika da je razmjer teškoća okvirno u skladu s listom oštećenja funkcionalnih sposobnosti; za dijete iz jednoroditeljske obitelji — presuda o razvodu braka, dokaz o razvrgnuću izvanbračne zajednice ili drugi dokaz da drugi roditelj/skrbnik ne živi u zajedničkom kućanstvu; za dijete smješteno u udomiteljskoj obitelji — rješenje/potvrda područnog ureda Hrvatskog zavoda za socijalni rad. Kriteriji i bodovi navedeni su u dokumentu https://vrtici.zagreb.hr/UserDocsImages/Upisi/Prednost_upisi%20u%20vrti%C4%87.pdf."
+        },
+        {
+          "content": "Zahtjev se ne može predati e-poštom vrtiću ni Gradskom uredu; predaje se isključivo putem aplikacije eupisi.zgvrtici.hr ili osobno u dječjem vrtiću, uz obrazac zahtjeva (https://vrtici.zagreb.hr/UserDocsImages/Upisi/Zahtjev_inicijalni_dv.pdf) i primjenjivu dokaznu dokumentaciju. Ako u javnim registrima ne postoji veza roditelj-dijete (u pravilu kod roditelja stranaca te kod udomitelja), zahtjev se ne može podnijeti digitalno, nego samo osobno u vrtiću."
+        },
+        {
+          "content": "U gradske dječje vrtiće mogu se upisati djeca od navršene godine dana života do polaska u osnovnu školu. Iznimno, djeca od šest mjeseci do navršene prve godine čiji roditelji/skrbnici ne koriste roditeljski dopust mogu se upisati u vrtiće s verificiranim posebnim programom za tu dob; prema stranici pregledanoj 5. studenoga 2026. takav program provodi Dječji vrtić Duga. Dijete prije upisa mora primiti sva obvezna cijepljenja, osim ako je od pojedinih oslobođeno zbog zdravstvenih kontraindikacija, a prije potpisa ugovora mora obaviti sistematski zdravstveni pregled. Zahtjev se može podnijeti i za dijete koje do 31. kolovoza 2026. nije navršilo godinu dana, ali pravo upisa ostvaruje tek nakon navršene godine, ako tada postoje slobodna mjesta za tu dob i dijete je prvo na listi prednosti."
+        },
+        {
+          "content": "Roditelji ne mogu birati određeni objekt ni skupinu: vrtić raspoređuje dijete prema organizaciji rada, strukturi skupina i stručnoj procjeni, uključujući inicijalni razgovor. Svi gradski vrtići imaju upisna područja: to je cijela gradska četvrt (ili više njih) u kojoj vrtić ima matični ili područni objekt. Zahtjev vrtiću na čijem upisnom području dijete ima prebivalište donosi maksimalan broj bodova po kriteriju prebivališta/boravišta; zahtjev vrtiću u drugom dijelu grada donosi dodatne, ali ne maksimalne bodove po tom kriteriju."
+        },
+        {
+          "content": "Za pomoć pri podnošenju zahtjeva roditelji se obraćaju vrtiću kojem podnose zahtjev. Ako dohvat podataka o prebivalištu ili boravištu nije uspio, adresu može ručno unijeti vrtić ili Helpdesk Gradskog ureda (e-upisi.vrtici@zagreb.hr). Ako je roditelj zaposlen u inozemstvu, dokaz o zaposlenju može se priložiti u aplikaciji; tada treba priložiti dokaz za oba roditelja jer se podaci dohvaćeni iz HZMO-a brišu."
+        }
+      ]
+    }
+  ]
+}

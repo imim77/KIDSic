@@ -1,0 +1,112 @@
+"""Rollback-only fixtures protect enrolment document scope, dates and revocation."""
+import os
+import unittest
+from contextlib import asynccontextmanager
+from datetime import date, datetime, timedelta, timezone
+from types import SimpleNamespace
+from urllib.parse import urlparse
+
+from KIDSic.dao.concrete.asyncpg_enrolment import AsyncpgEnrolmentDocumentRepository
+from KIDSic.dao.concrete.asyncpg_kindergarten import AsyncpgKindergartenRepository
+from KIDSic.dao.concrete.asyncpg_location import AsyncpgLocationRepository
+from KIDSic.dao.concrete.asyncpg_source import AsyncpgSourceRepository
+from KIDSic.db.database import database_pool
+from KIDSic.dto.enrolment import EnrolmentDocument
+from KIDSic.dto.rag import RagQuery
+from KIDSic.dto.source import PlannedSource, SourceDefinition, SourceSnapshot
+from KIDSic.exceptions import SourceImportError
+from KIDSic.factories.rag import RagServiceFactory
+from KIDSic.services.concrete.kindergarten_normalizer import normalize_records
+from test_enrolment import DOCUMENT
+from test_sources import MUNICIPAL, source_client
+
+
+@unittest.skipUnless(os.getenv('KIDSIC_TEST_DATABASE_URL'), 'Set KIDSIC_TEST_DATABASE_URL')
+class EnrolmentDatabaseTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        dsn = os.environ['KIDSIC_TEST_DATABASE_URL']
+        if not urlparse(dsn).path.removeprefix('/').startswith('kidsic_test_'):
+            raise ValueError('Use kidsic_test_* database')
+        self.context = database_pool(dsn)
+        self.pool = await self.context.__aenter__()
+        self.c = await self.pool.acquire()
+        self.tx = self.c.transaction(); await self.tx.start()
+        client = source_client('municipal')
+        definition = SourceDefinition('directory', 'https://example.invalid', 'directory', 'municipal')
+        package = client.get_package.return_value
+        rows = normalize_records([MUNICIPAL, {**MUNICIPAL, 'Id': 2, 'Naziv': 'DV Primjer-PO Druga',
+                                'Adresa': 'Druga 2', 'TipVrtica': 'Područni'}], 'municipal')
+        await AsyncpgSourceRepository(self.c).import_snapshot(SourceSnapshot(
+            PlannedSource(definition, package, package.resources[0]), rows, datetime.now(timezone.utc)))
+        self.enrolment = AsyncpgEnrolmentDocumentRepository(self.c)
+
+        @asynccontextmanager
+        async def work():
+            yield SimpleNamespace(locations=AsyncpgLocationRepository(self.c), search=AsyncpgKindergartenRepository(self.c))
+        self.rag = RagServiceFactory().create(work)
+        self.query = RagQuery(city='Zagreb', name='Primjer', topics=['document'])
+
+    async def asyncTearDown(self):
+        await self.tx.rollback(); await self.pool.release(self.c)
+        await self.context.__aexit__(None, None, None)
+
+    async def load(self, **changes):
+        document = EnrolmentDocument.model_validate({**DOCUMENT, **changes})
+        return await self.enrolment.import_document(document, 'test-snapshot', datetime.now(timezone.utc))
+
+    async def test_municipal_and_named_excerpts_reach_every_object_with_dates_and_licence(self):
+        result = await self.load(valid_until=(date.today() + timedelta(days=30)).isoformat(), excerpts=[
+            {'content': 'Zahtjevi se podnose od 13. svibnja 2026. do 22. svibnja 2026.'},
+            {'content': 'Ovaj vrtić ne provodi upise.', 'institutions': ['Dječji vrtić Primjer']}])
+        self.assertEqual((result['institutions'], result['records'], result['chunks']), (1, 2, 2))
+        context = await self.rag.retrieve(self.query)
+        self.assertEqual((context.status, context.total_matches), ('ok', 2))
+        by_scope = {e.scope: e for e in context.evidence}
+        self.assertEqual(set(by_scope), {'municipality', 'institution'})
+        for item in context.evidence:
+            self.assertEqual(len(item.applies_to), 2)  # institution-wide, not one object's
+            self.assertEqual((item.reference_date, item.date_kind, item.temporal_status),
+                             (date(2026, 5, 11), 'published', 'current'))
+            self.assertEqual(item.sources[0].url, 'https://example.invalid/upis.pdf')
+            self.assertEqual(item.sources[0].license, 'Ponovna uporaba uz navođenje izvora')
+        self.assertIsNone(await self.c.fetchval(
+            "SELECT observed_on FROM data_source WHERE dataset_key='example-enrolment'"))
+
+    async def test_expired_period_is_historical_and_observed_date_is_kept(self):
+        await self.load(reference_date='2020-05-11', date_kind='observed', valid_until='2021-08-31')
+        [item] = (await self.rag.retrieve(self.query)).evidence
+        self.assertEqual((item.reference_date, item.date_kind, item.temporal_status),
+                         (date(2020, 5, 11), 'observed', 'historical'))
+        self.assertEqual(await self.c.fetchval(
+            "SELECT observed_on FROM data_source WHERE dataset_key='example-enrolment'"), date(2020, 5, 11))
+
+    async def test_reimport_replaces_the_batch_and_revocation_hides_documents(self):
+        await self.load()
+        await self.load(excerpts=[{'content': 'Nova verzija obavijesti.'}])
+        [item] = (await self.rag.retrieve(self.query)).evidence
+        self.assertEqual(item.content, 'Nova verzija obavijesti.')
+        await self.c.execute("UPDATE data_source SET import_allowed=false WHERE dataset_key='example-enrolment'")
+        self.assertEqual((await self.rag.retrieve(self.query)).status, 'no_evidence')
+        with self.assertRaisesRegex(SourceImportError, 'disabled'):
+            await self.load()
+
+    async def test_unresolved_names_and_other_provider_kinds_are_rejected(self):
+        with self.assertRaisesRegex(SourceImportError, '0 active institutions'):
+            await self.load(excerpts=[{'content': 'Upis.', 'institutions': ['Dječji vrtić Nepostojeći']}])
+        with self.assertRaisesRegex(SourceImportError, 'No active institutions'):
+            await self.load(provider_kinds=['private'])
+        with self.assertRaisesRegex(SourceImportError, 'No active institutions'):
+            await self.load(municipality='rijeka')
+
+    async def test_enrolment_records_never_keep_a_dropped_kindergarten_active(self):
+        # A Zagreb seat makes the owner eligible through any accepted active record.
+        await self.c.execute("UPDATE kindergarten SET seat_municipality_id=(SELECT id FROM municipality WHERE key='zagreb')")
+        await self.load()
+        await self.c.execute("UPDATE data_source SET import_allowed=false WHERE dataset_key='directory'")
+        with self.assertRaisesRegex(SourceImportError, 'No active institutions'):
+            await self.load()
+        self.assertEqual((await self.rag.retrieve(self.query)).status, 'not_found')
+
+
+if __name__ == '__main__':
+    unittest.main()

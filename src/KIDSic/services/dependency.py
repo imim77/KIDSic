@@ -11,6 +11,7 @@ from KIDSic.factories.kindergarten_search import KindergartenSearchServiceFactor
 from KIDSic.factories.location import LocationServiceFactory
 from KIDSic.factories.source import SourceServiceFactory
 from KIDSic.factories.historical import HistoricalServiceFactory
+from KIDSic.factories.enrolment import EnrolmentDocumentServiceFactory
 from KIDSic.factories.rag import RagServiceFactory
 from KIDSic.db.uow.asyncpg_source import AsyncpgSourceUnitOfWork
 
@@ -39,6 +40,14 @@ class DependencyService:
             else:
                 async with self._pool() as pool:
                     yield factory.create(http, lambda: AsyncpgSourceUnitOfWork(pool), source_keys)
+
+    @asynccontextmanager
+    async def enrolment_service(self, *, with_database: bool = True):
+        if not with_database:
+            yield EnrolmentDocumentServiceFactory().create()
+        else:
+            async with self._pool() as pool:
+                yield EnrolmentDocumentServiceFactory().create(lambda: AsyncpgSourceUnitOfWork(pool))
 
     @asynccontextmanager
     async def kindergarten_search_service(self):

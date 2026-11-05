@@ -46,7 +46,9 @@ Odgovor sadrži `criteria`, `status`, `total_matches`, `matches`, `evidence`,
 - `citation_id`, identifikatore ustanove/objekta i `applies_to` (odabrane objekte).
 - `scope`: `facility`, `institution` ili `municipality`.
 - `topic`: `programs`, `vacancies`, `subsidies`, `contacts` ili `document`.
-- `temporal_status`: `historical`, `current` ili `undated`.
+- `temporal_status`: `historical`, `current` ili `undated`. Upisni dokument je
+  `current` dok traje razdoblje koje uređuje (`valid_until`), ali pojedini rokovi
+  u njemu mogu biti istekli; model ih uspoređuje s današnjim datumom.
 - `reference_date` i `date_kind`: `published`, `observed`, `verified` ili `unknown`.
 - `content` i `sources`: naslove, izravne URL-ove i licencu kada je poznata.
 
@@ -81,6 +83,14 @@ repozitorija lokacija. Tek zatim nastaje ograničeni korpus za odabranu ustanovu
 - Postojeći `knowledge_chunk` odlomci prolaze provjeru aktivnog izvora i istog
   vlasnika/objekta. Programski odlomci ograničeni su na aktualne primjenjive
   programe, a rezultat samo sjedišta ne nasljeđuje odlomke fizičkih objekata.
+- Upisni dokumenti dolaze iz pregledane snimke (`kidsic-sync-enrolment`, opis u
+  [seeds/README.md](src/KIDSic/db/seeds/README.md#upisni-dokumenti)). Za gradske
+  vrtiće Zagreba to su gradske obavijesti o upisu i predškoli 2026./2027.
+  (objavljene 11. 5. 2026.) i stranica vrtici.zagreb.hr/upisi (stanje 5. 11. 2026.):
+  rokovi, kanal (eupisi.zgvrtici.hr, NIAS), dokumenti, prednost, rezultati i
+  prigovori, upis tijekom godine. Odlomak za sve gradske vrtiće ima opseg
+  `municipality`, a odlomak za imenovanu ustanovu `institution`. `date_kind` je
+  `published` za obavijest i `observed` za stranicu bez datuma.
 
 Nepoznata dobna prikladnost ne blokira dohvat drugih činjenica. Institucionalni
 broj mjesta prenosi se jednom s popisom objekata na koje se odnosi, ne zbraja se
@@ -89,18 +99,30 @@ po podružnicama. Objavljena nula i nedostajuća vrijednost ostaju različiti.
 Dokazi se ne rangiraju. Vraćaju se svi prihvaćeni dokazi odabranih tema,
 redom tema iz popisa gore, zatim od novijeg datuma prema starijem. Tekstualni
 dokumenti čitaju se samo kada je tražena tema `document`, do 30 po upitu, bez
-pretrage po riječima pitanja. Mjerenje nad lokalnom snimkom (545 objekata, 304
-ustanove) dalo je najviše oko 6.200 znakova i 27 odlomaka po ustanovi, pa
-pretraga ni embeddingi ne donose vrijednost. Mjerenje treba ponoviti nakon uvoza
-upisnih dokumenata.
+pretrage po riječima pitanja.
+
+Mjerenje nakon uvoza upisnih dokumenata (5. 11. 2026., lokalna snimka: 545
+objekata, 304 ustanove, 61 zagrebački gradski vrtić s dokumentima; metoda iz
+koraka 0 u [PLAN.md](PLAN.md)):
+
+| Skup | Znakova medijan / p90 / max | Odlomaka medijan / p90 / max |
+| --- | --- | --- |
+| Po ustanovi, sve teme | 1.468 / 10.947 / 12.423 | 4 / 27 / 41 |
+| Po ustanovi, `document` | max 8.394 (DV Duga) | max 15 |
+
+Najveći skup ima polovicu budžeta od 24.000 znakova, a dokumenata je najviše
+15 od 30 dopuštenih. Pretraga ni embeddingi nad dokumentima zato ne donose
+vrijednost; ponovno mjeriti kada se dodaju novi gradovi ili pedagoške godine.
 
 Odgovor ima najviše 24.000 znakova sadržaja; odlomci se ne režu kroz uvjete.
 `truncated` označava ograničenje odgovora ili dosegnutu granicu od 30 tekstualnih
 dokumenata. Rezultat nije iscrpan pregled svih objavljenih dokumenata.
 
 Strukturirani zapisi pretvaraju se u odlomke pri čitanju, bez kopiranja pravila
-po vrtićima. Automatsko preuzimanje novih upisnih dokumenata još nije implementirano;
-u lokalnoj snimci pitanje o dokumentima za upis može vratiti `no_evidence`.
+po vrtićima. Upisni dokumenti postoje samo za gradske vrtiće Zagreba. Za Varaždin,
+Rijeku te privatne i vjerske vrtiće pitanje o upisu vraća `no_evidence`, jer
+licenca njihovih izvora nije potvrđena ili zajednički izvor ne postoji. Server
+ne preuzima nove dokumente automatski; svaku snimku treba ručno pregledati.
 
 ## Provjere
 
