@@ -20,6 +20,9 @@ class LocationQuery(BaseModel):
     age_months: int | None = Field(default=None, strict=True, ge=0, le=216)
     program: str = Field(default='', max_length=200)
     include_unknown: bool = Field(default=True, strict=True)
+    # has_vacancies keeps objects whose latest published vacancy snapshot lists
+    # at least one free place; unpublished counts never match.
+    has_vacancies: bool = Field(default=False, strict=True)
     provider_kind: ProviderKind | None = None
     bbox: tuple[float, float, float, float] | None = None
     # near and radius_m select points within a straight-line radius; objects

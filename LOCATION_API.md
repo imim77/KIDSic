@@ -14,6 +14,7 @@ read endpoint; the local server binds to `127.0.0.1` by default.
 | `age_months` | Optional integer 0–216, in months. Omit for no age filter. HTTP accepts decimal integer text; MCP accepts an integer or null, never a boolean or fractional number. |
 | `program` | Trimmed program-name substring, at most 200 characters; ignores case and Croatian diacritics. Empty/omitted means no program filter. `%` and `_` remain literal. |
 | `include_unknown` | `true` (default) keeps separately labelled unconfirmed suitability; `false` returns confirmed matches only when age/program is set. No effect otherwise. HTTP requires literal `true` or `false`. |
+| `has_vacancies` | `true` keeps objects whose newest published vacancy snapshot in `historical_data` lists at least one free place; `false` (default) applies no filter. A newer published zero replaces an older positive count, and unpublished or blank counts never match. Snapshots are dated, often per institution, and are not a guarantee of a place. HTTP requires literal `true` or `false`. |
 | `bbox` | Optional `west,south,east,north` in WGS84; finite ordered longitude/latitude bounds. Antimeridian wrapping is unsupported. |
 | `near`, `radius_m` | Optional `longitude,latitude` in WGS84 and an integer radius of 1–50000 metres; both or neither. Cannot be combined with `bbox`. |
 

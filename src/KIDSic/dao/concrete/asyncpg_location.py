@@ -209,6 +209,14 @@ class AsyncpgLocationRepository(LocationRepository):
                 '^mjesni odbor ','')=$5))
             AND suitability_status<>'excluded'
             AND ($8::boolean OR suitability_status<>'unknown')
+            -- Only the newest snapshot that publishes vacancies counts; an
+            -- older positive count must not outlive a newer published zero.
+            AND (NOT $11::boolean OR COALESCE((
+              SELECT bool_or((v.item->>'free_places')::int>0)
+              FROM (SELECT r.item FROM jsonb_array_elements(historical_data) r(item)
+                    WHERE jsonb_array_length(r.item->'vacancies')>0
+                    ORDER BY r.item->>'reference_date' DESC LIMIT 1) latest,
+                jsonb_array_elements(latest.item->'vacancies') v(item)),false))
           -- Nearest first within each suitability group; distance is NULL without near.
           ORDER BY suitability_status='confirmed' DESC,distance_m NULLS LAST,
             name,location_name,kindergarten_id,location_id
@@ -216,4 +224,5 @@ class AsyncpgLocationRepository(LocationRepository):
             list(query.bbox) if query.bbox is not None else None,
             normalize(query.area).removeprefix('mjesni odbor '),
             query.age_months, normalize(query.program), query.include_unknown,
-            list(query.near) if query.near is not None else None, query.radius_m)
+            list(query.near) if query.near is not None else None, query.radius_m,
+            query.has_vacancies)

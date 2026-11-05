@@ -286,6 +286,31 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             LocationQuery(city='Split')
 
+    async def vacancies(self, owner, date, *places):
+        await self.c.execute('''INSERT INTO historical_record
+            (source_id,batch_id,source_key,raw_data,kindergarten_id,scope,match_status,
+             reference_date,date_kind,fetched_at,vacancies)
+            VALUES ($1,$2,$3,'{}',$4,'institution','accepted',$5,'observed','2026-11-02T10:00Z',$6)''',
+            self.source, self.batch, str(uuid4()), owner, date,
+            [{'age_label': 'od 1 godine do OŠ', 'program': None, 'free_places': n} for n in places])
+
+    async def test_vacancy_filter_uses_the_newest_published_snapshot(self):
+        from datetime import date
+        free, free_loc = await self.fixture('Free')
+        await self.vacancies(free, date(2025, 1, 1), 0, 2)
+        zero, _ = await self.fixture('Zero')
+        await self.vacancies(zero, date(2025, 1, 1), 0)
+        await self.fixture('Unpublished')
+        # A newer published zero replaces an older positive count.
+        filled, _ = await self.fixture('Filled')
+        await self.vacancies(filled, date(2024, 1, 1), 5)
+        await self.vacancies(filled, date(2025, 1, 1), 0)
+        unknown, _ = await self.fixture('Unknown')
+        await self.vacancies(unknown, date(2025, 1, 1), None)
+        rows = await self.repository.list_locations(LocationQuery(has_vacancies=True))
+        self.assertEqual([r['location_id'] for r in rows], [free_loc])
+        self.assertEqual(len(await self.repository.list_locations(LocationQuery())), 5)
+
     async def test_radius_keeps_only_verified_points_and_reports_metres(self):
         # 0.01° latitude is about 1112 m on the spheroid.
         _, centre = await self.fixture('Centre', coords=(15.98, 45.81))

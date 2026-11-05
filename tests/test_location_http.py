@@ -25,6 +25,7 @@ class LocationHttpTests(unittest.TestCase):
                 'city': ' Zagreb ', 'q': 'Medo', 'provider_kind': 'private',
                 'bbox': '15,45,16,46', 'area': ' Banfica ',
                 'age_months':'24', 'program':' Montessori ', 'include_unknown':'false',
+                'has_vacancies':'true',
             })
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers['content-type'], 'application/geo+json')
@@ -33,6 +34,7 @@ class LocationHttpTests(unittest.TestCase):
         self.assertEqual((query.city, query.q, query.provider_kind), ('Zagreb', 'Medo', 'private'))
         self.assertEqual(query.area, 'Banfica')
         self.assertEqual((query.age_months,query.program,query.include_unknown),(24,'Montessori',False))
+        self.assertTrue(query.has_vacancies)
         self.assertEqual(query.bbox, (15, 45, 16, 46))
 
     def test_radius_query_is_parsed(self):
@@ -49,7 +51,7 @@ class LocationHttpTests(unittest.TestCase):
             for suffix in ('city=Split', 'city=Osijek', 'city=', 'provider_kind=city', 'bbox=bad', 'bbox=nan,45,16,46',
                            'city=Zagreb&city=Split', 'limit=1', 'q=' + 'a' * 201, 'area=' + 'a' * 201, 'area=Banfica&area=Centar',
                            'age_months=24.0','age_months=true','age_months=-1','age_months=217',
-                           'age_months=','age_months=24&age_months=36','include_unknown=1',
+                           'age_months=','age_months=24&age_months=36','include_unknown=1','has_vacancies=1','has_vacancies=True',
                            'include_unknown=False','program='+'a'*201,
                            'near=15.98,45.81', 'radius_m=1000', 'near=bad&radius_m=1000',
                            'near=15.98,45.81&radius_m=1.5', 'near=15.98,45.81&radius_m=-1',

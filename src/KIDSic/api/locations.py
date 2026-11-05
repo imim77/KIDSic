@@ -37,10 +37,11 @@ class LocationHttpEndpoint:
                 if not age.isascii() or not age.isdecimal():
                     raise ValueError('Age must be an integer number of months.')
                 params['age_months'] = int(age)
-            if 'include_unknown' in params:
-                if params['include_unknown'] not in ('true', 'false'):
-                    raise ValueError('include_unknown must be true or false.')
-                params['include_unknown'] = params['include_unknown'] == 'true'
+            for flag in ('include_unknown', 'has_vacancies'):
+                if flag in params:
+                    if params[flag] not in ('true', 'false'):
+                        raise ValueError(f'{flag} must be true or false.')
+                    params[flag] = params[flag] == 'true'
             query = LocationQuery.model_validate(params)
         except (ValidationError, ValueError):
             return JSONResponse({'error': 'invalid_query'}, status_code=422)
