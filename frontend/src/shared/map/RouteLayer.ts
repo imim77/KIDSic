@@ -7,17 +7,25 @@ export interface MapRoute {
   legs: { geometry: string | null; mode: string }[]
 }
 
+// The timetable is CC BY 4.0, which requires crediting it wherever it is used.
+const timetableCredit = 'Vozni red: vekejsn GTFS, CC BY 4.0'
+
 // RouteLayer draws sourced route shapes without inventing missing segments.
 export class RouteLayer {
+  private map: L.Map
   private layer: L.LayerGroup
 
   constructor(map: L.Map) {
+    this.map = map
     this.layer = L.layerGroup().addTo(map)
   }
 
   show(route: MapRoute | null): L.LatLngTuple[] {
     this.layer.clearLayers()
+    // Removing first keeps the credit from repeating when routes change.
+    this.map.attributionControl?.removeAttribution(timetableCredit)
     if (!route) return []
+    this.map.attributionControl?.addAttribution(timetableCredit)
     const points: L.LatLngTuple[] = []
     for (const leg of route.legs) {
       if (!leg.geometry) continue
@@ -44,5 +52,8 @@ export class RouteLayer {
     return points
   }
 
-  dispose() { this.layer.remove() }
+  dispose() {
+    this.map.attributionControl?.removeAttribution(timetableCredit)
+    this.layer.remove()
+  }
 }

@@ -57,6 +57,19 @@ describe('Leaflet/OpenStreetMap lifecycle and data', () => {
     expect(screen.getByRole('list', { name: 'Vrste pružatelja na karti' })).toBeVisible()
   })
 
+  it('credits the timetable once while a route is shown', async () => {
+    const route = { home: [14.41, 45.33] as [number, number], work: [14.44, 45.33] as [number, number], legs: [] }
+    const credit = () => screen.queryAllByText(/Vozni red: vekejsn GTFS, CC BY 4\.0/)
+    const { rerender } = render(<KindergartenMap collection={collection()} />)
+    await ready()
+    expect(credit()).toHaveLength(0)
+    rerender(<KindergartenMap collection={collection()} route={route} />)
+    rerender(<KindergartenMap collection={collection()} route={{ ...route }} />)
+    expect(credit()).toHaveLength(1)
+    rerender(<KindergartenMap collection={collection()} route={null} />)
+    expect(credit()).toHaveLength(0)
+  })
+
   it('keeps only located results and replaces cluster data without reallocating the map', async () => {
     const { rerender, unmount } = render(<KindergartenMap collection={collection(facility('first'), facility('unlocated', false))} />)
     const map = await ready()
