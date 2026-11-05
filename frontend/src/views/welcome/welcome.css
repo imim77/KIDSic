@@ -1,4 +1,4 @@
-.kindergarten-explorer { --card-height: 132px; position: relative; isolation: isolate; width: 100%; height: 100%; min-height: 0; overflow: hidden; border: 2px solid var(--ink); border-radius: 32px; background: var(--cream); box-shadow: var(--shadow-lg); }
+.kindergarten-explorer { --card-height: 92px; position: relative; isolation: isolate; width: 100%; height: 100%; min-height: 0; overflow: hidden; border: 2px solid var(--ink); border-radius: 32px; background: var(--cream); box-shadow: var(--shadow-lg); }
 .explorer-layout { position: relative; display: grid; grid-template: "map" 100% / 100%; width: 100%; height: 100%; min-height: 0; }
 .explorer-map { grid-area: map; position: relative; min-width: 0; min-height: 0; }
 .explorer-layout[data-layout="panels"] { grid-template: "list map" 100% / minmax(300px, 360px) 1fr; }
@@ -10,13 +10,13 @@
 .carousel-controls button svg { stroke-width: 2.5; }
 .location-track { display: flex; gap: 12px; list-style: none; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scroll-padding: 58px; scrollbar-width: none; padding: 5px 58px 12px; margin: 0; pointer-events: auto; touch-action: pan-x pan-y; }
 .location-track::-webkit-scrollbar { display: none; }
-.location-slide { flex: 0 0 min(320px, calc(100% - 20px)); min-width: 0; scroll-snap-align: start; }
+.location-slide { flex: 0 0 min(272px, calc(100% - 20px)); min-width: 0; scroll-snap-align: start; }
 .location-card { height: var(--card-height); border: 2px solid var(--ink); box-shadow: var(--shadow-md); transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
 .location-card > button:hover { background: transparent; }
 /* Selection lifts the sticker instead of recolouring it, keeping text contrast. */
 .location-card[data-selected="true"] { transform: translate(2px, -2px); box-shadow: var(--shadow-lg); }
-.location-thumbnail { flex: 0 0 68px; height: 84px; border-radius: var(--radius); display: grid; place-items: center; color: var(--ink); background: var(--lemon); }
-.location-thumbnail svg { width: 36px; height: 36px; stroke-width: 2; }
+.location-thumbnail { flex: 0 0 48px; height: 64px; border-radius: var(--radius); display: grid; place-items: center; color: var(--ink); background: var(--lemon); }
+.location-thumbnail svg { width: 26px; height: 26px; stroke-width: 2; }
 /* Neighbouring cards never share a fill, as on the reference site. */
 .location-slide:nth-child(5n + 2) .location-thumbnail { background: var(--sky); }
 .location-slide:nth-child(5n + 3) .location-thumbnail { background: var(--blush); }
@@ -81,12 +81,12 @@
 @media (max-width: 650px) {
   .kindergarten-explorer { border-radius: 26px; }
   .location-track { padding-left: 44px; padding-right: 44px; gap: 10px; scroll-padding: 44px; }
-  .location-slide { flex-basis: min(280px, calc(100vw - 96px)); }
-  .location-thumbnail { flex-basis: 56px; height: 76px; }
+  .location-slide { flex-basis: min(250px, calc(100vw - 96px)); }
+  .location-thumbnail { flex-basis: 42px; height: 56px; }
   .carousel-controls { left: 6px; right: 6px; }
 }
 
-.explorer-layout[data-suitability] { --card-height: 144px; }
+.explorer-layout[data-suitability] { --card-height: 112px; }
 .program-details { display: flex; flex-direction: column; gap: 10px; }
 .program-details article { display: flex; flex-direction: column; gap: 6px; padding-block: 10px; border-bottom: 1px solid var(--ink); overflow-wrap: anywhere; }
 .historical-details { display: flex; flex-direction: column; gap: 12px; }

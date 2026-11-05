@@ -232,6 +232,7 @@ it('searches around a map point with the retained criteria and tells the model a
   await act(async () => host.instance.ontoolinput({ arguments: { city: 'Zagreb', provider_kind: 'municipal' } }))
   await act(async () => host.instance.ontoolresult(radiusResult('Zagreb', null, 'city')))
   host.call.mockResolvedValueOnce(radiusResult('Zagreb', { near: [16, 45.8], radius_m: 1000 }, 'near'))
+  await user.click(screen.getByRole('button', { name: 'U blizini' }))
   await user.click(screen.getByRole('button', { name: 'Odaberi na karti' }))
   await user.click(screen.getByRole('button', { name: 'Map pick' }))
   expect(host.call).toHaveBeenLastCalledWith({ name: 'prikazi_vrtice', arguments: {
@@ -246,10 +247,12 @@ it('searches around a map point with the retained criteria and tells the model a
 })
 
 it('shows a radius the model chose and keeps it on retry', async () => {
+  const user = userEvent.setup()
   render(<McpLocationApp />)
   const nearby = { near: [15.97, 45.81] as [number, number], radius_m: 1500 }
   await act(async () => host.instance.ontoolinput({ arguments: { city: 'Zagreb', provider_kind: 'municipal', ...nearby } }))
   await act(async () => host.instance.ontoolresult(radiusResult('Zagreb', nearby)))
+  await user.click(screen.getByRole('button', { name: 'U blizini 1,5 km' }))
   expect(screen.getByRole('combobox', { name: 'Radijus' })).toHaveValue('1500')
   expect(screen.getByText(/zračno do 1,5 km od odabrane točke/)).toBeVisible()
   host.model.mockClear()

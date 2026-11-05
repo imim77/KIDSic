@@ -39,7 +39,14 @@
 }
 
 /* NearbyControl: compact pill buttons that follow the map controls' look. */
-.nearby-control { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow-sm); font-size: 12px; }
+.nearby-control { display: flex; flex-direction: column; padding: 4px; transition: padding 220ms ease-out, border-radius 220ms ease-out; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow-sm); font-size: 12px; }
+.nearby-control[data-open="true"] { padding: 8px 12px 10px; border-radius: 16px; }
+.nearby-control:not([data-open="true"]) { border-radius: 100px; }
+.nearby-control .nearby-toggle { align-self: flex-start; background: transparent; padding: 0 8px; }
+.nearby-toggle-radius { padding: 2px 7px; background: var(--lemon); border-radius: 100px; font-size: 11px; }
+.nearby-control .nearby-toggle-chevron { transition: transform 220ms ease-out; }
+.nearby-control[data-open="true"] .nearby-toggle-chevron { transform: rotate(180deg); }
+.nearby-body-inner { display: flex; flex-direction: column; gap: 8px; padding-top: 6px; }
 .nearby-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .nearby-control button { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; padding: 0 10px; color: var(--ink); background: var(--mint); border: 0; border-radius: 100px; font: inherit; font-weight: 600; cursor: pointer; }
 .nearby-control button:hover:not(:disabled) { background: var(--lemon); }
@@ -54,7 +61,9 @@
 .nearby-hint, .nearby-error { margin: 0; line-height: 1.4; }
 .nearby-error { color: var(--ink); font-weight: 600; }
 @media (max-width: 650px) {
-  .nearby-control { gap: 6px; padding: 8px; font-size: 11px; }
+  .nearby-control { font-size: 11px; }
+  .nearby-control[data-open="true"] { padding: 6px 8px 8px; }
+  .nearby-body-inner { gap: 6px; }
   .nearby-actions { gap: 4px; }
   .nearby-control button, .nearby-control select { min-height: 28px; }
   .nearby-control button { padding: 0 8px; }

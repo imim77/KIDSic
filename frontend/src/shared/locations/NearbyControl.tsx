@@ -1,5 +1,7 @@
-import { useState } from 'react'
-import { LocateFixed, MapPin, X } from 'lucide-react'
+import { useId, useLayoutEffect, useRef, useState } from 'react'
+import gsap from 'gsap'
+import { ChevronDown, LocateFixed, MapPin, X } from 'lucide-react'
+import { reducedMotion } from '../motion/reducedMotion'
 import { formatDistance } from './distance'
 import type { Nearby } from './types'
 
@@ -18,9 +20,32 @@ interface NearbyControlProps {
 
 // NearbyControl lets parents choose a point by device location or map click and
 // a radius. Device location stays in the browser and is sent only as the query.
+// It starts folded into one pill so the map stays clear; the pill shows the
+// active radius, so a folded control still tells parents a filter is on.
 export function NearbyControl({ value, radius, picking, canPick, onLocate, onRadius, onPicking, onClear }: NearbyControlProps) {
   const [locating, setLocating] = useState(false)
   const [error, setError] = useState('')
+  const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false) // keeps the body until it has slid shut
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const bodyId = useId()
+  useLayoutEffect(() => {
+    const body = bodyRef.current
+    if (!body || reducedMotion()) return
+    gsap.killTweensOf(body)
+    // Overflow is hidden only while the height moves, so focus rings show after.
+    if (open) {
+      gsap.fromTo(body, { height: 0, opacity: 0, overflow: 'hidden' },
+        { height: 'auto', opacity: 1, duration: 0.32, ease: 'power2.out', clearProps: 'height,opacity,overflow' })
+    } else {
+      gsap.to(body, { height: 0, opacity: 0, overflow: 'hidden', duration: 0.22, ease: 'power2.in', onComplete: () => setMounted(false) })
+    }
+  }, [open])
+  const toggle = (next: boolean) => {
+    if (next || reducedMotion()) setMounted(next) // otherwise the tween unmounts it
+    if (!next) onPicking(false)
+    setOpen(next)
+  }
   const locate = () => {
     if (!('geolocation' in navigator)) {
       setError('Preglednik ne podržava lokaciju. Odaberite točku na karti.')
@@ -40,9 +65,19 @@ export function NearbyControl({ value, radius, picking, canPick, onLocate, onRad
     }, { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 })
   }
 
-  return <section className="nearby-control" aria-label="Vrtići u blizini" onKeyDown={(event) => {
-    if (event.key === 'Escape' && picking) onPicking(false)
+  return <section className="nearby-control" aria-label="Vrtići u blizini" data-open={open} onKeyDown={(event) => {
+    if (event.key !== 'Escape') return
+    if (picking) onPicking(false)
+    else if (open) toggle(false)
   }}>
+    <button type="button" className="nearby-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => toggle(!open)}>
+      <MapPin aria-hidden="true" />U blizini
+      {value && <>{' '}<span className="nearby-toggle-radius">{formatDistance(value.radius_m)}</span></>}
+      <ChevronDown aria-hidden="true" className="nearby-toggle-chevron" />
+    </button>
+    {mounted && <div ref={bodyRef} id={bodyId} className="nearby-body">
+    {/* Spacing lives inside, so a zero-height body leaves no gap behind. */}
+    <div className="nearby-body-inner">
     <div className="nearby-actions">
       <button type="button" onClick={locate} disabled={locating} aria-busy={locating}>
         <LocateFixed aria-hidden="true" />{locating ? 'Tražim lokaciju…' : 'Moja lokacija'}
@@ -63,5 +98,7 @@ export function NearbyControl({ value, radius, picking, canPick, onLocate, onRad
     </p>}
     {picking && <p className="nearby-hint" role="status">Kliknite mjesto na karti. Esc odustaje.</p>}
     {error && <p className="nearby-error" role="alert">{error}</p>}
+    </div>
+    </div>}
   </section>
 }

@@ -3,15 +3,15 @@
 .mcp-location-app { height: 520px; }
 .mcp-location-app[data-display-mode="fullscreen"] { height: 100dvh; }
 /* The host already frames the iframe, so the map fills it edge to edge. */
-.mcp-location-app .kindergarten-explorer { --card-height: 92px; display: flex; flex-direction: column; border: 0; border-radius: 0; box-shadow: none; }
+.mcp-location-app .kindergarten-explorer { --card-height: 84px; display: flex; flex-direction: column; border: 0; border-radius: 0; box-shadow: none; }
 .mcp-location-app .explorer-layout { flex: 1; height: auto; }
 .mcp-location-app .kindergarten-explorer.explorer-frame--expanded { height: 100dvh; }
 .mcp-location-app .location-carousel { bottom: calc(30px + env(safe-area-inset-bottom)); }
-.mcp-location-app .location-slide { flex-basis: min(268px, calc(100% - 20px)); }
-.mcp-location-app .location-thumbnail { flex-basis: 46px; height: 60px; }
-.mcp-location-app .location-thumbnail svg { width: 28px; height: 28px; }
+.mcp-location-app .location-slide { flex-basis: min(240px, calc(100% - 20px)); }
+.mcp-location-app .location-thumbnail { flex-basis: 40px; height: 52px; }
+.mcp-location-app .location-thumbnail svg { width: 22px; height: 22px; }
 @media (max-width: 420px) {
   .mcp-location-app { height: 480px; }
   .mcp-location-app .location-track { padding-inline: 38px; scroll-padding: 38px; }
-  .mcp-location-app .location-slide { flex-basis: min(250px, calc(100vw - 96px)); }
+  .mcp-location-app .location-slide { flex-basis: min(228px, calc(100vw - 96px)); }
 }
