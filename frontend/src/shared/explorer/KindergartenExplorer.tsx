@@ -8,6 +8,7 @@ import { LocationDetails } from '../locations/LocationDetails'
 import { LocationList } from '../locations/LocationList'
 import { NearbyControl } from '../locations/NearbyControl'
 import { DistrictControl } from '../locations/DistrictControl'
+import { VacancyControl } from '../locations/VacancyControl'
 import { CompareTray } from '../locations/CompareTray'
 import { ComparisonView } from '../locations/ComparisonView'
 import { comparisonLimit } from '../locations/comparison'
@@ -30,6 +31,8 @@ interface KindergartenExplorerProps {
   nearby?: { value: Nearby | null; onChange: (value: Nearby | null) => void }
   // district enables the city-district picker; hosts without a directory omit it.
   district?: { options: string[]; value: string; unknown: number; onChange: (value: string) => void }
+  // vacancies enables the published free-places filter; hosts without a directory omit it.
+  vacancies?: { value: boolean; date: string | null; onChange: (value: boolean) => void }
   // criteria describes the search behind data, so the results explain themselves.
   criteria?: SearchCriteria
 }
@@ -44,7 +47,7 @@ export function KindergartenExplorer({ hostFullscreen, ...props }: KindergartenE
 }
 
 // ExplorerLayout arranges list, details and map for the frame's current state.
-function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emptyNotice, openLink, nearby, district, criteria }: Omit<KindergartenExplorerProps, 'hostFullscreen'>) {
+function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emptyNotice, openLink, nearby, district, vacancies, criteria }: Omit<KindergartenExplorerProps, 'hostFullscreen'>) {
   const { expanded, expand } = useFrameControls()
   const [picking, setPicking] = useState(false)
   const [chosenRadius, setRadius] = useState(1000)
@@ -106,11 +109,13 @@ function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emp
               if (nearby.value) nearby.onChange({ ...nearby.value, radius_m: value })
             }} />}
           {!!district?.options.length && <DistrictControl {...district} />}
+          {vacancies && <VacancyControl {...vacancies} />}
           {compared.length > 0 && <CompareTray count={compared.length} onOpen={() => setComparing(true)} onClear={() => { setCompared([]); setComparing(false) }} />}
           {status === 'loading' && <p className="explorer-notice" role="status">{notice ?? 'Učitavanje objekata…'}</p>}
           {status === 'error' && <div className="explorer-notice" role="alert"><p>Podatke nije moguće učitati. Provjerite vezu i pokušajte ponovno.</p><button className="text-button" onClick={() => { setReveal(null); retry() }}>Pokušaj ponovno</button></div>}
           {data?.features.length === 0 && <p className="explorer-notice" role="status">{emptyNotice ?? (nearby?.value
             ? `Nema objekata s potvrđenim koordinatama unutar ${formatDistance(nearby.value.radius_m)}${district?.value ? ` u četvrti ${district.value}` : ''}. Povećajte radijus ili uklonite točku.`
+            : vacancies?.value ? `Nema objekata s objavljenim slobodnim mjestima${district?.value ? ` u četvrti ${district.value}` : ''}. Podaci su objavljeni samo za dio vrtića; isključite filtar ili provjerite izravno s vrtićem.`
             : district?.value ? `Nema objekata s potvrđenom četvrti ${district.value}.`
             : 'Nema dostupnih vrtićkih objekata.')}</p>}
         </>} />

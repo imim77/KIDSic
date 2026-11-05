@@ -27,6 +27,7 @@ export interface SearchCriteria {
   age_months?: number | null
   program?: string
   include_unknown?: boolean
+  has_vacancies?: boolean
   nearby?: Nearby | null
 }
 
@@ -160,6 +161,7 @@ export interface LocationFilters {
   q: string
   provider_kind: ProviderKind | ''
   area?: string
+  has_vacancies?: boolean
   nearby?: Nearby | null
 }
 

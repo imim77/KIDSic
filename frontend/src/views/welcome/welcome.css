@@ -156,6 +156,7 @@
 .comparison-row-icon svg { width: 14px; height: 14px; stroke-width: 2.3; }
 .comparison-address { display: block; }
 .comparison-figure { font-family: var(--display); font-size: 22px; font-weight: 400; }
+.comparison-figure + .comparison-sticker { margin-left: 10px; vertical-align: 3px; }
 .comparison-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .comparison-tags li { padding: 3px 10px; background: var(--cream); border: 1.5px solid var(--ink); border-radius: 100px; font-weight: 600; }
 .comparison-tags small { font-weight: 400; }

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import type { LocationCollection, LocationFeature, Nearby } from '../src/shared/locations/types'
 import App from '../src/views/welcome/Welcome'
-import { collection, facility } from './fixtures'
+import { collection, facility, historicalEvidence } from './fixtures'
 
 vi.mock('../src/shared/map/KindergartenMap', () => ({
   KindergartenMap: ({ collection, selectedId, onSelect, picking, onPick, nearby, overlay }: {
@@ -197,6 +197,24 @@ describe('directory interactions', () => {
     expect(screen.getByRole('region', { name: 'Usporedba' })).toHaveTextContent('Usporedba 1/3')
     await user.click(screen.getByRole('button', { name: 'Očisti usporedbu' }))
     expect(screen.queryByRole('region', { name: 'Usporedba' })).toBeNull()
+  })
+
+  it('filters by published vacancies and shows the snapshot date on the control', async () => {
+    const free = facility('free')
+    free.properties.historical_data = [historicalEvidence({ vacancies: [{ age_label: null, program: null, free_places: 2 }] })]
+    const fetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => collection(free, facility('none')) })
+      .mockResolvedValueOnce({ ok: true, json: async () => collection(free) })
+    vi.stubGlobal('fetch', fetch)
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByRole('button', { name: /^Synthetic facility none/ })
+    const toggle = screen.getByRole('button', { name: /^Slobodna mjesta stanje 01\. 01\. 2025\./ })
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await user.click(toggle)
+    await screen.findByText('1 rezultat · s objavljenim slobodnim mjestima · abecedno')
+    expect(new URL(fetch.mock.calls[1][0], 'http://localhost').searchParams.get('has_vacancies')).toBe('true')
+    expect(screen.getByRole('button', { name: /^Slobodna mjesta/ })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('filters by a recorded district and says which objects the filter cannot include', async () => {
