@@ -37,12 +37,12 @@
 
 ## Objavljena slobodna mjesta
 
-- [ ] Povezivati objavljene podatke o slobodnim mjestima s ustanovom, dobnom skupinom i programom, uz potvrđene uvjete korištenja izvora.
-- [ ] Razlikovati mjesta objavljena za cijelu ustanovu od mjesta vezanih uz konkretan objekt.
-- [ ] Prikazivati broj mjesta zajedno s datumom na koji se podatak odnosi i poveznicom na izvor.
-- [ ] Razlikovati objavljenu nulu slobodnih mjesta, nepoznato stanje i zastarjelu snimku podataka.
-- [ ] Omogućiti filtriranje prema objavljenim slobodnim mjestima uz vidljiv datum stanja.
-- [ ] Za izvore bez potvrđenog uvoza omogućiti otvaranje službenog pregleda slobodnih mjesta.
+- [x] Povezivati objavljene podatke o slobodnim mjestima s ustanovom, dobnom skupinom i programom, uz potvrđene uvjete korištenja izvora. (Zagreb: gradski vrtići i dadilje, stanje 1. 1. 2025., Otvorena dozvola.)
+- [x] Razlikovati mjesta objavljena za cijelu ustanovu od mjesta vezanih uz konkretan objekt.
+- [x] Prikazivati broj mjesta zajedno s datumom na koji se podatak odnosi i poveznicom na izvor.
+- [x] Razlikovati objavljenu nulu slobodnih mjesta, nepoznato stanje i zastarjelu snimku podataka.
+- [x] Omogućiti filtriranje prema objavljenim slobodnim mjestima uz vidljiv datum stanja. (API `has_vacancies`; web kontrola „Slobodna mjesta” s datumom stanja.)
+- [x] Za izvore bez potvrđenog uvoza omogućiti otvaranje službenog pregleda slobodnih mjesta. (Za zagrebačke gradske vrtiće i dadilje; za privatne i vjerske vrtiće službeni pregled nije poznat.)
 
 ## MCP app i razgovorna pretraga
 

@@ -189,7 +189,7 @@ pročitati rezultat, ali ne može prikazati interaktivnu kartu.
 
 ## Ugovor UI-ja i provjera
 
-Resurs `ui://kidsic/map-v21.html` ima MIME `text/html;profile=mcp-app`. Hostovi
+Resurs `ui://kidsic/map-v22.html` ima MIME `text/html;profile=mcp-app`. Hostovi
 predložak spremaju po URI-ju, pa se verzija u URI-ju podiže pri svakoj promjeni
 UI-ja, a server se nakon `build:mcp` mora ponovno pokrenuti. Moderni
 `_meta.ui.resourceUri` i kompatibilni `openai/outputTemplate` povezuju ga s alatom.
