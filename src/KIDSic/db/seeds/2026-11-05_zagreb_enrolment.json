@@ -10,7 +10,9 @@
       "license": "Uvjeti korištenja www.zagreb.hr: ponovna uporaba uz navođenje izvora; službeni tekst (ZAPSP čl. 18. st. 3.)",
       "license_url": "https://www.zagreb.hr/uvjeti-koristenja/2048",
       "municipality": "zagreb",
-      "provider_kinds": ["municipal"],
+      "provider_kinds": [
+        "municipal"
+      ],
       "reference_date": "2026-05-11",
       "date_kind": "published",
       "valid_until": "2027-08-31",
@@ -35,40 +37,74 @@
           "content": "Upis tijekom pedagoške godine 2026./2027.: djeca se mogu upisivati tijekom cijele pedagoške godine prema Pravilniku o upisu djece u dječji vrtić, ako vrtić ima slobodnih mjesta ili dođe do proširenja kapaciteta. Prijave tijekom godine provode se prema Odluci o načinu ostvarivanja prednosti (Službeni glasnik Grada Zagreba 15/23, 36/24 i 12/26) i Pravilniku o upisu. Podaci o slobodnim mjestima u gradskim vrtićima objavljuju se početkom svakog mjeseca na vrtici.zagreb.hr/slobodna-mjesta."
         },
         {
-          "institutions": ["Dječji vrtić Duga"],
+          "institutions": [
+            "Dječji vrtić Duga"
+          ],
           "content": "Dječji vrtić Duga provodi 10-satni program za djecu koja do 31. kolovoza 2026. navršavaju od šest do jedanaest mjeseci života, za djecu zaposlenih roditelja/skrbnika koji ne koriste roditeljski dopust do godine dana života djeteta."
         },
         {
-          "institutions": ["Dječji vrtić Bajka"],
+          "institutions": [
+            "Dječji vrtić Bajka"
+          ],
           "content": "Dječji vrtić Bajka provodi cjelodnevni 10-satni smjenski program te poseban program za djecu s obilježjima iz spektra autizma."
         },
         {
-          "institutions": ["Dječji vrtić Vladimira Nazora"],
+          "institutions": [
+            "Dječji vrtić Vladimira Nazora"
+          ],
           "content": "Dječji vrtić Vladimira Nazora provodi poseban program za djecu s motoričkim oštećenjima."
         },
         {
-          "institutions": ["Dječji vrtić Potočnica"],
+          "institutions": [
+            "Dječji vrtić Potočnica"
+          ],
           "content": "Dječji vrtić Potočnica provodi poseban program za djecu s motoričkim oštećenjima i sniženim intelektualnim sposobnostima te dvojezični hrvatsko-mađarski 10-satni program za djecu pripadnike nacionalnih manjina."
         },
         {
-          "institutions": ["Dječji vrtić Budućnost", "Dječji vrtić Različak", "Dječji vrtić Sunce"],
+          "institutions": [
+            "Dječji vrtić Budućnost",
+            "Dječji vrtić Različak",
+            "Dječji vrtić Sunce"
+          ],
           "content": "Poseban program za djecu s višestrukim teškoćama provode Dječji vrtić Budućnost, Dječji vrtić Različak i Dječji vrtić Sunce."
         },
         {
-          "institutions": ["Dječji vrtić Budućnost"],
+          "institutions": [
+            "Dječji vrtić Budućnost"
+          ],
           "content": "Dječji vrtić Budućnost privremeno provodi sve aktivnosti upisa u novi objekt Podbrežje (Avenija Većeslava Holjevca 38/1). Za taj objekt zahtjev se podnosi Dječjem vrtiću Budućnost kao prioritetnom izboru, a u aplikaciji se u izborniku „Odabir programa dječjeg vrtića” bira PO PODBREŽJE - Redoviti 10-satni program jaslice ili PO PODBREŽJE - Redoviti 10-satni program vrtić; uz to se može odabrati drugi gradski vrtić kao alternativna opcija."
         },
         {
-          "institutions": ["Dječji vrtić Izvor"],
+          "institutions": [
+            "Dječji vrtić Izvor"
+          ],
           "content": "Dječji vrtić Izvor privremeno provodi sve aktivnosti upisa u novi objekt Stenjevec (Marije Radić 1). Za taj objekt zahtjev se podnosi Dječjem vrtiću Izvor kao prioritetnom izboru, a u aplikaciji se u izborniku „Odabir programa dječjeg vrtića” bira PO STENJEVEC - Redoviti 10-satni program jaslice ili PO STENJEVEC - Redoviti 10-satni program vrtić; uz to se može odabrati drugi gradski vrtić kao alternativna opcija."
         },
         {
-          "institutions": ["Dječji vrtić Remetinec"],
+          "institutions": [
+            "Dječji vrtić Remetinec"
+          ],
           "content": "Zbog izgradnje novog i većeg objekta Dječjeg vrtića Remetinec (Ulica Vice Vukova 9) za pedagošku godinu 2026./2027. neće se provoditi upisi u taj vrtić. Dodatni kapaciteti osigurani su u novom objektu u Podbrežju; roditelji mogu podnijeti zahtjev i drugim gradskim vrtićima."
         },
         {
-          "institutions": ["Dječji vrtić Ivane Brlić Mažuranić"],
+          "institutions": [
+            "Dječji vrtić Ivane Brlić Mažuranić"
+          ],
           "content": "Zbog gradnje novog i većeg objekta Dječjeg vrtića Ivane Brlić Mažuranić (Cerska 22) za pedagošku godinu 2026./2027. neće se provoditi upisi u taj vrtić; roditelji/skrbnici mogu podnijeti zahtjev drugim gradskim vrtićima."
+        }
+      ],
+      "calls": [
+        {
+          "round": "main",
+          "academic_year": "2026./2027.",
+          "channel": "city_system",
+          "application_url": "https://eupisi.zgvrtici.hr",
+          "opens_at": "2026-05-13T09:00:00+02:00",
+          "closes_at": "2026-05-22T16:00:00+02:00",
+          "not_accepting": [
+            "Dječji vrtić Remetinec",
+            "Dječji vrtić Ivane Brlić Mažuranić"
+          ]
         }
       ]
     },
@@ -80,14 +116,32 @@
       "license": "Uvjeti korištenja www.zagreb.hr: ponovna uporaba uz navođenje izvora; službeni tekst (ZAPSP čl. 18. st. 3.)",
       "license_url": "https://www.zagreb.hr/uvjeti-koristenja/2048",
       "municipality": "zagreb",
-      "provider_kinds": ["municipal"],
+      "provider_kinds": [
+        "municipal"
+      ],
       "institutions": [
-        "Dječji vrtić Bukovac", "Dječji vrtić Duga", "Dječji vrtić Milana Sachsa", "Dječji vrtić Zrno",
-        "Dječji vrtić Savica", "Dječji vrtić Tratinčica", "Dječji vrtić Botinec", "Dječji vrtić Hrvatski Leskovac",
-        "Dječji vrtić Matije Gupca", "Dječji vrtić Petar Pan", "Dječji vrtić Kolibri", "Dječji vrtić Medo Brundo",
-        "Dječji vrtić Pčelica", "Dječji vrtić Poletarac", "Dječji vrtić Sunce", "Dječji vrtić Jabuka",
-        "Dječji vrtić Malešnica", "Dječji vrtić Gajnice", "Dječji vrtić Vrapče", "Dječji vrtić Leptir",
-        "Dječji vrtić Sesvete", "Dječji vrtić Šegrt Hlapić"
+        "Dječji vrtić Bukovac",
+        "Dječji vrtić Duga",
+        "Dječji vrtić Milana Sachsa",
+        "Dječji vrtić Zrno",
+        "Dječji vrtić Savica",
+        "Dječji vrtić Tratinčica",
+        "Dječji vrtić Botinec",
+        "Dječji vrtić Hrvatski Leskovac",
+        "Dječji vrtić Matije Gupca",
+        "Dječji vrtić Petar Pan",
+        "Dječji vrtić Kolibri",
+        "Dječji vrtić Medo Brundo",
+        "Dječji vrtić Pčelica",
+        "Dječji vrtić Poletarac",
+        "Dječji vrtić Sunce",
+        "Dječji vrtić Jabuka",
+        "Dječji vrtić Malešnica",
+        "Dječji vrtić Gajnice",
+        "Dječji vrtić Vrapče",
+        "Dječji vrtić Leptir",
+        "Dječji vrtić Sesvete",
+        "Dječji vrtić Šegrt Hlapić"
       ],
       "reference_date": "2026-05-11",
       "date_kind": "published",
@@ -110,7 +164,9 @@
       "license": "Uvjeti korištenja www.zagreb.hr: ponovna uporaba uz navođenje izvora",
       "license_url": "https://www.zagreb.hr/uvjeti-koristenja/2048",
       "municipality": "zagreb",
-      "provider_kinds": ["municipal"],
+      "provider_kinds": [
+        "municipal"
+      ],
       "reference_date": "2026-11-05",
       "date_kind": "observed",
       "valid_until": "2027-08-31",
@@ -132,6 +188,16 @@
         },
         {
           "content": "Za pomoć pri podnošenju zahtjeva roditelji se obraćaju vrtiću kojem podnose zahtjev. Ako dohvat podataka o prebivalištu ili boravištu nije uspio, adresu može ručno unijeti vrtić ili Helpdesk Gradskog ureda (e-upisi.vrtici@zagreb.hr). Ako je roditelj zaposlen u inozemstvu, dokaz o zaposlenju može se priložiti u aplikaciji; tada treba priložiti dokaz za oba roditelja jer se podaci dohvaćeni iz HZMO-a brišu."
+        }
+      ],
+      "calls": [
+        {
+          "round": "rolling",
+          "academic_year": "2026./2027.",
+          "channel": "city_system",
+          "application_url": "https://eupisi.zgvrtici.hr",
+          "opens_at": null,
+          "closes_at": "2027-08-31T23:59:59+02:00"
         }
       ]
     }

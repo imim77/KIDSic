@@ -2,9 +2,21 @@ import { Blob } from 'node:buffer'
 import { gzipSync } from 'node:zlib'
 import { afterEach, expect, it, vi } from 'vitest'
 import { LocationToolResult } from '../src/shared/mcp/LocationToolResult'
-import { collection, facility, historicalEvidence, programEvidence } from './fixtures'
+import { collection, enrolmentRound, facility, historicalEvidence, programEvidence } from './fixtures'
 
 afterEach(() => vi.unstubAllGlobals())
+
+it('accepts dated enrolment rounds and rejects inconsistent status, periods or channels', () => {
+  const data = collection(facility('enrolment'))
+  data.features[0].properties.enrolment = [enrolmentRound(), enrolmentRound({ round: 'rolling', status: 'open', opens_at: null })]
+  expect(LocationToolResult.parse({ city: 'Zagreb', locations: data }).locations).toEqual(data)
+  for (const invalid of [{ status: 'not_accepting' }, { accepting: false }, { closes_at: '2026-05-01T00:00:00Z' },
+    { opens_at: '2026-05-13 09:00' }, { application_url: 'javascript:alert(1)' }, { channel: 'email' },
+    { academic_year: '2026' }, { reference_date: '2026-02-30' }]) {
+    data.features[0].properties.enrolment = [{ ...enrolmentRound(), ...invalid } as never]
+    expect(() => LocationToolResult.parse({ city: 'Zagreb', locations: data })).toThrow('Invalid enrolment')
+  }
+})
 
 it('validates historical snapshots independently of current eligibility', () => {
   const data = collection(facility('history'))

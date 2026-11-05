@@ -1,4 +1,12 @@
-import type { HistoricalEvidence, LocationCollection, LocationFeature, LocationProgram } from '../src/shared/locations/types'
+import type { HistoricalEvidence, LocationCollection, LocationEnrolment, LocationFeature, LocationProgram } from '../src/shared/locations/types'
+
+export function enrolmentRound(overrides: Partial<LocationEnrolment> = {}): LocationEnrolment {
+  return { round: 'main', academic_year: '2026./2027.', channel: 'city_system',
+    application_url: 'https://upis.example.invalid/', accepting: true,
+    opens_at: '2026-05-13T07:00:00Z', closes_at: '2026-05-22T14:00:00Z', status: 'closed',
+    source_title: 'Synthetic enrolment notice', source_url: 'https://example.invalid/notice.pdf',
+    license: 'Ponovna uporaba uz navođenje izvora', reference_date: '2026-05-11', date_kind: 'published', ...overrides }
+}
 
 export function historicalEvidence(overrides: Partial<HistoricalEvidence> = {}): HistoricalEvidence {
   return { reference_date: '2025-01-01', date_kind: 'observed', scope: 'institution', programs: [],

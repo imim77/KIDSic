@@ -59,10 +59,10 @@
 
 ## Priprema i nastavak upisa
 
-- [ ] Povezivati svaku ustanovu s odgovarajućim službenim kanalom upisa: nacionalnim e-Upisima, gradskim sustavom ili uputama vrtića. RAG zasad pokriva gradske vrtiće Zagreba (eupisi.zgvrtici.hr).
-- [ ] Prikazivati službeni poziv, pedagošku godinu i objavljene rokove te razlikovati otvorene, buduće i završene rokove. RAG vraća datirane rokove za Zagreb 2026./2027.; usporedbu s današnjim datumom radi model klijenta.
-- [ ] Prikazivati korake i popis potrebnih dokumenata prema važećem službenom izvoru za odabranu ustanovu. RAG pokriva gradske vrtiće Zagreba; prikaz u sučelju nedostaje.
-- [ ] Omogućiti nastavak na službeni sustav upisa uz jasno označen prijelaz na vanjsku uslugu.
+- [ ] Povezivati svaku ustanovu s odgovarajućim službenim kanalom upisa: nacionalnim e-Upisima, gradskim sustavom ili uputama vrtića. Gradski vrtići Zagreba imaju kanal u detaljima i RAG-u (eupisi.zgvrtici.hr); Varaždin, Rijeka i privatni vrtići nedostaju.
+- [x] Prikazivati službeni poziv, pedagošku godinu i objavljene rokove te razlikovati otvorene, buduće i završene rokove (detalji: `properties.enrolment.status`; zasad gradski vrtići Zagreba).
+- [ ] Prikazivati korake i popis potrebnih dokumenata prema važećem službenom izvoru za odabranu ustanovu. RAG pokriva gradske vrtiće Zagreba; detalji upućuju na citirani izvor, jer popis po objektu ne stane u MCP odgovor.
+- [x] Omogućiti nastavak na službeni sustav upisa uz jasno označen prijelaz na vanjsku uslugu (gumb „Otvori službeni upis” za otvoren ili budući krug).
 - [ ] Razlikovati pripremu upisa i otvaranje službenog portala od stvarno predanog zahtjeva i potvrđenog upisa.
 
 ## Dostupnost vrtićkih usluga i planiranje novih lokacija

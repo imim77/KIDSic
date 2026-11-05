@@ -81,6 +81,14 @@ se prekida cijeli uvoz. Upisni zapisi ne dokazuju da je ustanova aktivna;
 to određuju samo zapisi imenika. Opozvani izvor (`import_allowed=false`) ostaje
 opozvan i pri ponovnom uvozu.
 
+Uz odlomke, dokument može imati `calls`: strukturirane krugove upisa koji se
+upisuju u tablicu `enrolment` za svaku ustanovu iz opsega. Obavijest daje glavni
+rok 13. 5. 2026. 9:00 – 22. 5. 2026. 16:00 na eupisi.zgvrtici.hr, a DV Remetinec
+i DV Ivane Brlić Mažuranić bilježi kao ustanove koje 2026./2027. ne provode
+upise (`accepting=false`). Stranica daje upis tijekom godine do 31. 8. 2027.
+(kraj pedagoške godine) bez objavljenog početka. Koraci i dokumenti ostaju samo
+u odlomcima, da se isti tekst ne održava dvaput.
+
 Nije uvezeno, jer licenca nije potvrđena:
 
 - **Varaždin**: [Natječaj za upis u DV „Varaždin” 2026./2027.](https://djecjivrticvz.hr/wp-content/uploads/2026/03/Natjecaj-za-upis-djece-u-pedagosku-godinu-2026-2027.pdf)

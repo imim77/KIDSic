@@ -40,6 +40,29 @@ function validHistory(value: unknown): boolean {
       && (v.free_places === null || typeof v.free_places === 'number' && Number.isInteger(v.free_places) && v.free_places >= 0))
 }
 
+function instant(value: unknown): boolean {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T[\d:.]+(Z|[+-]\d{2}:\d{2})$/.test(value)
+    && Number.isFinite(Date.parse(value))
+}
+
+function validEnrolment(value: unknown): boolean {
+  if (!record(value)) return false
+  const opens = value.opens_at, closes = value.closes_at
+  return ['main', 'rolling'].includes(String(value.round))
+    && typeof value.academic_year === 'string' && /^\d{4}\.\/\d{4}\.$/.test(value.academic_year)
+    && ['e_upisi', 'city_system', 'kindergarten'].includes(String(value.channel))
+    && typeof value.application_url === 'string' && /^https:\/\//.test(value.application_url)
+    && typeof value.accepting === 'boolean'
+    && ['open', 'upcoming', 'closed', 'not_accepting', 'dates_unknown'].includes(String(value.status))
+    && (value.status === 'not_accepting') === !value.accepting
+    && (opens === null || instant(opens)) && (closes === null || instant(closes))
+    && (opens == null || closes == null || Date.parse(closes as string) >= Date.parse(opens as string))
+    && ['source_title', 'source_url'].every((key) => typeof value[key] === 'string' && !!(value[key] as string).trim())
+    && (value.license === null || typeof value.license === 'string')
+    && (value.reference_date === null || date(value.reference_date))
+    && ['published', 'observed', 'unknown'].includes(String(value.date_kind))
+}
+
 // LocationToolResult validates host data before it reaches map and card components.
 export class LocationToolResult {
   static async fromResult(result: { structuredContent?: unknown; _meta?: Record<string, unknown> }) {
@@ -86,6 +109,7 @@ export class LocationToolResult {
       ids.add(feature.id)
       const p = feature.properties
       if (p.historical_data !== undefined && (!Array.isArray(p.historical_data) || !p.historical_data.every(validHistory))) throw new Error('Invalid historical data')
+      if (p.enrolment !== undefined && (!Array.isArray(p.enrolment) || !p.enrolment.every(validEnrolment))) throw new Error('Invalid enrolment')
       if (p.location_role === 'seat' && Array.isArray(p.historical_data) && p.historical_data.some((item) => record(item) && item.scope !== 'institution')) throw new Error('Invalid seat historical scope')
       if (typeof p.name !== 'string' || typeof p.location_name !== 'string' || typeof p.city !== 'string'
         || typeof p.kindergarten_id !== 'string' || !['facility', 'seat'].includes(String(p.location_role))

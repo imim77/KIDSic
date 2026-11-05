@@ -1,5 +1,5 @@
 """Reviewed enrolment documents keep source, scope and dates with every excerpt."""
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
@@ -10,6 +10,30 @@ class EnrolmentExcerpt(BaseModel):
     model_config = ConfigDict(extra='forbid', frozen=True)
     content: str = Field(min_length=1, max_length=4000)
     institutions: tuple[str, ...] = ()
+
+
+class EnrolmentCall(BaseModel):
+    # EnrolmentCall is the structured channel and deadline of one round, as
+    # published. Missing dates stay unknown; `not_accepting` lists institutions
+    # the source says take no enrolments in this academic year. Steps and
+    # documents stay in the excerpts so one text is the only source of truth.
+    model_config = ConfigDict(extra='forbid', frozen=True)
+    round: Literal['main', 'rolling']
+    academic_year: str = Field(pattern=r'^\d{4}\./\d{4}\.$')
+    channel: Literal['e_upisi', 'city_system', 'kindergarten']
+    application_url: HttpUrl
+    opens_at: datetime | None = None
+    closes_at: datetime | None = None
+    not_accepting: tuple[str, ...] = ()
+
+    @model_validator(mode='after')
+    def check_period(self):
+        for value in (self.opens_at, self.closes_at):
+            if value is not None and value.tzinfo is None:
+                raise ValueError('Enrolment times need an explicit UTC offset.')
+        if self.opens_at and self.closes_at and self.closes_at < self.opens_at:
+            raise ValueError('closes_at must not precede opens_at.')
+        return self
 
 
 class EnrolmentDocument(BaseModel):
@@ -31,12 +55,14 @@ class EnrolmentDocument(BaseModel):
     valid_until: date | None = None  # Inclusive end of the period the document governs.
     sha256: str | None = Field(default=None, pattern=r'^[0-9a-f]{64}$')
     excerpts: tuple[EnrolmentExcerpt, ...] = Field(min_length=1)
+    calls: tuple[EnrolmentCall, ...] = ()
 
     @model_validator(mode='after')
     def check_scope(self):
         if self.valid_until is not None and self.valid_until < self.reference_date:
             raise ValueError('valid_until must not precede reference_date.')
-        outside = {name for e in self.excerpts for name in e.institutions} - set(self.institutions)
+        named = {name for e in self.excerpts for name in e.institutions}
+        outside = (named | {name for c in self.calls for name in c.not_accepting}) - set(self.institutions)
         if self.institutions and outside:
             raise ValueError(f'Excerpt institutions outside the document scope: {sorted(outside)}')
         return self

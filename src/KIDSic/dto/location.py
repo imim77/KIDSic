@@ -71,6 +71,25 @@ class LocationProgram(BaseModel):
     scope: Literal['institution', 'facility']
 
 
+class LocationEnrolment(BaseModel):
+    # LocationEnrolment is one published round with its official channel. The
+    # status compares the round's own times with one clock reading; it never
+    # promises a place. Steps and documents are read from the cited source.
+    round: Literal['main', 'rolling']
+    academic_year: str
+    channel: Literal['e_upisi', 'city_system', 'kindergarten']
+    application_url: str
+    accepting: bool
+    opens_at: datetime | None
+    closes_at: datetime | None
+    status: Literal['open', 'upcoming', 'closed', 'not_accepting', 'dates_unknown']
+    source_title: str
+    source_url: str
+    license: str | None = None
+    reference_date: date | None
+    date_kind: Literal['published', 'observed', 'unknown']
+
+
 class LocationProperties(BaseModel):
     location_id: str | None
     kindergarten_id: str
@@ -91,6 +110,7 @@ class LocationProperties(BaseModel):
     suitability_status: Literal['not_evaluated', 'confirmed', 'unknown'] = 'not_evaluated'
     programs: list[LocationProgram] = Field(default_factory=list)
     historical_data: list[HistoricalEvidence] = Field(default_factory=list)
+    enrolment: list[LocationEnrolment] = Field(default_factory=list)
     # Retained for older clients; the sourced programs carry explicit age bounds.
     age_groups: None = None
 

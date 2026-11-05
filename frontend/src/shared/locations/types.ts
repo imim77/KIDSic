@@ -55,6 +55,25 @@ export interface HistoricalEvidence {
   license: string
 }
 
+export type EnrolmentStatus = 'open' | 'upcoming' | 'closed' | 'not_accepting' | 'dates_unknown'
+
+// One published enrolment round; steps and documents are read from the source.
+export interface LocationEnrolment {
+  round: 'main' | 'rolling'
+  academic_year: string
+  channel: 'e_upisi' | 'city_system' | 'kindergarten'
+  application_url: string
+  accepting: boolean
+  opens_at: string | null
+  closes_at: string | null
+  status: EnrolmentStatus
+  source_title: string
+  source_url: string
+  license: string | null
+  reference_date: string | null
+  date_kind: 'published' | 'observed' | 'unknown'
+}
+
 // Mirrors theme.css because Mapbox paint expressions cannot read CSS variables.
 export const providerColors: Record<ProviderKind, string> = {
   municipal: '#82eda6',
@@ -89,6 +108,7 @@ export interface LocationProperties {
   suitability_status?: SuitabilityStatus
   programs?: LocationProgram[]
   historical_data?: HistoricalEvidence[]
+  enrolment?: LocationEnrolment[]
   location_role: 'facility' | 'seat'
   sources: LocationSource[]
   field_sources?: Record<string, LocationSource & { active_snapshot: boolean }>

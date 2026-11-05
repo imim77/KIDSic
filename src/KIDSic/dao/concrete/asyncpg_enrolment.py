@@ -63,12 +63,15 @@ class AsyncpgEnrolmentDocumentRepository(EnrolmentDocumentRepository):
             else:
                 for owner in covered:
                     records[owner, default_scope].append((ordinal, excerpt.content))
-        batch = uuid4()
+        if document.calls:
+            for owner in covered:  # A call needs a record even without shared excerpts.
+                records.setdefault((owner, default_scope), [])
+        batch, record_ids = uuid4(), {}
         dates = {'reference_date': document.reference_date.isoformat(), 'date_kind': document.date_kind,
                  'valid_until': document.valid_until.isoformat() if document.valid_until else None}
         observed_on = document.reference_date if document.date_kind == 'observed' else None
         for (owner, scope), chunks in records.items():
-            record = await self._connection.fetchval('''
+            record = record_ids[owner, scope] = await self._connection.fetchval('''
                 INSERT INTO source_record(source_id,batch_id,source_key,raw_data,fetched_at,observed_on,
                                           kindergarten_id,match_status,match_method,match_note)
                 VALUES ($1,$2,$3,$4,$5,$6,$7,'accepted',$8,$9) RETURNING id
@@ -83,9 +86,19 @@ class AsyncpgEnrolmentDocumentRepository(EnrolmentDocumentRepository):
                 VALUES ($1,$2,$3,$4,$5,$6)
             ''', [(owner, record, ordinal, content, str(document.url), sha256(content.encode()).hexdigest())
                   for ordinal, content in chunks])
+        for call in document.calls:
+            refused = {resolve(name) for name in call.not_accepting}
+            await self._connection.executemany('''
+                INSERT INTO enrolment(kindergarten_id,source_record_id,academic_year,application_url,
+                                      opens_at,closes_at,channel,round,accepting)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+            ''', [(owner, record_ids[owner, default_scope], call.academic_year, str(call.application_url),
+                   call.opens_at, call.closes_at, call.channel, call.round, owner not in refused)
+                  for owner in covered])
         await self._connection.execute('''
             UPDATE data_source SET active_batch_id=$2,fetched_at=$3,observed_on=$4 WHERE id=$1
         ''', stored['id'], batch, fetched_at, observed_on)
         return {'source': document.dataset_key, 'institutions': len({owner for owner, _ in records}),
                 'records': len(records), 'chunks': sum(len(c) for c in records.values()),
+                'enrolment_rounds': len(document.calls) * len(covered),
                 'reference_date': document.reference_date.isoformat(), 'date_kind': document.date_kind}

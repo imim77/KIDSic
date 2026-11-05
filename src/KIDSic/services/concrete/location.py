@@ -6,12 +6,15 @@ from KIDSic.dto.location import (
 )
 from KIDSic.services.interfaces.location import LocationServiceInterface
 from KIDSic.services.concrete.subsidy import SubsidyPolicyPresenter
+from KIDSic.services.concrete.enrolment_round import EnrolmentRoundPresenter
 
 
 class LocationService(LocationServiceInterface):
-    def __init__(self, uow_factory: UnitOfWorkFactory, subsidies: SubsidyPolicyPresenter):
+    def __init__(self, uow_factory: UnitOfWorkFactory, subsidies: SubsidyPolicyPresenter,
+                 enrolment: EnrolmentRoundPresenter | None = None):
         self._uow_factory = uow_factory
         self._subsidies = subsidies
+        self._enrolment = enrolment or EnrolmentRoundPresenter()
 
     async def list_locations(self, query: LocationQuery) -> LocationCollection:
         async with self._uow_factory() as uow:
@@ -39,6 +42,7 @@ class LocationService(LocationServiceInterface):
                         suitability_status=dict(row).get('suitability_status', 'not_evaluated'),
                         programs=dict(row).get('programs', []),
                         historical_data=dict(row).get('historical_data', []),
+                        enrolment=self._enrolment.present(dict(row).get('enrolment', [])),
                         subsidy_policies=[self._subsidies.present(policy)
                             for policy in dict(row).get('subsidy_policies', [])],
                         field_sources=dict(row).get('field_sources', {})),

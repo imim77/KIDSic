@@ -127,6 +127,12 @@ mjesta nije broj za svaki objekt i ne smije se zbrajati po podružnicama.
 Povijesne snimke ne ulaze u potvrdu današnje dobi/programa ni slobodnih mjesta.
 Uvoz i povezivanje dokumentirani su uz `kidsic-sync-historical` u README-u.
 
+Odjeljak „Upis” prikazuje `enrolment`: pedagošku godinu, status roka prema
+trenutnom vremenu, kanal, izvor i licencu. Gumb „Otvori službeni upis” postoji
+samo za otvoren ili budući krug, ide kroz host (`openLink`) i označava da vodi
+na vanjsku uslugu; KIDSic ne predaje zahtjev. Bez potvrđenog kanala prikazuje
+se uputa da se upis provjeri kod vrtića. Format: [LOCATION_API.md](LOCATION_API.md#upis-u-detaljima).
+
 Svaki poziv sadrži sve odabrane kriterije. Na nastavak „A sada samo u Centru”
 klijent zadržava prethodno izričito utvrđen grad, naziv i vrstu ako ih korisnik
 želi zadržati, a šalje `area: "Centar"`. Na „Ukloni područje” izostavlja `area`

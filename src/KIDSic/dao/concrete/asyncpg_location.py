@@ -65,6 +65,7 @@ class AsyncpgLocationRepository(LocationRepository):
             COALESCE(areas.names,'[]'::jsonb) AS areas,
             COALESCE(program_data.programs,'[]'::jsonb) AS programs,
             COALESCE(history.records,'[]'::jsonb) AS historical_data,
+            COALESCE(rounds.items,'[]'::jsonb) AS enrolment,
             CASE WHEN $6::int IS NULL AND $7='' THEN 'not_evaluated'
               WHEN program_data.matches THEN 'confirmed'
               WHEN program_data.programs IS NULL OR program_data.unknown_age THEN 'unknown'
@@ -111,6 +112,20 @@ class AsyncpgLocationRepository(LocationRepository):
                 OR (h.scope='facility' AND h.location_id=pl.location_id))
               AND (cardinality(h.programs)>0 OR jsonb_array_length(h.vacancies)>0)
           ) history ON true
+          -- Only institution-level rounds: a municipal row would reach every provider kind.
+          LEFT JOIN LATERAL (
+            SELECT jsonb_agg(jsonb_build_object('round',e.round,'academic_year',e.academic_year,
+              'channel',e.channel,'application_url',e.application_url,'accepting',e.accepting,
+              'opens_at',e.opens_at,'closes_at',e.closes_at,
+              'source_title',s.title,'source_url',COALESCE(r.raw_data->>'document_url',s.url),'license',s.license,
+              'reference_date',COALESCE(r.evidence->>'reference_date',r.raw_data->>'reference_date'),
+              'date_kind',CASE WHEN r.evidence->>'reference_date' IS NOT NULL THEN 'observed'
+                ELSE COALESCE(r.raw_data->>'date_kind','unknown') END)
+              ORDER BY e.academic_year DESC,e.round,s.dataset_key) AS items
+            FROM enrolment e JOIN active_record r ON r.record_id=e.source_record_id::text
+            JOIN data_source s ON s.id=r.source_id
+            WHERE e.kindergarten_id=pl.kindergarten_id AND r.kindergarten_id=e.kindergarten_id
+          ) rounds ON true
           LEFT JOIN LATERAL (
             SELECT jsonb_agg(jsonb_build_object('program_id',p.id,'name',p.name,
               'min_age_months',p.min_age_months,'max_age_months_exclusive',p.max_age_months_exclusive,
@@ -174,7 +189,7 @@ class AsyncpgLocationRepository(LocationRepository):
             AND ($3::text IS NULL OR k.provider_kind=$3)
           )
           SELECT location_id,kindergarten_id,name,location_name,address,city,
-            provider_kind,district,areas,programs,historical_data,suitability_status,
+            provider_kind,district,areas,programs,historical_data,enrolment,suitability_status,
             website_url,email,phone,contact_sources,location_role,sources,field_sources,subsidy_policies,
             CASE WHEN geometry_valid THEN longitude END AS longitude,
             CASE WHEN geometry_valid THEN latitude END AS latitude

@@ -17,7 +17,8 @@ from KIDSic.dto.source import PlannedSource, SourceDefinition, SourceSnapshot
 from KIDSic.exceptions import SourceImportError
 from KIDSic.factories.rag import RagServiceFactory
 from KIDSic.services.concrete.kindergarten_normalizer import normalize_records
-from test_enrolment import DOCUMENT
+from test_enrolment import CALL, DOCUMENT
+from KIDSic.dto.location import LocationQuery
 from test_sources import MUNICIPAL, source_client
 
 
@@ -71,6 +72,31 @@ class EnrolmentDatabaseTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(item.sources[0].license, 'Ponovna uporaba uz navođenje izvora')
         self.assertIsNone(await self.c.fetchval(
             "SELECT observed_on FROM data_source WHERE dataset_key='example-enrolment'"))
+
+    async def test_rounds_reach_every_object_of_the_institution_with_source_dates(self):
+        result = await self.load(calls=[CALL, {**CALL, 'round': 'rolling', 'opens_at': None,
+                                               'closes_at': '2999-08-31T23:59:59+02:00'}])
+        self.assertEqual(result['enrolment_rounds'], 2)
+        rows = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Zagreb', q='Primjer'))
+        self.assertEqual(len(rows), 2)
+        for row in rows:
+            rounds = {r['round']: r for r in row['enrolment']}
+            self.assertEqual(set(rounds), {'main', 'rolling'})
+            self.assertEqual((rounds['main']['application_url'], rounds['main']['channel'], rounds['main']['accepting']),
+                             ('https://upis.example.invalid/', 'city_system', True))
+            self.assertEqual((rounds['main']['reference_date'], rounds['main']['date_kind']), ('2026-05-11', 'published'))
+            self.assertEqual(rounds['main']['source_url'], 'https://example.invalid/upis.pdf')
+        await self.c.execute("UPDATE data_source SET import_allowed=false WHERE dataset_key='example-enrolment'")
+        rows = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Zagreb', q='Primjer'))
+        self.assertEqual([r['enrolment'] for r in rows], [[], []])
+
+    async def test_reimport_keeps_only_the_active_rounds_and_records_refusals(self):
+        await self.load(calls=[CALL])
+        await self.load(calls=[{**CALL, 'not_accepting': ['Dječji vrtić Primjer']}])
+        [row, _] = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Zagreb', q='Primjer'))
+        self.assertEqual([r['accepting'] for r in row['enrolment']], [False])
+        with self.assertRaisesRegex(SourceImportError, '0 active institutions'):
+            await self.load(calls=[{**CALL, 'not_accepting': ['Dječji vrtić Nepostojeći']}])
 
     async def test_expired_period_is_historical_and_observed_date_is_kept(self):
         await self.load(reference_date='2020-05-11', date_kind='observed', valid_until='2021-08-31')

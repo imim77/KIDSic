@@ -1,6 +1,7 @@
 """The reviewed snapshot keeps every excerpt sourced, licensed, dated and whole."""
 import unittest
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -9,12 +10,21 @@ from pydantic import ValidationError
 from KIDSic.config.enrolment import load_enrolment_snapshot
 from KIDSic.dto.enrolment import EnrolmentDocument, EnrolmentSnapshot
 from KIDSic.services.concrete.enrolment import EnrolmentDocumentService
+from KIDSic.services.concrete.enrolment_round import EnrolmentRoundPresenter
 
 DOCUMENT = dict(dataset_key='example-enrolment', title='Obavijest o upisu', publisher='Grad Zagreb',
     url='https://example.invalid/upis.pdf', license='Ponovna uporaba uz navođenje izvora',
     license_url='https://example.invalid/uvjeti', municipality='zagreb', provider_kinds=['municipal'],
     reference_date='2026-05-11', date_kind='published', valid_until='2027-08-31',
     excerpts=[{'content': 'Zahtjevi se podnose od 13. svibnja 2026. do 22. svibnja 2026.'}])
+CALL = dict(round='main', academic_year='2026./2027.', channel='city_system',
+    application_url='https://upis.example.invalid', opens_at='2026-05-13T09:00:00+02:00',
+    closes_at='2026-05-22T16:00:00+02:00')
+ROUND = dict(round='main', academic_year='2026./2027.', channel='city_system',
+    application_url='https://upis.example.invalid', accepting=True,
+    opens_at='2026-05-13T07:00:00+00:00', closes_at='2026-05-22T14:00:00+00:00',
+    source_title='Obavijest', source_url='https://example.invalid/upis.pdf', license=None,
+    reference_date='2026-05-11', date_kind='published')
 
 
 class EnrolmentSnapshotTests(unittest.TestCase):
@@ -36,12 +46,53 @@ class EnrolmentSnapshotTests(unittest.TestCase):
             EnrolmentDocument.model_validate({**DOCUMENT, 'institutions': ['Dječji vrtić Duga'],
                 'excerpts': [{'content': 'Predškola.', 'institutions': ['Dječji vrtić Bajka']}]})
 
+    def test_reviewed_zagreb_calls_separate_the_main_round_from_enrolment_during_the_year(self):
+        calls = {c.round: c for d in load_enrolment_snapshot().documents for c in d.calls}
+        self.assertEqual(set(calls), {'main', 'rolling'})
+        self.assertEqual(str(calls['main'].application_url), 'https://eupisi.zgvrtici.hr/')
+        self.assertIsNone(calls['rolling'].opens_at)  # The page does not say when the year opened.
+
+    def test_calls_need_offsets_ordered_periods_and_scoped_refusals(self):
+        for invalid in ({'opens_at': '2026-05-13T09:00:00'}, {'closes_at': '2026-05-01T00:00:00+02:00'}):
+            with self.assertRaises(ValidationError):
+                EnrolmentDocument.model_validate({**DOCUMENT, 'calls': [{**CALL, **invalid}]})
+        with self.assertRaisesRegex(ValidationError, 'outside the document scope'):
+            EnrolmentDocument.model_validate({**DOCUMENT, 'institutions': ['Dječji vrtić Duga'],
+                'calls': [{**CALL, 'not_accepting': ['Dječji vrtić Bajka']}]})
+
     def test_rejects_inverted_period_and_repeated_sources(self):
         with self.assertRaisesRegex(ValidationError, 'valid_until'):
             EnrolmentDocument.model_validate({**DOCUMENT, 'valid_until': '2026-05-10'})
         with self.assertRaisesRegex(ValidationError, 'own dataset_key'):
             EnrolmentSnapshot.model_validate({'snapshot_key': 's', 'verified_on': '2026-11-05',
                                               'documents': [DOCUMENT, DOCUMENT]})
+
+
+class EnrolmentRoundPresenterTests(unittest.TestCase):
+    def present(self, *rounds, at):
+        clock = lambda: datetime.fromisoformat(at).astimezone(timezone.utc)
+        return EnrolmentRoundPresenter(clock).present(rounds)
+
+    def test_status_follows_the_published_times_at_the_moment_of_reading(self):
+        for at, status in (('2026-05-13T08:59:00+02:00', 'upcoming'), ('2026-05-13T09:00:00+02:00', 'open'),
+                           ('2026-05-22T16:00:00+02:00', 'open'), ('2026-05-22T16:01:00+02:00', 'closed')):
+            with self.subTest(at=at):
+                self.assertEqual(self.present(ROUND, at=at)[0].status, status)
+
+    def test_unknown_opening_is_open_only_for_enrolment_during_the_year(self):
+        rolling = {**ROUND, 'round': 'rolling', 'opens_at': None, 'closes_at': '2027-08-31T21:59:59+00:00'}
+        main = {**ROUND, 'opens_at': None, 'closes_at': None}
+        statuses = [r.status for r in self.present(rolling, main, at='2026-11-05T12:00:00+01:00')]
+        self.assertEqual(statuses, ['open', 'dates_unknown'])
+        self.assertEqual(self.present(rolling, at='2027-09-01T00:00:00+02:00')[0].status, 'closed')
+
+    def test_published_refusal_hides_the_same_years_general_rounds(self):
+        rolling = {**ROUND, 'round': 'rolling', 'opens_at': None, 'closes_at': '2027-08-31T21:59:59+00:00'}
+        refused = {**ROUND, 'accepting': False}
+        later = {**rolling, 'academic_year': '2027./2028.'}
+        result = self.present(rolling, refused, later, at='2026-11-05T12:00:00+01:00')
+        self.assertEqual([(r.academic_year, r.status) for r in result],
+                         [('2026./2027.', 'not_accepting'), ('2027./2028.', 'open')])
 
 
 class EnrolmentServiceTests(unittest.IsolatedAsyncioTestCase):

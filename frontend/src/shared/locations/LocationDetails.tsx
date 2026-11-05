@@ -5,6 +5,7 @@ import { websiteHref } from './links'
 import { SubsidyDetails } from './SubsidyDetails'
 import { ProgramDetails } from './ProgramDetails'
 import { HistoricalDetails } from './HistoricalDetails'
+import { EnrolmentDetails } from './EnrolmentDetails'
 
 interface LocationDetailsProps {
   feature: LocationFeature
@@ -69,6 +70,7 @@ export function LocationDetails({ feature, onClose, openLink }: LocationDetailsP
           </dl>
         </>}
 
+        <EnrolmentDetails rounds={location.enrolment ?? []} openLink={openLink} />
         <ProgramDetails location={location} openLink={openLink} />
         <HistoricalDetails records={location.historical_data ?? []} openLink={openLink} />
         <SubsidyDetails policies={location.subsidy_policies ?? []} openLink={openLink} />

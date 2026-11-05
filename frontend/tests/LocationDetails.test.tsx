@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import { LocationDetails } from '../src/shared/locations/LocationDetails'
-import { facility, historicalEvidence, programEvidence } from './fixtures'
+import { enrolmentRound, facility, historicalEvidence, programEvidence } from './fixtures'
 import type { SubsidyPolicy } from '../src/shared/locations/types'
 
 const policy: SubsidyPolicy = {
@@ -158,4 +158,33 @@ it('opens website, email and phone through the MCP host when supplied', async ()
     await userEvent.click(screen.getByRole('link', { name }))
     expect(openLink).toHaveBeenLastCalledWith(url)
   }
+})
+
+it('links an open round to the official channel and keeps closed and refused rounds without a link', async () => {
+  const item = facility('enrolment')
+  item.properties.enrolment = [enrolmentRound(), enrolmentRound({ round: 'rolling', status: 'open', opens_at: null,
+    closes_at: '2027-08-31T21:59:59Z', reference_date: '2026-11-05', date_kind: 'observed',
+    source_title: 'Synthetic enrolment page', source_url: 'https://example.invalid/page' })]
+  const openLink = vi.fn()
+  const { rerender } = render(<LocationDetails feature={item} onClose={() => {}} openLink={openLink} />)
+  expect(screen.getByText('Upisi za 2026./2027.')).toBeVisible()
+  expect(screen.getByText('Rok završen')).toBeVisible()
+  expect(screen.getByText(/Rok je završio 22\. 05\. 2026\./)).toBeVisible()
+  expect(screen.getByText('Upis tijekom pedagoške godine 2026./2027.')).toBeVisible()
+  expect(screen.getByText(/Stanje izvora 05\. 11\. 2026\./)).toBeVisible()
+  expect(screen.getAllByRole('link', { name: /Otvori službeni upis/ })).toHaveLength(1)
+  expect(screen.getByText(/KIDSic ne predaje zahtjev i ne jamči mjesto/)).toBeVisible()
+  await userEvent.click(screen.getByRole('link', { name: /Otvori službeni upis/ }))
+  expect(openLink).toHaveBeenLastCalledWith('https://upis.example.invalid/')
+  await userEvent.click(screen.getByRole('link', { name: /Synthetic enrolment notice/ }))
+  expect(openLink).toHaveBeenLastCalledWith('https://example.invalid/notice.pdf')
+
+  item.properties.enrolment = [enrolmentRound({ accepting: false, status: 'not_accepting' })]
+  rerender(<LocationDetails feature={item} onClose={() => {}} openLink={openLink} />)
+  expect(screen.getByText(/upisi u ovaj vrtić za 2026\.\/2027\. ne provode se/)).toBeVisible()
+  expect(screen.queryByRole('link', { name: /Otvori službeni upis/ })).toBeNull()
+
+  item.properties.enrolment = []
+  rerender(<LocationDetails feature={item} onClose={() => {}} />)
+  expect(screen.getByText(/Službeni kanal upisa za ovaj vrtić nije potvrđen/)).toBeVisible()
 })

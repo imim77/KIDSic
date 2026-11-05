@@ -183,3 +183,25 @@ ugovor konkretne ustanove s Gradom. Prazna lista znači da podatak nije potvrđe
 Potrebna je migracija `0006_municipal_subsidies` i primjena provjerene snimke
 iz [uputa za podatke](src/KIDSic/db/seeds/README.md). Isti odgovor koristi se
 u web aplikaciji i MCP kartici; obje prikazuju odjeljak „Gradsko sufinanciranje”.
+
+## Upis u detaljima
+
+`properties.enrolment` sadrži objavljene krugove upisa ustanove: `round`
+(`main` za glavni rok, `rolling` za upis tijekom pedagoške godine),
+`academic_year`, `channel` (`city_system`, `e_upisi` ili `kindergarten`),
+`application_url`, `opens_at` i `closes_at` (s vremenskom zonom), `accepting`,
+izvor (`source_title`, `source_url`, `license`) te `reference_date` i `date_kind`
+(`published` ili `observed`).
+
+`status` se računa pri svakom čitanju iz objavljenih vremena: `upcoming`, `open`,
+`closed`, `not_accepting` ili `dates_unknown`. Glavni rok bez objavljenog početka
+nije `open`. Ako izvor kaže da ustanova za neku godinu ne provodi upise, ostali
+krugovi te godine se ne vraćaju. Status nikad ne znači slobodno mjesto ni upis.
+
+Krugovi dolaze iz pregledane snimke (`kidsic-sync-enrolment`, migracija
+`0008_enrolment_rounds`) i vrijede samo za ustanove kojima su dodijeljeni;
+gradski redovi bez ustanove se ne čitaju, jer bi došli i do privatnih vrtića.
+Koraci i popis dokumenata nisu u ovom odgovoru: ostaju u citiranom izvoru i RAG
+odlomcima teme `document`, kako bi isti tekst postojao samo jednom. Prazna
+lista znači da kanal upisa nije potvrđen. Za Zagreb odgovor tako ostaje oko
+121 KB komprimirano u MCP rezultatu (lokalna snimka, 461 objekt).
