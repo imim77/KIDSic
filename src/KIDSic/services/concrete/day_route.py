@@ -1,5 +1,6 @@
 """DayRouteService ranks mapped facilities by timetable-aware arrival at work."""
 import asyncio
+from collections.abc import Collection
 from datetime import timedelta
 
 from KIDSic.dto.day_route import (DayPoint, DayJourneyRequest,
@@ -14,8 +15,8 @@ class DayRouteService:
         self._locations = locations
         self._planner = planner
 
-    async def _facilities(self):
-        collection = await self._locations.list_locations(LocationQuery(city='Rijeka'))
+    async def _facilities(self, name: str = ''):
+        collection = await self._locations.list_locations(LocationQuery(city='Rijeka', q=name))
         facilities = {str(f.id): f for f in collection.features
                       if f.geometry and f.properties.location_role == 'facility'
                       and f.properties.address
@@ -23,8 +24,22 @@ class DayRouteService:
                       and 45.20 <= f.geometry.coordinates[1] <= 45.45}
         return collection, facilities
 
-    async def recommend(self, request: DayJourneyRequest):
-        collection, facilities = await self._facilities()
+    async def find(self, text: str):
+        """find returns the routable facilities a user's kindergarten name
+        means, using the same name search as the city map. A facility id, as
+        returned with a clarification, names exactly one facility."""
+        _, facilities = await self._facilities()
+        if text in facilities:
+            return [facilities[text]]
+        _, matches = await self._facilities(text)
+        return list(matches.values())
+
+    async def recommend(self, request: DayJourneyRequest, facility_ids: Collection[str] | None = None):
+        """recommend ranks every routable Rijeka facility, or only facility_ids
+        when the user named the kindergartens to choose between."""
+        collection, eligible = await self._facilities()
+        facilities = eligible if facility_ids is None else {
+            key: eligible[key] for key in facility_ids if key in eligible}
         result = await self._compare(request, list(facilities.values()))
         reachable = [r for r in result['results'] if r['status'] == 'ok']
         selected = reachable[:request.top_k]
@@ -33,7 +48,9 @@ class DayRouteService:
         result.update(results=selected, top_k=request.top_k,
                       locations=locations.model_dump(mode='json'), searched=len(facilities),
                       reachable=len(reachable), without_route=len(facilities) - len(reachable),
-                      excluded=collection.metadata.total - len(facilities),
+                      # Named kindergartens were resolved among routable ones.
+                      excluded=collection.metadata.total - len(eligible) if facility_ids is None else 0,
+                      scope='all' if facility_ids is None else 'selected',
                       ranking='earliest_arrival_at_work', city='Rijeka',
                       home=request.home.model_dump(), work=request.work.model_dump(),
                       mode=request.mode)

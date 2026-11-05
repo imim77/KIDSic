@@ -305,6 +305,16 @@ OTP izračuna), uključuje čekanje i predaju djeteta te vraća najbolju opciju
 prema dolasku na posao i traženi broj alternativa. `top_k` je ukupan broj opcija
 (pozitivan cijeli broj, zadano 4): najbolja opcija i tri alternative znači `top_k=4`, a top tri
 znači `top_k=3`. Ograničavanje se primjenjuje tek nakon rangiranja cijelog kataloga.
+
+Ako korisnik sam navede vrtiće između kojih bira, model ih šalje u
+`kindergartens` (1–20 naziva, npr. `["Mala Vila", "Potok"]`) i rangiraju se
+samo oni (`scope: "selected"`). Nazivi se traže istom pretragom po nazivu kao u
+`prikazi_vrtice`, među objektima s potvrđenom lokacijom. Naziv koji odgovara
+točno jednom objektu se prihvaća; više podudaranja ili nijedno vraća
+`clarification_required` s `unresolved.kindergartens` (do osam kandidata s `id`,
+nazivom i adresom). Model pita korisnika i ponavlja cijeli upit s `id`
+odabranog kandidata umjesto naziva. `top_k` i dalje određuje koliko ih se
+prikazuje.
 Ako ima manje dostupnih ruta, alat vraća samo njih i točne brojeve pokrivenosti.
 
 Oba alata koriste isti resurs `ui://kidsic/map-v32.html` iz `frontend/dist/mcp.html`.

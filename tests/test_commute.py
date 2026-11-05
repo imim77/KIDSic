@@ -71,6 +71,25 @@ class RecommendationTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(limited['searched'], 6)
             self.assertEqual(limited['top_k'], limit)
 
+    async def test_ranks_only_the_named_shortlist_and_finds_names_like_the_map(self):
+        query=DayJourneyRequest(**{k:v for k,v in criteria().items() if k!='city'})
+        facilities=[facility(f'id{i}', 14.42+i*.001, f'Object {i}') for i in range(4)]
+        async def list_locations(location_query):
+            # The city map's name search: here a plain substring match.
+            found=[f for f in facilities if location_query.q.casefold() in f.properties.location_name.casefold()]
+            return SimpleNamespace(features=found,metadata=SimpleNamespace(total=6))
+        planner=SimpleNamespace(plan=AsyncMock(side_effect=lambda origin,destination,departure,mode:
+            journey(departure,5 if origin==query.home else round((14.43-origin.lon)*1000))))
+        routes=DayRouteService(SimpleNamespace(list_locations=list_locations),planner)
+        result=await routes.recommend(query,['id1','id3','unknown'])
+        self.assertEqual([r['facility_id'] for r in result['results']],['id3','id1'])
+        self.assertEqual((result['searched'],result['reachable'],result['excluded'],result['scope']),(2,2,0,'selected'))
+        self.assertEqual([f['id'] for f in result['locations']['features']],['id3','id1'])
+        self.assertEqual((await routes.recommend(query))['scope'],'all')
+        self.assertEqual([str(f.id) for f in await routes.find('object 2')],['id2'])
+        self.assertEqual(len(await routes.find('Object')),4)
+        self.assertEqual([str(f.id) for f in await routes.find('id0')],['id0'])  # a clarified candidate
+
     async def test_waiting_and_dropoff_are_included_in_elapsed_time(self):
         query=DayJourneyRequest(**{k:v for k,v in criteria().items() if k!='city'})
         item=facility('one', name='One')
@@ -119,6 +138,29 @@ class RecommendationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('10 minuta',result['notice'])
 
 
+    async def test_named_kindergartens_resolve_or_ask_before_ranking(self):
+        point={'lat':45.33,'lon':14.41}
+        named={'Mala Vila':[facility('mv',name='Mala Vila')],
+               'Potok':[facility('p1',name='Potok 1'),facility('p2',name='Potok 2')],'Nema':[]}
+        routes=SimpleNamespace(find=AsyncMock(side_effect=lambda name:named[name]),
+                               recommend=AsyncMock(return_value={'results':[]}))
+        service=CommuteService(routes,SimpleNamespace(find=lambda q:[]))
+        result=await service.recommend(CommuteQuery(**criteria(home=point,work=point,
+            kindergartens=['Mala Vila','Potok','Nema'])))
+        self.assertEqual(result['status'],'clarification_required')
+        self.assertEqual([(u['query'],u['matches'],[c['id'] for c in u['candidates']])
+                          for u in result['unresolved']['kindergartens']],
+                         [('Potok',2,['p1','p2']),('Nema',0,[])])
+        routes.recommend.assert_not_awaited()
+        named['Potok']=[named['Potok'][1]]  # the user chose a candidate
+        result=await service.recommend(CommuteQuery(**criteria(home=point,work=point,
+            kindergartens=['Mala Vila','Potok'])))
+        self.assertEqual(routes.recommend.await_args.args[1],['mv','p2'])
+        self.assertIn('samo vrtići koje je korisnik naveo',result['notice'])
+        await service.recommend(CommuteQuery(**criteria(home=point,work=point)))
+        self.assertIsNone(routes.recommend.await_args.args[1])
+
+
 class AddressTests(unittest.TestCase):
     def test_exact_number_and_diacritics_and_partial_are_distinct(self):
         with TemporaryDirectory() as folder:
@@ -159,6 +201,7 @@ class CommuteToolTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn('KIDSic map',asset.text)
             self.assertEqual(len((await session.list_resources()).resources), 1)
             self.assertEqual(tool.inputSchema['properties']['top_k']['default'], 4)
+            self.assertIn('kindergartens', tool.inputSchema['properties'])
             self.assertEqual(asset.meta['ui']['csp']['connectDomains'],['https://tile.openstreetmap.org'])
         service.recommend.assert_awaited_once()
 
@@ -167,7 +210,8 @@ class CommuteToolTests(unittest.IsolatedAsyncioTestCase):
         tool=CommuteTools(lambda:service)
         for bad in ({},criteria(city='Zagreb'),criteria(departure='07:00'),
                     {k:v for k,v in criteria().items() if k!='mode'},criteria(facility_ids=['one']), criteria(top_k=0),
-                    criteria(top_k=True), criteria(top_k='3')):
+                    criteria(top_k=True), criteria(top_k='3'), criteria(kindergartens=[]),
+                    criteria(kindergartens=['x']), criteria(kindergartens=[f'Vrtić {i}' for i in range(21)])):
             result=await tool.call_tool(tool.name,bad)
             self.assertTrue(result.isError)
             self.assertIn('invalid_commute',result.content[0].text)
