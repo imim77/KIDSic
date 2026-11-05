@@ -142,3 +142,32 @@ class HistoricalDatabaseTests(unittest.IsolatedAsyncioTestCase):
             await HistoricalService(clients, definitions, work).import_data()
         self.assertEqual(await self.c.fetch('SELECT id,active_batch_id FROM data_source ORDER BY id'), before)
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM historical_record'), 0)
+
+    async def test_rag_reads_history_and_document_chunks_only_for_selected_active_object(self):
+        from KIDSic.factories.rag import RagServiceFactory
+        from KIDSic.dao.concrete.asyncpg_kindergarten import AsyncpgKindergartenRepository
+        from KIDSic.dto.rag import RagQuery
+        await self.history.import_snapshot(await self.snapshot())
+        @asynccontextmanager
+        async def work():
+            yield SimpleNamespace(locations=AsyncpgLocationRepository(self.c),search=AsyncpgKindergartenRepository(self.c))
+        service = RagServiceFactory().create(work)
+        locations = await self.c.fetch('SELECT id,kindergarten_id,address FROM location ORDER BY address')
+        main = next(l for l in locations if l['address']=='Primjer 1')
+        for location in locations:
+            record = await self.c.fetchval('SELECT id FROM source_record WHERE location_id=$1',location['id'])
+            await self.c.execute('''INSERT INTO knowledge_chunk(kindergarten_id,location_id,source_record_id,ordinal,content,source_url,content_sha256)
+                VALUES($1,$2,$3,0,$4,'https://example.invalid/upis',$5)''',location['kindergarten_id'],location['id'],record,
+                'Dokumenti za upis: ' + location['address'],'a'*64)
+        query = RagQuery(city='Zagreb',name='Primjer',topics=['programs'],feature_id=str(main['id']))
+        result = await service.retrieve(query)
+        self.assertEqual(len(result.evidence),1)
+        self.assertEqual(result.evidence[0].temporal_status,'historical')
+        documents = await service.retrieve(query.model_copy(update={'topics':['document']}))
+        self.assertEqual(len(documents.evidence),1)
+        self.assertIn('Primjer 1',documents.evidence[0].content)
+        self.assertNotIn('Druga 2',documents.evidence[0].content)
+        await self.c.execute("UPDATE data_source SET import_allowed=false WHERE dataset_key='zagreb-programs-2019'")
+        self.assertEqual((await service.retrieve(query)).status,'no_evidence')
+        await self.c.execute("UPDATE data_source SET import_allowed=false WHERE dataset_key='directory'")
+        self.assertEqual((await service.retrieve(query)).status,'not_found')

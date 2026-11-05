@@ -75,6 +75,15 @@ class AsyncpgLocationRepository(LocationRepository):
                      NULLIF(btrim(k.phone),'')) AS phone,
             pl.longitude,pl.latitude,pl.location_role,pl.sources,
             COALESCE(fields.field_sources,'{}') AS field_sources,
+            jsonb_build_object(
+              'website_url',CASE WHEN NULLIF(btrim(contact.raw_data->>'Web'),'') IS NOT NULL
+                THEN contact.evidence || '{"scope":"facility"}'::jsonb ELSE owner_contacts.evidence->'website_url' END,
+              'email',CASE WHEN NULLIF(btrim(contact.raw_data->>'Email'),'') IS NOT NULL
+                THEN contact.evidence || '{"scope":"facility"}'::jsonb ELSE owner_contacts.evidence->'email' END,
+              'phone',CASE WHEN NULLIF(btrim(contact.raw_data->>'Telefon'),'') IS NOT NULL
+                THEN contact.evidence || '{"scope":"facility"}'::jsonb
+                WHEN NULLIF(btrim(pl.facility_phone),'') IS NULL THEN owner_contacts.evidence->'phone' END
+            ) AS contact_sources,
             COALESCE((SELECT jsonb_agg(to_jsonb(p) ORDER BY p.valid_from DESC,p.policy_key)
               FROM municipality_subsidy_policy p
               WHERE p.municipality_id=pl.municipality_id
@@ -132,11 +141,19 @@ class AsyncpgLocationRepository(LocationRepository):
           ) areas ON true
           -- Published branch contacts take precedence over the institution fallback.
           LEFT JOIN LATERAL (
-            SELECT r.raw_data FROM active_record r
+            SELECT r.raw_data,r.evidence FROM active_record r
             WHERE r.location_id=pl.location_id AND r.kindergarten_id=pl.kindergarten_id
               AND r.raw_data ?| ARRAY['Web','Email','Telefon']
             ORDER BY r.fetched_at DESC,r.record_id LIMIT 1
           ) contact ON true
+          LEFT JOIN LATERAL (
+            SELECT jsonb_object_agg(field.key,r.evidence || jsonb_build_object('scope',
+              CASE WHEN r.location_id IS NULL THEN 'institution' ELSE 'facility' END)) AS evidence
+            FROM jsonb_each(k.provenance) field JOIN active_record r
+              ON r.record_id=field.value->>'source_record_id' AND r.kindergarten_id=k.id
+                AND (r.location_id IS NULL OR r.location_id=pl.location_id)
+            WHERE field.key IN ('website_url','email','phone')
+          ) owner_contacts ON true
           LEFT JOIN LATERAL (
             SELECT jsonb_object_agg(field.key,r.evidence ||
               jsonb_build_object('active_snapshot',r.active_snapshot)) AS field_sources
@@ -158,7 +175,7 @@ class AsyncpgLocationRepository(LocationRepository):
           )
           SELECT location_id,kindergarten_id,name,location_name,address,city,
             provider_kind,district,areas,programs,historical_data,suitability_status,
-            website_url,email,phone,location_role,sources,field_sources,subsidy_policies,
+            website_url,email,phone,contact_sources,location_role,sources,field_sources,subsidy_policies,
             CASE WHEN geometry_valid THEN longitude END AS longitude,
             CASE WHEN geometry_valid THEN latitude END AS latitude
           FROM candidate

@@ -1,6 +1,6 @@
 # KIDSic
 
-MCP app za pronalazak dječjih vrtića povezivanjem više otvorenih skupova. Implementirani su PostgreSQL model, CKAN registracija izvora i uvoz triju JSON skupova i CSV popisa varaždinskih obrta dadilja, SQL pretraga prema gradu i dobi te RAG dohvat s izvorima. MCP alat `prikazi_vrtice` povezuje obavezan grad s Mapbox kartom i vodoravnim karticama naziva i adresa. Embedding pružatelj još nije implementiran.
+MCP app za pronalazak dječjih vrtića povezivanjem više otvorenih skupova. Implementirani su PostgreSQL model, CKAN registracija i uvoz imenika, objekata, kontakata te povijesnih zagrebačkih programa i mjesta. MCP alat `prikazi_vrtice` povezuje obavezan grad s Mapbox kartom i karticama. `dohvati_kontekst_vrtica` dohvaća podatke za razgovorne odgovore s izvorima, datumima i opsegom. [RAG](RAG.md) vraća sve prihvaćene dokaze odabranih tema za odabrani vrtić, bez rangiranja i embedding pružatelja. Odgovor sastavlja model MCP klijenta.
 
 Aplikacija podržava samo **Zagreb, Varaždin i Rijeku**. Uvoz preskače zapise
 iz drugih gradova prije upisa u bazu; pripadnost gradu određuje se prema
@@ -204,7 +204,7 @@ API se pokreće nad prethodno migriranom i popunjenom bazom iz koraka iznad:
 uv run uvicorn KIDSic.api.locations:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
-`DATABASE_URL` mora biti postavljen u istom terminalu. API drži jedan pool kroz životni vijek aplikacije; svaki zahtjev čita konzistentnu snimku kroz read-only Unit of Work. Pokretanje ne izvršava migracije ni uvoz. [Ugovor lokacija](LOCATION_API.md) opisuje `GET /api/locations`, filtre, GeoJSON, izvore, datume i pogreške. MCP karta podržava dob u mjesecima i program uz zasebno označene potvrđene i nepoznate uvjete; CLI pretraga i RAG ostaju zaseban servis.
+`DATABASE_URL` mora biti postavljen u istom terminalu. API drži jedan pool kroz životni vijek aplikacije; svaki zahtjev čita konzistentnu snimku kroz read-only Unit of Work. Pokretanje ne izvršava migracije ni uvoz. [Ugovor lokacija](LOCATION_API.md) opisuje `GET /api/locations`, filtre, GeoJSON, izvore, datume i pogreške. MCP karta podržava dob u mjesecima i program; alat za [RAG kontekst](RAG.md) koristi zaseban servis nad istim poolom. CLI dobna pretraga zadržava postojeći ugovor.
 
 Frontend pokrenuti u drugom terminalu:
 

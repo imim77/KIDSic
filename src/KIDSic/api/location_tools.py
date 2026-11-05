@@ -23,10 +23,6 @@ class LocationTools:
     def __init__(self, service: Callable[[], LocationServiceInterface]):
         self._service = service
 
-    def register(self, server):
-        server.list_tools()(self.list_tools)
-        server.call_tool(validate_input=False)(self.call_tool)
-
     @staticmethod
     def _error_result(message: str) -> types.CallToolResult:
         return types.CallToolResult(

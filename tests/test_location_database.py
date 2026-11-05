@@ -67,6 +67,22 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
             name,min_age_months,max_age_months_exclusive,verified_on)
             VALUES ($1,$2,$3,$4,$5,$6,CURRENT_DATE) RETURNING id''', owner, location, record, name, minimum, maximum)
 
+    async def test_rag_contact_provenance_cannot_cite_a_sibling_or_disabled_record(self):
+        owner, location = await self.fixture('Contacts')
+        sibling = await self.c.fetchval("INSERT INTO location(kindergarten_id,name,settlement,settlement_key) VALUES($1,'Sibling','Zagreb','zagreb') RETURNING id",owner)
+        await self.record(owner,sibling)
+        record = await self.c.fetchval('SELECT id FROM source_record WHERE location_id=$1',sibling)
+        await self.c.execute('UPDATE kindergarten SET email=$2,provenance=$3 WHERE id=$1',owner,'branch@example.invalid',
+            {'email':{'source_record_id':str(record)}})
+        rows = await self.repository.list_locations(LocationQuery())
+        selected = next(r for r in rows if r['location_id']==location)
+        related = next(r for r in rows if r['location_id']==sibling)
+        self.assertIsNone(selected['contact_sources']['email'])
+        self.assertEqual(related['contact_sources']['email']['scope'],'facility')
+        await self.c.execute("UPDATE source_record SET match_status='candidate' WHERE id=$1",record)
+        rows = await self.repository.list_locations(LocationQuery())
+        self.assertTrue(all(r['contact_sources']['email'] is None for r in rows))
+
     async def test_age_program_matching_uses_same_program_and_preserves_unknown_conditions(self):
         eligible, loc = await self.fixture('Eligible', provider='private', coords=(None,None))
         await self.c.execute("UPDATE location SET district='Banfica' WHERE id=$1", loc)

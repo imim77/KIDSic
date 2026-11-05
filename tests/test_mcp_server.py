@@ -29,11 +29,11 @@ def decoded_locations(result):
 
 
 @asynccontextmanager
-async def connected(service):
+async def connected(service, rag_service=None):
     with TemporaryDirectory() as directory:
         asset = Path(directory) / 'mcp.html'
         asset.write_text('<html><body>KIDSic map</body></html>')
-        app = create_app(service, ui_path=asset)
+        app = create_app(service, ui_path=asset, rag_service=rag_service)
         async with app.router.lifespan_context(app):
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app),
                                          base_url='http://localhost') as http:
@@ -45,13 +45,55 @@ async def connected(service):
 
 
 class McpServerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_rag_tool_returns_citable_context_without_map_metadata(self):
+        from KIDSic.dto.rag import RagContext, RagQuery, RagMatch
+        query = RagQuery(city='Zagreb', name='Bajka', topics=['programs'])
+        context = RagContext(criteria=query, status='no_evidence',total_matches=1,
+            matches=[RagMatch(feature_id='00000000-0000-0000-0000-000000000001',kindergarten_id='synthetic',
+                name='Synthetic Bajka',location_name='Synthetic object',address=None,city='Zagreb')],
+            notice='Nema relevantnog dokaza.')
+        rag = SimpleNamespace(retrieve=AsyncMock(return_value=context))
+        locations = SimpleNamespace(list_locations=AsyncMock())
+        async with connected(locations, rag) as (session, _):
+            tools = (await session.list_tools()).tools
+            tool = next(t for t in tools if t.name == 'dohvati_kontekst_vrtica')
+            self.assertEqual(tool.inputSchema['required'],['city','name'])
+            self.assertTrue(tool.annotations.readOnlyHint)
+            self.assertIsNone(tool.meta)
+            result = await session.call_tool(tool.name, query.model_dump())
+            self.assertFalse(result.isError)
+            self.assertEqual(result.structuredContent,context.model_dump(mode='json'))
+            self.assertIn('Nema relevantnog dokaza',result.content[0].text)
+            self.assertIsNone(result.meta)
+        rag.retrieve.assert_awaited_once_with(query)
+        locations.list_locations.assert_not_awaited()
+
+    async def test_rag_invalid_calls_never_access_service_and_errors_allow_recovery(self):
+        rag = SimpleNamespace(retrieve=AsyncMock())
+        valid = dict(city='Zagreb',name='Bajka',topics=['programs'])
+        async with connected(SimpleNamespace(list_locations=AsyncMock()),rag) as (session,_):
+            for args in ({},dict(valid,city='Split'),dict(valid,name=' '),dict(valid,topics=[]),
+                         dict(valid,topics=['jelovnik']),dict(valid,question='Koji su programi?'),
+                         dict(valid,feature_id='invented'),dict(valid,extra='unknown')):
+                result = await session.call_tool('dohvati_kontekst_vrtica',args)
+                self.assertTrue(result.isError)
+                self.assertIn('invalid_arguments',result.content[0].text)
+                self.assertIn('Primjer:',result.content[0].text)
+            rag.retrieve.assert_not_awaited()
+            rag.retrieve.side_effect = RuntimeError('private diagnostic')
+            with self.assertLogs('KIDSic.api.rag_tools',level='ERROR'):
+                result = await session.call_tool('dohvati_kontekst_vrtica',valid)
+            self.assertTrue(result.isError)
+            self.assertIn('unavailable',result.content[0].text)
+            self.assertNotIn('private diagnostic',result.content[0].text)
+
     async def test_discovery_links_required_city_tool_to_html_resource(self):
         service = SimpleNamespace(list_locations=AsyncMock())
         async with connected(service) as (session, initialized):
             self.assertIn('ALWAYS', initialized.instructions)
             self.assertIn('ask the user', initialized.instructions)
             tools = (await session.list_tools()).tools
-            self.assertEqual([tool.name for tool in tools], ['prikazi_vrtice'])
+            self.assertEqual([tool.name for tool in tools], ['prikazi_vrtice', 'dohvati_kontekst_vrtica'])
             tool = tools[0]
             self.assertEqual(tool.inputSchema['required'], ['city'])
             self.assertNotIn('default', tool.inputSchema['properties']['city'])
@@ -313,7 +355,7 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
         @asynccontextmanager
         async def locations():
             events.append('open')
-            yield service
+            yield service, SimpleNamespace(retrieve=AsyncMock())
             events.append('close')
 
         with TemporaryDirectory() as directory:
@@ -321,7 +363,7 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
             asset.write_text('<html>map</html>')
             with patch('KIDSic.api.mcp_server.Settings.from_env'), \
                  patch('KIDSic.api.mcp_server.DependencyService') as dependencies:
-                dependencies.return_value.location_service = locations
+                dependencies.return_value.conversation_services = locations
                 app = create_app(ui_path=asset)
                 async with app.router.lifespan_context(app):
                     self.assertEqual(events, ['open'])

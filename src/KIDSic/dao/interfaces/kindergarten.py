@@ -17,5 +17,6 @@ class KindergartenRepository(ABC):
 
     @abstractmethod
     async def retrieve_context(self, *, location_ids, text='', embedding=None,
-                               embedding_model=None, program_ids=(), kindergarten_ids=(), limit=8):
+                               embedding_model=None, program_ids=(), kindergarten_ids=(), limit=8,
+                               all_documents=False):
         """Retrieve source-grounded chunks only within the supplied candidate scope."""

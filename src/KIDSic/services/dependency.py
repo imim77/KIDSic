@@ -11,6 +11,7 @@ from KIDSic.factories.kindergarten_search import KindergartenSearchServiceFactor
 from KIDSic.factories.location import LocationServiceFactory
 from KIDSic.factories.source import SourceServiceFactory
 from KIDSic.factories.historical import HistoricalServiceFactory
+from KIDSic.factories.rag import RagServiceFactory
 from KIDSic.db.uow.asyncpg_source import AsyncpgSourceUnitOfWork
 
 
@@ -43,6 +44,13 @@ class DependencyService:
     async def kindergarten_search_service(self):
         async with self._pool() as pool:
             yield KindergartenSearchServiceFactory().create(lambda: AsyncpgUnitOfWork(pool))
+
+    @asynccontextmanager
+    async def conversation_services(self):
+        async with self._pool() as pool:
+            def work():
+                return AsyncpgUnitOfWork(pool)
+            yield LocationServiceFactory().create(work), RagServiceFactory().create(work)
 
     @asynccontextmanager
     async def location_service(self):

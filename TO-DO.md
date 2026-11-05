@@ -47,7 +47,8 @@
 ## MCP app i razgovorna pretraga
 
 - [ ] Povezati razgovorni upit o gradu i dobi djeteta sa strukturiranom pretragom te odvojiti potvrđenu dobnu prikladnost od nepoznatih uvjeta.
-- [ ] Dohvaćati relevantne opise i upute kroz RAG samo za pronađene vrtiće i odgovarajuće programe, uz provjerljive poveznice na izvore.
+- [x] Dohvaćati RAG kontekst samo za odabranu ustanovu/objekt, uz provjerljive izvore, datume i odvajanje povijesnih podataka; teme bira model klijenta, a server vraća sve dokaze tih tema bez rangiranja ([RAG.md](RAG.md)).
+- [ ] Proširiti RAG korpus otvorenim službenim upisnim dokumentima; ako dokumenti po vrtiću premaše ograničenje odgovora, uvesti i evaluirati dohvat nad njima.
 - [ ] Omogućiti pretragu, dohvat detalja, usporedbu i vodič za upis kroz MCP alate.
 - [ ] Pretvarati upit roditelja prirodnim jezikom u vidljive kriterije pretrage nad stvarnim podacima.
 - [ ] Zatražiti pojašnjenje kada za pretragu nedostaje ključan podatak poput lokacije ili željene dobne skupine.

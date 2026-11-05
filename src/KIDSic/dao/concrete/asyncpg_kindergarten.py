@@ -126,8 +126,8 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
 
     async def retrieve_context(self, *, location_ids, text: str = '', embedding=None,
                                embedding_model: str | None = None, program_ids=(),
-                               kindergarten_ids=(), limit: int = 8):
-        if not 1 <= limit <= 30:
+                               kindergarten_ids=(), limit: int | None = 8, all_documents: bool = False):
+        if not (all_documents and limit is None) and (type(limit) is not int or not 1 <= limit <= 30):
             raise ValueError('Limit mora biti od 1 do 30.')
         vector = None
         if embedding is not None:
@@ -137,7 +137,7 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
         # Exact cosine ranking AFTER scope/source filtering: no ANN post-filter recall loss.
         return await self._connection.fetch('''
           SELECT c.id,c.kindergarten_id,c.location_id,c.content,c.source_url,c.source_record_id,
-                 r.observed_on,r.fetched_at,s.title AS source_title,
+                 r.observed_on,r.fetched_at,s.title AS source_title,s.license,
                  CASE WHEN $3::vector IS NULL THEN NULL ELSE c.embedding <=> $3::vector END AS distance
           FROM knowledge_chunk c
           JOIN source_record r ON r.id=c.source_record_id
@@ -156,8 +156,8 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
               SELECT 1 FROM program p WHERE p.id=c.program_id
                 AND (p.location_id IS NULL OR p.location_id=c.location_id))))
             AND ($3::vector IS NULL OR (c.embedding IS NOT NULL AND c.embedding_model=$4))
-            AND ($3::vector IS NOT NULL OR c.search_text @@ websearch_to_tsquery('simple',$2))
+            AND ($8::boolean OR $3::vector IS NOT NULL OR c.search_text @@ websearch_to_tsquery('simple',$2))
           ORDER BY CASE WHEN $3::vector IS NOT NULL THEN c.embedding <=> $3::vector END,
                    ts_rank(c.search_text,websearch_to_tsquery('simple',$2)) DESC,c.id LIMIT $5
         ''', list(location_ids), text, vector, embedding_model, limit, list(program_ids),
-            list(kindergarten_ids))
+            list(kindergarten_ids), all_documents)

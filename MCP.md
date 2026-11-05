@@ -143,8 +143,21 @@ izostaviti `name`. Novi poziv bez vrste ili područja ne nasljeđuje te filtre p
 Tumačenje prirodnog jezika i pitanje za nedostajući grad obavlja AI klijent
 prema opisu alata i uputama servera. Python server validira strukturirane
 argumente i izvršava determinističku pretragu; nema zasebnog LLM poziva ni
-novog chat polja u web aplikaciji. RAG, usporedba i
-vodič za upis nisu parametri ovog koraka.
+novog chat polja u web aplikaciji. RAG kontekst dostupan je kroz zaseban alat
+`dohvati_kontekst_vrtica`; usporedba i vodič za upis još nisu implementirani.
+
+### RAG odgovori o odabranom vrtiću
+
+`dohvati_kontekst_vrtica` prihvaća obavezne `city` i `name` te neobavezne `topics`
+(teme pitanja koje bira model klijenta) i `feature_id` iz prethodnog rezultata. Vraća tekstualne i strukturirane dokaze s
+izvorima, datumima i opsegom bez metapodataka karte. Model klijenta na temelju
+njih sastavlja odgovor i citira izvore. Višeznačan naziv traži odabir; odsutnost
+dokaza nije dokaz da usluga ne postoji. Povijesna snimka nikada ne potvrđuje
+današnje programe ili slobodna mjesta. Detaljan ugovor i ograničenja: [RAG.md](RAG.md).
+
+Server ne rangira dokaze niti tumači pitanje. Vraća sve prihvaćene dokaze
+odabranih tema za odabranu ustanovu/objekt jer oni stanu u ograničenje odgovora;
+namjeru pitanja određuje model klijenta kroz `topics`.
 
 Upute servera i opis alata zahtijevaju ovaj alat za prikaz vrtića. Svaki poziv je
 povezan s UI resursom u definiciji alata i metapodacima rezultata. Server ipak ne
