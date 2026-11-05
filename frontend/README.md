@@ -34,8 +34,21 @@ ispunjava dodijeljeni prozor.
 - `src/shared/locations/`: ugovor podataka, dohvat, kartice i carousel.
 - `src/shared/explorer/`: zajednički okvir i prošireni prikaz.
 - `src/shared/map/`: Mapbox lifecycle, GeoJSON slojevi i odabir objekta.
+- `src/shared/motion/`: GSAP ulazne animacije (`useEntrance`).
 - `src/shared/`: zajednička tema i resursi.
 - `public/`: statičke datoteke.
+
+Animacije koriste [GSAP](https://gsap.com) i `@gsap/react` (`useGSAP` čisti
+animacije pri unmountu). Kartice, popis i detalji odabranog vrtića ulaze
+postupno: mijenjaju se samo prozirnost i pomak, a inline stilovi brišu se na
+kraju, da ostanu CSS hover i press stanja i da detalji mogu primiti fokus.
+Animira se omotač (`li`), ne kartica s vlastitim CSS prijelazom. Uz
+`prefers-reduced-motion: reduce` ili bez `matchMedia` (npr. u testovima)
+sadržaj se odmah prikazuje u konačnom stanju. GSAP koristi vlastitu besplatnu
+[standardnu licencu](https://gsap.com/standard-license), a ne OSS licencu.
+Dopušta komercijalnu uporabu na web-stranicama i aplikacijama; zabranjuje samo
+alate za izradu vizualnih animacija bez koda koji konkuriraju Webflowu. GSAP povećava MCP bundle s
+otprilike 208 na 236 KB gzip.
 
 ```sh
 npm ci

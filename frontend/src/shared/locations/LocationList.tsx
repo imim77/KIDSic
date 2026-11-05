@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Building2 } from 'lucide-react'
 import { providerLabels, type LocationCollection } from './types'
 import { SuitabilityBadge } from './ProgramDetails'
+import { useEntrance } from '../motion/useEntrance'
 
 interface LocationListProps {
   collection: LocationCollection
@@ -17,6 +18,8 @@ function results(count: number) {
 // explorer, where the horizontal card deck would hide most of them.
 export function LocationList({ collection, selectedId, onSelect }: LocationListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  // Items, not rows: rows keep CSS transform transitions for hover and press.
+  useEntrance(scrollRef, [collection], { selector: 'li', limit: 14 })
   const city = collection.features[0]?.properties.city
   useEffect(() => {
     const scroller = scrollRef.current

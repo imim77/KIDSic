@@ -6,6 +6,7 @@ import { SubsidyDetails } from './SubsidyDetails'
 import { ProgramDetails } from './ProgramDetails'
 import { HistoricalDetails } from './HistoricalDetails'
 import { EnrolmentDetails } from './EnrolmentDetails'
+import { useEntrance } from '../motion/useEntrance'
 
 interface LocationDetailsProps {
   feature: LocationFeature
@@ -25,6 +26,8 @@ function phoneHref(value: string) {
 export function LocationDetails({ feature, onClose, openLink }: LocationDetailsProps) {
   const location = feature.properties
   const sectionRef = useRef<HTMLElement>(null)
+  // Remounted per feature (keyed by id), so each selection replays the entrance.
+  useEntrance(sectionRef, [], { selector: '.location-details-hero, .location-details-body > *', limit: 16, container: true })
   useEffect(() => {
     // A card that expanded the frame may have unmounted with keyboard focus.
     if (!document.activeElement || document.activeElement === document.body) sectionRef.current?.focus({ preventScroll: true })

@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '../ui/button'
 import { LocationCard } from './LocationCard'
 import type { LocationFeature } from './types'
+import { useEntrance } from '../motion/useEntrance'
 
 interface LocationCarouselProps {
   features: LocationFeature[]
@@ -24,6 +25,8 @@ function anchor(track: HTMLElement, card: HTMLElement) {
 export function LocationCarousel({ features, selectedId, reveal, onSelect }: LocationCarouselProps) {
   const trackRef = useRef<HTMLUListElement>(null)
   const [edges, setEdges] = useState({ start: true, end: features.length < 2 })
+  // Slides, not cards: cards keep CSS transform transitions for hover and press.
+  useEntrance(trackRef, [features], { selector: '.location-slide', limit: 8 })
   useEffect(() => {
     const track = trackRef.current
     if (!track) return
