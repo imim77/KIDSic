@@ -1,17 +1,25 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { LocationCollection } from '../src/shared/locations/types'
+import type { ReactNode } from 'react'
+import type { LocationCollection, LocationFeature, Nearby } from '../src/shared/locations/types'
 import App from '../src/views/welcome/Welcome'
 import { collection, facility } from './fixtures'
 
 vi.mock('../src/shared/map/KindergartenMap', () => ({
-  KindergartenMap: ({ collection, selectedId, onSelect }: {
+  KindergartenMap: ({ collection, selectedId, onSelect, picking, onPick, nearby, overlay }: {
     collection: LocationCollection | null
     selectedId: string | null
     onSelect: (id: string) => void
+    picking?: boolean
+    onPick?: (near: [number, number]) => void
+    nearby?: Nearby | null
+    overlay?: (mapReady: boolean) => ReactNode
   }) => <div aria-label="Test map">
+    {overlay?.(true)}
     <output data-testid="map-selection">{selectedId}</output>
+    <output data-testid="map-nearby">{nearby ? `${nearby.near.join(',')}@${nearby.radius_m}` : ''}</output>
+    {picking && <button onClick={() => onPick?.([16, 45.8])}>Map pick</button>}
     {collection?.features.filter((feature) => feature.geometry).map((feature) => (
       <button key={feature.id} onClick={() => onSelect(feature.id)}>Map select {feature.id}</button>
     ))}
@@ -122,5 +130,63 @@ describe('directory interactions', () => {
     for (const [url] of fetch.mock.calls) {
       expect(Object.fromEntries(new URL(url, 'http://localhost').searchParams)).toEqual({ city: 'Zagreb' })
     }
+  })
+
+  it('searches around a point chosen on the map and refetches when the radius changes', async () => {
+    const near = facility('near')
+    near.properties.distance_m = 1112
+    const radiusResult = (...features: LocationFeature[]) => {
+      const payload = collection(...features)
+      payload.metadata.scope = 'radius'
+      return payload
+    }
+    const fetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => collection(facility('city')) })
+      .mockResolvedValueOnce({ ok: true, json: async () => radiusResult(near) })
+      .mockResolvedValueOnce({ ok: true, json: async () => radiusResult() })
+      .mockResolvedValueOnce({ ok: true, json: async () => collection(facility('city')) })
+    vi.stubGlobal('fetch', fetch)
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByRole('button', { name: /Synthetic facility city/ })
+    await user.click(screen.getByRole('button', { name: 'Odaberi na karti' }))
+    expect(screen.getByRole('button', { name: 'Kliknite na kartu' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByRole('button', { name: 'Map pick' }))
+    expect(screen.getByTestId('map-nearby')).toHaveTextContent('16,45.8@1000')
+    expect(await screen.findByRole('button', { name: /Synthetic facility near.*1,1 km zračno/ })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Map pick' })).toBeNull()
+    expect(Object.fromEntries(new URL(fetch.mock.calls[1][0], 'http://localhost').searchParams))
+      .toEqual({ city: 'Zagreb', near: '16,45.8', radius_m: '1000' })
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Radijus' }), '500 m')
+    expect(await screen.findByText(/Nema objekata s potvrđenim koordinatama unutar 500 m/)).toBeVisible()
+    expect(new URL(fetch.mock.calls[2][0], 'http://localhost').searchParams.get('radius_m')).toBe('500')
+    await user.click(screen.getByRole('button', { name: 'Ukloni' }))
+    await screen.findByRole('button', { name: /Synthetic facility city/ })
+    expect(screen.getByTestId('map-nearby')).toBeEmptyDOMElement()
+    expect(Object.fromEntries(new URL(fetch.mock.calls[3][0], 'http://localhost').searchParams)).toEqual({ city: 'Zagreb' })
+  })
+
+  it('uses the device location and explains a denied permission without searching', async () => {
+    const fetch = vi.fn().mockImplementation(async (url: string) => {
+      const payload = collection(facility('result'))
+      if (url.includes('near=')) payload.metadata.scope = 'radius'
+      return { ok: true, json: async () => payload }
+    })
+    vi.stubGlobal('fetch', fetch)
+    const getCurrentPosition = vi.fn()
+      .mockImplementationOnce((_: PositionCallback, failure: PositionErrorCallback) => failure({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError))
+      .mockImplementationOnce((success: PositionCallback) => success({ coords: { longitude: 15.97, latitude: 45.8 } } as GeolocationPosition))
+    vi.stubGlobal('navigator', { ...navigator, geolocation: { getCurrentPosition } })
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByRole('button', { name: /Synthetic facility result/ })
+    await user.click(screen.getByRole('button', { name: 'Moja lokacija' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Pristup lokaciji nije dopušten')
+    expect(fetch).toHaveBeenCalledOnce()
+    await user.click(screen.getByRole('button', { name: 'Moja lokacija' }))
+    expect(screen.queryByRole('alert')).toBeNull()
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
+    expect(new URL(fetch.mock.calls[1][0], 'http://localhost').searchParams.get('near')).toBe('15.97,45.8')
+    expect(screen.getByText(/Zračna udaljenost do 1 km/)).toBeVisible()
   })
 })

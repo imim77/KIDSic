@@ -9,12 +9,18 @@ export function useLocations(filters: LocationFilters) {
   const [attempt, setAttempt] = useState(0)
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
   const { city, q, provider_kind } = filters
-  const key = JSON.stringify([city, q, provider_kind, attempt])
+  // Primitive criteria let a new nearby object with equal values reuse the request.
+  const [longitude, latitude] = filters.nearby?.near ?? []
+  const radius = filters.nearby?.radius_m
+  const key = JSON.stringify([city, q, provider_kind, longitude, latitude, radius, attempt])
 
   useEffect(() => {
     const controller = new AbortController()
     let active = true
-    void directory.find({ city, q, provider_kind }, controller.signal).then((data) => {
+    const nearby = longitude === undefined || latitude === undefined || radius === undefined
+      ? null : { near: [longitude, latitude] as [number, number], radius_m: radius }
+    const criteria: LocationFilters = { city, q, provider_kind, nearby }
+    void directory.find(criteria, controller.signal).then((data) => {
       if (active) setSnapshot({ key, data, failed: false })
     }).catch(() => {
       if (active) setSnapshot({ key, data: null, failed: true })
@@ -23,7 +29,7 @@ export function useLocations(filters: LocationFilters) {
       active = false
       controller.abort()
     }
-  }, [city, q, provider_kind, key])
+  }, [city, q, provider_kind, longitude, latitude, radius, key])
 
   const current = snapshot?.key === key ? snapshot : null
   return {

@@ -113,7 +113,8 @@ describe('Mapbox lifecycle and data', () => {
     expect(map.addSource).not.toHaveBeenCalled()
     act(() => map.emit('style.load'))
     expect(screen.queryByText('Legenda karte')).toBeNull()
-    expect(map.addSource).toHaveBeenCalledTimes(2)
+    // Two kindergarten sources plus the nearby area and centre.
+    expect(map.addSource).toHaveBeenCalledTimes(4)
     expect(map.addSource).toHaveBeenCalledWith('kindergarten-locations', expect.objectContaining({
       cluster: true,
       data: expect.objectContaining({ features: [beforeStyle.features[0]] }),
@@ -122,10 +123,45 @@ describe('Mapbox lifecycle and data', () => {
     rerender(<KindergartenMap collection={afterStyle} />)
     expect(map.getSource()?.setData).toHaveBeenLastCalledWith(expect.objectContaining({ features: afterStyle.features }))
     expect(mock.maps).toHaveLength(1)
-    expect(map.addSource).toHaveBeenCalledTimes(2)
+    expect(map.addSource).toHaveBeenCalledTimes(4)
     unmount()
     expect(map.listenerCount('click:kindergarten-points')).toBe(0)
     expect(map.remove).toHaveBeenCalledOnce()
+  })
+
+  it('turns a map click into a nearby point only while picking and draws the radius', async () => {
+    const onSelect = vi.fn()
+    const onPick = vi.fn()
+    const nearby = { near: [15.98, 45.81] as [number, number], radius_m: 1000 }
+    const { rerender, unmount } = render(<KindergartenMap onSelect={onSelect} onPick={onPick} />)
+    await waitFor(() => expect(mock.maps).toHaveLength(1))
+    const map = mock.maps[0]
+    act(() => map.emit('style.load'))
+    act(() => map.emit('click', { lngLat: { lng: 16, lat: 45.8 } }))
+    expect(onPick).not.toHaveBeenCalled()
+    rerender(<KindergartenMap onSelect={onSelect} onPick={onPick} picking />)
+    act(() => {
+      map.emit('click:kindergarten-points', { features: [{ id: 'under-the-click' }] })
+      map.emit('click', { lngLat: { lng: 16, lat: 45.8 } })
+    })
+    expect(onSelect).not.toHaveBeenCalled()
+    expect(onPick).toHaveBeenCalledWith([16, 45.8])
+    rerender(<KindergartenMap onSelect={onSelect} onPick={onPick} nearby={nearby} />)
+    const area = map.getSource('nearby-area')?.setData.mock.lastCall?.[0]
+    expect(area.features).toHaveLength(1)
+    // Every ring vertex lies about one kilometre from the centre.
+    for (const [lng, lat] of area.features[0].geometry.coordinates[0]) {
+      const dx = (lng - 15.98) * 111_320 * Math.cos(45.81 * Math.PI / 180)
+      const dy = (lat - 45.81) * 110_574
+      expect(Math.abs(Math.hypot(dx, dy) - 1000)).toBeLessThan(10)
+    }
+    expect(map.getSource('nearby-centre')?.setData).toHaveBeenLastCalledWith(expect.objectContaining({
+      features: [expect.objectContaining({ geometry: { type: 'Point', coordinates: [15.98, 45.81] } })],
+    }))
+    rerender(<KindergartenMap onSelect={onSelect} onPick={onPick} nearby={null} />)
+    expect(map.getSource('nearby-area')?.setData).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] })
+    unmount()
+    expect(map.listenerCount('click')).toBe(0)
   })
 
   it('forwards point selection to the latest callback and resizes when its panel changes', async () => {

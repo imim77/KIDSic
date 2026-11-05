@@ -16,7 +16,7 @@
 ## Pretraga i odabir vrtića
 
 - [ ] Pretraživati nacionalni imenik prema nazivu, mjestu, gradu, županiji i poštanskom broju.
-- [x] Pronalaziti objekte prema odabranoj lokaciji i radijusu udaljenosti kada su dostupne provjerene koordinate (API: `near` + `radius_m`; odabir točke u sučelju i MCP-u još nedostaje).
+- [x] Pronalaziti objekte prema odabranoj lokaciji i radijusu udaljenosti kada su dostupne provjerene koordinate (API: `near` + `radius_m`; web karta: „Moja lokacija” ili klik na kartu; MCP još nedostaje).
 - [ ] Filtrirati zagrebačke objekte prema gradskoj četvrti.
 - [x] Filtrirati prema vrsti pružatelja: gradski, privatni, vjerski vrtić ili obrt dadilja.
 - [ ] Filtrirati prema dobi djeteta i programu kada postoje potvrđeni podaci, uz zasebnu oznaku za rezultate s nepoznatim uvjetima.

@@ -19,6 +19,20 @@ describe('complete location directory', () => {
     expect(result.features[1].geometry).toBeNull()
   })
 
+  it('sends a nearby point and radius and requires a radius-scoped response', async () => {
+    const payload = collection(facility('near'))
+    payload.metadata.scope = 'radius'
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => payload })
+    vi.stubGlobal('fetch', fetch)
+    const filters = { city: 'Zagreb', q: '', provider_kind: '' as const, nearby: { near: [15.98, 45.81] as [number, number], radius_m: 2000 } }
+    await new LocationDirectory().find(filters, new AbortController().signal)
+    expect(Object.fromEntries(new URL(fetch.mock.calls[0][0], 'http://localhost').searchParams))
+      .toEqual({ city: 'Zagreb', near: '15.98,45.81', radius_m: '2000' })
+    fetch.mockResolvedValue({ ok: true, json: async () => collection(facility('city')) })
+    await expect(new LocationDirectory().find(filters, new AbortController().signal))
+      .rejects.toThrow('Incomplete location response')
+  })
+
   it.each([
     { ...collection(facility('one')), metadata: { ...collection(facility('one')).metadata, complete: false } },
     { ...collection(facility('one')), metadata: { ...collection(facility('one')).metadata, scope: 'bbox' } },

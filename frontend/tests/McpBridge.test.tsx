@@ -1,10 +1,13 @@
+import type { ReactNode } from 'react'
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
 import { McpLocationApp } from '../src/views/mcp/McpLocationApp'
 import { collection, facility, programEvidence } from './fixtures'
 
-vi.mock('../src/shared/map/KindergartenMap', () => ({ KindergartenMap: () => <div aria-label="Test map" /> }))
+vi.mock('../src/shared/map/KindergartenMap', () => ({
+  KindergartenMap: ({ overlay }: { overlay?: (mapReady: boolean) => ReactNode }) => <div aria-label="Test map">{overlay?.(true)}</div>,
+}))
 afterEach(() => { vi.unstubAllGlobals(); Reflect.deleteProperty(Element.prototype, 'scrollTo') })
 
 it('negotiates the real SDK postMessage bridge, receives results, and requests host fullscreen', async () => {

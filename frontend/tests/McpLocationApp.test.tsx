@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -24,7 +25,9 @@ vi.mock('@modelcontextprotocol/ext-apps', () => ({ App: class {
   openLink = host.link
   getHostContext = () => host.context
 } }))
-vi.mock('../src/shared/map/KindergartenMap', () => ({ KindergartenMap: () => <div aria-label="Test map" /> }))
+vi.mock('../src/shared/map/KindergartenMap', () => ({
+  KindergartenMap: ({ overlay }: { overlay?: (mapReady: boolean) => ReactNode }) => <div aria-label="Test map">{overlay?.(true)}</div>,
+}))
 
 beforeEach(() => {
   Element.prototype.scrollTo = vi.fn()

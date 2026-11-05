@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Building2 } from 'lucide-react'
 import { providerLabels, type LocationCollection } from './types'
 import { SuitabilityBadge } from './ProgramDetails'
+import { formatDistance } from './distance'
 import { useEntrance } from '../motion/useEntrance'
 
 interface LocationListProps {
@@ -50,6 +51,7 @@ export function LocationList({ collection, selectedId, onSelect }: LocationListP
                 <SuitabilityBadge status={location.suitability_status} />
                 <span className="location-row-name">{location.location_name}</span>
                 <span className="location-row-address">{location.address ?? 'Adresa nije poznata'}</span>
+                {location.distance_m != null && <span className="location-row-distance">{formatDistance(location.distance_m)} zračno</span>}
                 {location.district && <span className="location-row-district">{location.district}</span>}
               </span>
             </button>

@@ -148,10 +148,17 @@ export interface LocationCollection extends FeatureCollection<Point | null, Loca
   }
 }
 
+// Nearby limits results to a straight-line radius around a WGS84 point.
+export interface Nearby {
+  near: [longitude: number, latitude: number]
+  radius_m: number
+}
+
 export interface LocationFilters {
   city: string
   q: string
   provider_kind: ProviderKind | ''
+  nearby?: Nearby | null
 }
 
 export const initialLocationFilters: LocationFilters = { city: 'Zagreb', q: '', provider_kind: '' }

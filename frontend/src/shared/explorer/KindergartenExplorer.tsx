@@ -6,7 +6,9 @@ import { KindergartenMap } from '../map/KindergartenMap'
 import { LocationCarousel } from '../locations/LocationCarousel'
 import { LocationDetails } from '../locations/LocationDetails'
 import { LocationList } from '../locations/LocationList'
-import type { LocationCollection } from '../locations/types'
+import { NearbyControl } from '../locations/NearbyControl'
+import { formatDistance } from '../locations/distance'
+import type { LocationCollection, Nearby } from '../locations/types'
 
 interface KindergartenExplorerProps {
   data: LocationCollection | null
@@ -18,6 +20,8 @@ interface KindergartenExplorerProps {
   notice?: string
   emptyNotice?: string
   openLink?: (url: string) => void
+  // nearby enables the point-and-radius control; hosts without a directory omit it.
+  nearby?: { value: Nearby | null; onChange: (value: Nearby | null) => void }
 }
 
 // KindergartenExplorer keeps every map overlay in the same fullscreen frame.
@@ -30,8 +34,14 @@ export function KindergartenExplorer({ hostFullscreen, ...props }: KindergartenE
 }
 
 // ExplorerLayout arranges list, details and map for the frame's current state.
-function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emptyNotice, openLink }: Omit<KindergartenExplorerProps, 'hostFullscreen'>) {
+function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emptyNotice, openLink, nearby }: Omit<KindergartenExplorerProps, 'hostFullscreen'>) {
   const { expanded, expand } = useFrameControls()
+  const [picking, setPicking] = useState(false)
+  const [radius, setRadius] = useState(nearby?.value?.radius_m ?? 1000)
+  const place = (near: [number, number]) => {
+    setPicking(false)
+    nearby?.onChange({ near, radius_m: radius })
+  }
   const [reveal, setReveal] = useState<{ id: string; revision: number } | null>(null)
   const layoutRef = useRef<HTMLDivElement>(null)
   const roomy = useMediaQuery('(min-width: 700px)', true)
@@ -49,11 +59,22 @@ function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emp
     {panels && <LocationList collection={data!} selectedId={selectedId} onSelect={onSelect} />}
     {expanded && selected && <LocationDetails key={selected.id} feature={selected} onClose={closeDetails} openLink={openLink} />}
     <div className="explorer-map">
-      <KindergartenMap collection={data} selectedId={selectedId} onSelect={(id) => { onSelect(id); setReveal((previous) => ({ id, revision: (previous?.revision ?? 0) + 1 })) }} />
-      {status === 'loading' && <p className="explorer-notice" role="status">{notice ?? 'Učitavanje objekata…'}</p>}
+      <KindergartenMap collection={data} selectedId={selectedId} nearby={nearby?.value} picking={picking} onPick={place}
+        onSelect={(id) => { onSelect(id); setReveal((previous) => ({ id, revision: (previous?.revision ?? 0) + 1 })) }}
+        overlay={(mapReady) => <>
+          {nearby && <NearbyControl value={nearby.value} radius={radius} picking={picking && mapReady} canPick={mapReady}
+            onLocate={place} onPicking={setPicking} onClear={() => { setPicking(false); nearby.onChange(null) }}
+            onRadius={(value) => {
+              setRadius(value)
+              if (nearby.value) nearby.onChange({ ...nearby.value, radius_m: value })
+            }} />}
+          {status === 'loading' && <p className="explorer-notice" role="status">{notice ?? 'Učitavanje objekata…'}</p>}
+          {status === 'error' && <div className="explorer-notice" role="alert"><p>Podatke nije moguće učitati. Provjerite vezu i pokušajte ponovno.</p><button className="text-button" onClick={() => { setReveal(null); retry() }}>Pokušaj ponovno</button></div>}
+          {data?.features.length === 0 && <p className="explorer-notice" role="status">{emptyNotice ?? (nearby?.value
+            ? `Nema objekata s potvrđenim koordinatama unutar ${formatDistance(nearby.value.radius_m)}. Povećajte radijus ili uklonite točku.`
+            : 'Nema dostupnih vrtićkih objekata.')}</p>}
+        </>} />
       {data && <p className="sr-only" role="status">{data.metadata.total} rezultata · {data.metadata.mapped} na karti · {data.metadata.unmapped} bez koordinata</p>}
-      {status === 'error' && <div className="explorer-notice" role="alert"><p>Podatke nije moguće učitati. Provjerite vezu i pokušajte ponovno.</p><button className="text-button" onClick={() => { setReveal(null); retry() }}>Pokušaj ponovno</button></div>}
-      {data?.features.length === 0 && <p className="explorer-notice" role="status">{emptyNotice ?? 'Nema dostupnih vrtićkih objekata.'}</p>}
       {!!data?.features.length && !panels && <LocationCarousel features={data.features} selectedId={selectedId} reveal={reveal} onSelect={(id) => { onSelect(id); expand() }} />}
     </div>
   </div>
