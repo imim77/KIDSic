@@ -6,6 +6,7 @@ import { SubsidyDetails } from './SubsidyDetails'
 import { ProgramDetails } from './ProgramDetails'
 import { HistoricalDetails } from './HistoricalDetails'
 import { EnrolmentDetails } from './EnrolmentDetails'
+import { VacancyDetails } from './VacancyDetails'
 import { useEntrance } from '../motion/useEntrance'
 import { CompareToggle, type CompareChoice } from './CompareToggle'
 
@@ -79,6 +80,7 @@ export function LocationDetails({ feature, onClose, openLink, compare }: Locatio
         </>}
 
         <EnrolmentDetails rounds={location.enrolment ?? []} openLink={openLink} />
+        <VacancyDetails location={location} openLink={openLink} />
         <ProgramDetails location={location} openLink={openLink} />
         <HistoricalDetails records={location.historical_data ?? []} openLink={openLink} />
         <SubsidyDetails policies={location.subsidy_policies ?? []} openLink={openLink} />
@@ -89,7 +91,7 @@ export function LocationDetails({ feature, onClose, openLink, compare }: Locatio
           <dt>Četvrt</dt><dd>{location.district ?? 'Nije navedena'}</dd>
           <dt>Grad</dt><dd>{location.city}</dd>
         </dl>
-        <p className="location-details-note">Dobne skupine, slobodna mjesta i konačnu cijenu za svoju obitelj provjerite izravno kod vrtića.</p>
+        <p className="location-details-note">Dobne skupine, trenutačna slobodna mjesta i konačnu cijenu za svoju obitelj provjerite izravno kod vrtića.</p>
 
       </div>
     </div>

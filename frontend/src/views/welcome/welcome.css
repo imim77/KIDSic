@@ -180,3 +180,16 @@ a.comparison-next:hover { background: var(--mint); }
   .comparison-option-name { font-size: 16px; }
   .comparison-field { font-size: 15px; }
 }
+
+/* Published vacancies: the count leads, its date and scope sit right under it. */
+.vacancy-details { display: flex; flex-direction: column; gap: 10px; }
+.vacancy-card { display: flex; flex-direction: column; gap: 10px; padding: 16px; background: var(--sky); border: 2px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow-sm); overflow-wrap: anywhere; }
+.vacancy-card[data-state="zero"] { background: var(--blush); }
+.vacancy-card[data-state="partial"] { background: var(--cream); }
+.vacancy-total { font-family: var(--display); font-size: 22px; line-height: 1.1; }
+.vacancy-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.vacancy-meta .enrolment-status { margin-left: 3px; }
+.vacancy-stale { font-size: 12px; font-weight: 700; }
+.vacancy-groups { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.vacancy-groups li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 10px; background: var(--cream); border: 1.5px solid var(--ink); border-radius: 10px; }
+.vacancy-groups strong { font-family: var(--display); font-weight: 400; }

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import { LocationDetails } from '../src/shared/locations/LocationDetails'
@@ -14,36 +14,51 @@ const policy: SubsidyPolicy = {
   sources: [{ title: 'Službeni program', url: 'https://sn.rijeka.hr/program/' }],
 }
 
-it('presents historical dates, institution scope and zero vacancies and routes source links through the host', async () => {
+it('shows the newest published vacancies with date, scope and staleness, and keeps program snapshots separate', async () => {
   const item = facility('history')
-  item.properties.historical_data = [historicalEvidence(), historicalEvidence({ reference_date: '2019-10-09',
+  item.properties.historical_data = [historicalEvidence({ vacancies: [
+    { age_label: 'od 1 do 2 godine', program: 'REDOVITI PROGRAM', free_places: 3 },
+    { age_label: 'od 3 godine do OŠ', program: null, free_places: 0 },
+  ] }), historicalEvidence({ reference_date: '2019-10-09',
     date_kind: 'published', scope: 'facility', vacancies: [], programs: ['Montessori', 'engleski jezik'],
     source_url: 'https://example.invalid/programs.xlsx' })]
   const openLink = vi.fn()
   const { rerender } = render(<LocationDetails feature={item} onClose={() => {}} openLink={openLink} />)
-  expect(screen.getByText('Povijesni otvoreni podaci')).toBeVisible()
-  expect(screen.getByText('Slobodna mjesta: 0')).toBeVisible()
-  expect(screen.getByText(/Stanje na dan 01\. 01\. 2025\./)).toBeVisible()
-  expect(screen.getByText(/Objavljeno 09\. 10\. 2019\./)).toBeVisible()
-  expect(screen.getByText(/Podatak za cijelu ustanovu\/obrt/)).toBeVisible()
-  expect(screen.getByText('Montessori')).toBeVisible()
-  expect(screen.queryByText('Potvrđeno podudaranje')).toBeNull()
-  await userEvent.click(screen.getByText('Mjesta prema dobi i programu'))
-  expect(screen.getByText(/od 1 do 2 godine · redoviti program:/)).toBeVisible()
-  await userEvent.click(screen.getAllByRole('link', { name: /izvorni otvoreni skup/ })[0])
+  const vacancies = screen.getByRole('region', { name: 'Objavljena slobodna mjesta' })
+  expect(within(vacancies).getByText('3 slobodna mjesta')).toBeVisible()
+  expect(within(vacancies).getByText('Stanje 01. 01. 2025.')).toBeVisible()
+  expect(within(vacancies).getByText('Snimka je starija od godinu dana')).toBeVisible()
+  expect(within(vacancies).getByText(/Broj vrijedi za cijelu ustanovu/)).toBeVisible()
+  expect(within(vacancies).getByText('od 1 do 2 godine · redoviti program')).toBeVisible()
+  expect(within(vacancies).getByText(/nije jamstvo upisa/)).toBeVisible()
+  const history = screen.getByRole('region', { name: 'Povijesni otvoreni podaci' })
+  expect(within(history).getByText(/Objavljeno 09\. 10\. 2019\./)).toBeVisible()
+  expect(within(history).getByText('Montessori')).toBeVisible()
+  expect(within(history).queryByText(/Stanje na dan 01\. 01\. 2025\./)).toBeNull()
+  await userEvent.click(within(vacancies).getByRole('link', { name: /Synthetic open snapshot/ }))
   expect(openLink).toHaveBeenCalledWith('https://example.invalid/historical.csv')
   rerender(<LocationDetails feature={facility('other')} onClose={() => {}} />)
   expect(screen.queryByText('Povijesni otvoreni podaci')).toBeNull()
 })
 
-it('does not present a missing historical vacancy count as zero', async () => {
-  const item = facility('partial-history')
-  item.properties.historical_data = [historicalEvidence({ vacancies: [{ age_label: null, program: null, free_places: null }] })]
-  render(<LocationDetails feature={item} onClose={() => {}} />)
-  expect(screen.getByText('Slobodna mjesta: nepotpuni podaci')).toBeVisible()
-  expect(screen.queryByText('Slobodna mjesta: 0')).toBeNull()
-  await userEvent.click(screen.getByText('Mjesta prema dobi i programu'))
+it('keeps a published zero, a blank count and an unpublished count apart', () => {
+  const zero = facility('zero')
+  zero.properties.historical_data = [historicalEvidence()]
+  const { rerender } = render(<LocationDetails feature={zero} onClose={() => {}} />)
+  expect(screen.getByText('0 slobodnih mjesta')).toBeVisible()
+  const partial = facility('partial')
+  partial.properties.historical_data = [historicalEvidence({ vacancies: [{ age_label: null, program: null, free_places: null }] })]
+  rerender(<LocationDetails feature={partial} onClose={() => {}} />)
+  expect(screen.getByText('Broj nije potpuno objavljen')).toBeVisible()
   expect(screen.getByText('nije objavljeno')).toBeVisible()
+  expect(screen.queryByText('0 slobodnih mjesta')).toBeNull()
+  const unpublished = facility('unpublished')
+  rerender(<LocationDetails feature={unpublished} onClose={() => {}} />)
+  expect(screen.getByText(/slobodna mjesta nisu objavljena u uvezenim izvorima/)).toBeVisible()
+  expect(screen.getByRole('link', { name: /Službeni pregled slobodnih mjesta/ })).toHaveAttribute('href', expect.stringContaining('data.zagreb.hr'))
+  unpublished.properties.provider_kind = 'private'
+  rerender(<LocationDetails feature={{ ...unpublished }} onClose={() => {}} />)
+  expect(screen.queryByRole('link', { name: /Službeni pregled slobodnih mjesta/ })).toBeNull()
 })
 
 it('shows evidence scope, explicit age bounds and missing-program notice without promising enrolment', () => {
@@ -126,7 +141,8 @@ it('shows published contacts, removes directions and sources, and closes on Esca
 
 it('omits absent contacts and unsafe websites without inventing a link', () => {
   const location = facility('unknown', false)
-  Object.assign(location.properties, { address: null, website_url: 'javascript:alert(1)', email: ' ', phone: null })
+  // Private: no official vacancy overview link, so every link would be a contact.
+  Object.assign(location.properties, { provider_kind: 'private', address: null, website_url: 'javascript:alert(1)', email: ' ', phone: null })
   render(<LocationDetails feature={location} onClose={() => {}} />)
   expect(screen.getByText(/Adresa nije poznata/)).toBeVisible()
   expect(screen.queryByRole('heading', { name: 'Kontakt' })).toBeNull()
@@ -135,6 +151,7 @@ it('omits absent contacts and unsafe websites without inventing a link', () => {
 
 it('keeps multiple published contacts readable instead of dialing a concatenated number', () => {
   const location = facility('multiple')
+  location.properties.provider_kind = 'private'
   location.properties.phone = '01/234-5678, 091/234-5678'
   location.properties.email = 'one@example.invalid; two@example.invalid'
   render(<LocationDetails feature={location} onClose={() => {}} />)
