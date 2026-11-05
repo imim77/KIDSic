@@ -8,7 +8,8 @@ import { LocationDetails } from '../locations/LocationDetails'
 import { LocationList } from '../locations/LocationList'
 import { NearbyControl } from '../locations/NearbyControl'
 import { formatDistance } from '../locations/distance'
-import type { LocationCollection, Nearby } from '../locations/types'
+import { describeCriteria, results } from '../locations/criteria'
+import type { LocationCollection, Nearby, SearchCriteria } from '../locations/types'
 
 interface KindergartenExplorerProps {
   data: LocationCollection | null
@@ -22,6 +23,8 @@ interface KindergartenExplorerProps {
   openLink?: (url: string) => void
   // nearby enables the point-and-radius control; hosts without a directory omit it.
   nearby?: { value: Nearby | null; onChange: (value: Nearby | null) => void }
+  // criteria describes the search behind data, so the results explain themselves.
+  criteria?: SearchCriteria
 }
 
 // KindergartenExplorer keeps every map overlay in the same fullscreen frame.
@@ -34,7 +37,7 @@ export function KindergartenExplorer({ hostFullscreen, ...props }: KindergartenE
 }
 
 // ExplorerLayout arranges list, details and map for the frame's current state.
-function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emptyNotice, openLink, nearby }: Omit<KindergartenExplorerProps, 'hostFullscreen'>) {
+function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emptyNotice, openLink, nearby, criteria }: Omit<KindergartenExplorerProps, 'hostFullscreen'>) {
   const { expanded, expand } = useFrameControls()
   const [picking, setPicking] = useState(false)
   const [chosenRadius, setRadius] = useState(1000)
@@ -57,8 +60,9 @@ function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emp
   }
 
   const panels = expanded && roomy && !!data?.features.length
+  const described = criteria ? describeCriteria(criteria) : undefined
   return <div ref={layoutRef} className="explorer-layout" data-suitability={data?.features.some((feature) => feature.properties.suitability_status === 'confirmed') ? '' : undefined} data-layout={panels ? 'panels' : 'map'} data-details={expanded && selected ? '' : undefined}>
-    {panels && <LocationList collection={data!} selectedId={selectedId} onSelect={onSelect} />}
+    {panels && <LocationList collection={data!} selectedId={selectedId} onSelect={onSelect} criteria={described} />}
     {expanded && selected && <LocationDetails key={selected.id} feature={selected} onClose={closeDetails} openLink={openLink} />}
     <div className="explorer-map">
       <KindergartenMap collection={data} selectedId={selectedId} nearby={nearby?.value} picking={picking} onPick={place}
@@ -77,7 +81,8 @@ function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emp
             : 'Nema dostupnih vrtićkih objekata.')}</p>}
         </>} />
       {data && <p className="sr-only" role="status">{data.metadata.total} rezultata · {data.metadata.mapped} na karti · {data.metadata.unmapped} bez koordinata</p>}
-      {!!data?.features.length && !panels && <LocationCarousel features={data.features} selectedId={selectedId} reveal={reveal} onSelect={(id) => { onSelect(id); expand() }} />}
+      {!!data?.features.length && !panels && <LocationCarousel features={data.features} selectedId={selectedId} reveal={reveal} onSelect={(id) => { onSelect(id); expand() }}
+        caption={described && [results(data.metadata.total), ...described].join(' · ')} />}
     </div>
   </div>
 }

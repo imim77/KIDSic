@@ -10,6 +10,8 @@ interface LocationCarouselProps {
   selectedId: string | null
   reveal: { id: string; revision: number } | null
   onSelect: (id: string) => void
+  // caption names the count, active criteria and order above the deck.
+  caption?: string
 }
 
 function motion(): ScrollBehavior {
@@ -22,7 +24,7 @@ function anchor(track: HTMLElement, card: HTMLElement) {
 }
 
 // LocationCarousel scrolls its own viewport without changing the map selection.
-export function LocationCarousel({ features, selectedId, reveal, onSelect }: LocationCarouselProps) {
+export function LocationCarousel({ features, selectedId, reveal, onSelect, caption }: LocationCarouselProps) {
   const trackRef = useRef<HTMLUListElement>(null)
   const [edges, setEdges] = useState({ start: true, end: features.length < 2 })
   // Slides, not cards: cards keep CSS transform transitions for hover and press.
@@ -61,6 +63,7 @@ export function LocationCarousel({ features, selectedId, reveal, onSelect }: Loc
     track.scrollTo?.({ left, behavior: motion() })
   }
   return <section className="location-carousel" aria-label="Popis objekata">
+    {caption && <p className="location-carousel-caption" title={caption}>{caption}</p>}
     <div className="carousel-controls">
       <Button type="button" variant="outline" size="icon-lg" className="rounded-full" aria-label="Prethodni vrtić" disabled={edges.start} onClick={() => move(-1)}><ChevronLeft data-icon="inline-start" /></Button>
       <Button type="button" variant="outline" size="icon-lg" className="rounded-full" aria-label="Sljedeći vrtić" disabled={edges.end} onClick={() => move(1)}><ChevronRight data-icon="inline-end" /></Button>

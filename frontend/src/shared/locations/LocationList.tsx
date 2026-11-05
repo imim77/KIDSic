@@ -3,21 +3,19 @@ import { Building2 } from 'lucide-react'
 import { providerLabels, type LocationCollection } from './types'
 import { SuitabilityBadge } from './ProgramDetails'
 import { formatDistance } from './distance'
+import { results } from './criteria'
 import { useEntrance } from '../motion/useEntrance'
 
 interface LocationListProps {
   collection: LocationCollection
   selectedId: string | null
   onSelect: (id: string) => void
-}
-
-function results(count: number) {
-  return new Intl.PluralRules('hr').select(count) === 'one' ? `${count} rezultat` : `${count} rezultata`
+  criteria?: string[]
 }
 
 // LocationList shows every result as a scrollable column in the expanded
 // explorer, where the horizontal card deck would hide most of them.
-export function LocationList({ collection, selectedId, onSelect }: LocationListProps) {
+export function LocationList({ collection, selectedId, onSelect, criteria }: LocationListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   // Items, not rows: rows keep CSS transform transitions for hover and press.
   useEntrance(scrollRef, [collection], { selector: 'li', limit: 14 })
@@ -37,6 +35,7 @@ export function LocationList({ collection, selectedId, onSelect }: LocationListP
     <header className="location-list-header">
       <h2>{city ? `Vrtići · ${city}` : 'Vrtići'}</h2>
       <p>{results(collection.metadata.total)} · {collection.metadata.mapped} na karti</p>
+      {!!criteria?.length && <p className="location-list-criteria" title="Aktivni kriteriji i redoslijed">{criteria.join(' · ')}</p>}
     </header>
     <div ref={scrollRef} className="location-list-scroll">
       <ul aria-label="Svi vrtići">

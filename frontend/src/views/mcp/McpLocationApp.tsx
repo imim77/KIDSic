@@ -119,6 +119,7 @@ export function McpLocationApp() {
       emptyNotice={emptyNotice}
       retry={() => { void search() }}
       nearby={snapshot.city ? { value: snapshot.nearby ?? null, onChange: (value) => { void search(value) } } : undefined}
+      criteria={snapshot.city ? { ...snapshot, city: snapshot.city } : undefined}
       openLink={(url) => { void bridge.current?.openLink({ url }) }}
       hostFullscreen={display.available ? { expanded: display.expanded, request: async (mode) => {
         const result = await bridge.current!.requestDisplayMode({ mode })

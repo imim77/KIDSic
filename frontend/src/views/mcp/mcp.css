@@ -13,5 +13,6 @@
 @media (max-width: 420px) {
   .mcp-location-app { height: 480px; }
   .mcp-location-app .location-track { padding-inline: 38px; scroll-padding: 38px; }
+  .mcp-location-app .location-carousel-caption { left: 38px; max-width: calc(100% - 76px); }
   .mcp-location-app .location-slide { flex-basis: min(228px, calc(100vw - 96px)); }
 }
