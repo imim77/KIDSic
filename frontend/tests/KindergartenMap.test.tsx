@@ -1,337 +1,173 @@
 import { StrictMode } from 'react'
+import L from 'leaflet'
 import { act, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { KindergartenMap } from '../src/shared/map/KindergartenMap'
 import { collection, facility } from './fixtures'
 
-type Listener = (...args: unknown[]) => void
-
-const mock = vi.hoisted(() => {
-  function createMap() {
-    const listeners = new Map<string, Set<Listener>>()
-    const sources = new Map<string, { setData: ReturnType<typeof vi.fn>; getClusterExpansionZoom: ReturnType<typeof vi.fn> }>()
-    const api = {
-      on: vi.fn((event: string, layerOrListener: string | Listener, handler?: Listener) => {
-        const key = typeof layerOrListener === 'string' ? `${event}:${layerOrListener}` : event
-        if (!listeners.has(key)) listeners.set(key, new Set())
-        listeners.get(key)?.add(handler ?? layerOrListener as Listener)
-        return api
-      }),
-      off: vi.fn((event: string, layerOrListener: string | Listener, handler?: Listener) => {
-        const key = typeof layerOrListener === 'string' ? `${event}:${layerOrListener}` : event
-        listeners.get(key)?.delete(handler ?? layerOrListener as Listener)
-        return api
-      }),
-      emit(event: string, ...args: unknown[]) { listeners.get(event)?.forEach((listener) => listener(...args)) },
-      resetStyle() { sources.clear() },
-      listenerCount(event: string) { return listeners.get(event)?.size ?? 0 },
-      isStyleLoaded: vi.fn(() => false),
-      getSource: vi.fn((id = 'kindergarten-locations') => sources.get(id)),
-      addSource: vi.fn((id: string) => {
-        sources.set(id, { setData: vi.fn(), getClusterExpansionZoom: vi.fn() })
-      }),
-      addLayer: vi.fn(),
-      addControl: vi.fn(),
-      fitBounds: vi.fn(),
-      easeTo: vi.fn(),
-      flyTo: vi.fn(),
-      getZoom: vi.fn(() => 11),
-      jumpTo: vi.fn(),
-      setFilter: vi.fn(),
-      setPaintProperty: vi.fn(),
-      getCanvas: vi.fn(() => ({ style: { cursor: '' } })),
-      getContainer: vi.fn(() => document.createElement('div')),
-      setPadding: vi.fn(),
-      resize: vi.fn(),
-      remove: vi.fn(),
-    }
-    return api
-  }
-  return {
-    createMap,
-    maps: [] as ReturnType<typeof createMap>[],
-    Map: vi.fn(),
-    supported: vi.fn(() => true),
-    NavigationControl: vi.fn(),
-    observers: [] as { callback: ResizeObserverCallback; disconnect: ReturnType<typeof vi.fn> }[],
-  }
-})
-
-vi.mock('mapbox-gl', () => ({ default: mock }))
-
-let KindergartenMap: typeof import('../src/shared/map/KindergartenMap').KindergartenMap
-
-beforeAll(async () => {
-  vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', 'pk.synthetic-unit-test-token')
-  KindergartenMap = (await import('../src/shared/map/KindergartenMap')).KindergartenMap
-})
+let maps: L.Map[]
+let observers: { callback: ResizeObserverCallback; disconnect: ReturnType<typeof vi.fn> }[]
 
 beforeEach(() => {
-  mock.maps.length = 0
-  mock.observers.length = 0
-  mock.supported.mockReturnValue(true)
-  mock.Map.mockImplementation(function () {
-    const map = mock.createMap()
-    mock.maps.push(map)
+  maps = []
+  observers = []
+  const createMap = L.map
+  vi.spyOn(L, 'map').mockImplementation((...args) => {
+    const map = createMap(...args)
+    maps.push(map)
     return map
   })
+  // jsdom supports SVG elements but does not expose createSVGRect for detection.
+  L.Browser.svg = true
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(900)
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(700)
   vi.stubGlobal('ResizeObserver', class {
     disconnect = vi.fn()
     observe = vi.fn()
     unobserve = vi.fn()
-    constructor(callback: ResizeObserverCallback) { mock.observers.push({ callback, disconnect: this.disconnect }) }
+    constructor(callback: ResizeObserverCallback) { observers.push({ callback, disconnect: this.disconnect }) }
   })
 })
 
 afterEach(() => vi.unstubAllGlobals())
 
-describe('Mapbox lifecycle and data', () => {
-  it('colors points and selection by provider with the public color as fallback', async () => {
-    render(<KindergartenMap collection={collection(facility('public'))} selectedId="public" />)
-    await waitFor(() => expect(mock.maps).toHaveLength(1))
-    const map = mock.maps[0]
-    act(() => map.emit('style.load'))
-    const layers = map.addLayer.mock.calls.map(([layer]) => layer)
-    const points = layers.find((layer) => layer.id === 'kindergarten-points')!
-    const selection = layers.find((layer) => layer.id === 'kindergarten-selected-point')!
-    expect(points.paint['circle-color']).toEqual([
-      'match', ['get', 'provider_kind'], 'private', '#c88cfd',
-      'religious', '#fdc068', 'childminder', '#fc5681', '#82eda6',
-    ])
-    expect(selection.paint['circle-color']).toEqual(points.paint['circle-color'])
-    expect(selection.paint['circle-radius']).toBeGreaterThan(points.paint['circle-radius'])
+async function ready() {
+  await waitFor(() => expect(maps).toHaveLength(1))
+  await waitFor(() => expect(screen.queryByText('Karta se učitava…')).not.toBeInTheDocument())
+  return maps[0]
+}
+
+function layers<T extends L.Layer>(map: L.Map, kind: new (...args: never[]) => T): T[] {
+  const found: T[] = []
+  map.eachLayer((layer) => { if (layer instanceof kind) found.push(layer) })
+  return found
+}
+
+function markers(map: L.Map) { return clusters(map).getLayers() as L.Marker[] }
+function clusters(map: L.Map) { return layers(map, L.MarkerClusterGroup)[0] }
+
+describe('Leaflet/OpenStreetMap lifecycle and data', () => {
+  it('loads OpenStreetMap without credentials and keeps attribution visible', async () => {
+    render(<KindergartenMap collection={collection(facility('public'))} />)
+    const map = await ready()
+    const tile = layers(map, L.TileLayer)[0]
+    expect(tile.getTileUrl({ x: 1, y: 2, z: 3 } as L.Coords)).toContain('tile.openstreetmap.org/')
+    expect(tile.options.maxZoom).toBe(19)
+    expect(screen.getByRole('link', { name: 'OpenStreetMap' })).toHaveAttribute('href', 'https://www.openstreetmap.org/copyright')
     expect(screen.getByRole('list', { name: 'Vrste pružatelja na karti' })).toBeVisible()
-    for (const label of ['Javni i ostali', 'Privatni', 'Vjerski', 'Dadilje']) {
-      expect(screen.getByText(label)).toBeVisible()
-    }
   })
 
-  it('mounts data arriving before the style and updates the same source without reallocating the map', async () => {
-    const beforeStyle = collection(facility('first'), facility('unlocated', false))
-    const { rerender, unmount } = render(<KindergartenMap collection={beforeStyle} />)
-    await waitFor(() => expect(mock.maps).toHaveLength(1))
-    const map = mock.maps[0]
-    expect(map.addSource).not.toHaveBeenCalled()
-    act(() => map.emit('style.load'))
-    expect(screen.queryByText('Legenda karte')).toBeNull()
-    // Two kindergarten sources plus the nearby area and centre.
-    expect(map.addSource).toHaveBeenCalledTimes(4)
-    expect(map.addSource).toHaveBeenCalledWith('kindergarten-locations', expect.objectContaining({
-      cluster: true,
-      data: expect.objectContaining({ features: [beforeStyle.features[0]] }),
-    }))
-    const afterStyle = collection(facility('replacement'))
-    rerender(<KindergartenMap collection={afterStyle} />)
-    expect(map.getSource()?.setData).toHaveBeenLastCalledWith(expect.objectContaining({ features: afterStyle.features }))
-    expect(mock.maps).toHaveLength(1)
-    expect(map.addSource).toHaveBeenCalledTimes(4)
+  it('keeps only located results and replaces cluster data without reallocating the map', async () => {
+    const { rerender, unmount } = render(<KindergartenMap collection={collection(facility('first'), facility('unlocated', false))} />)
+    const map = await ready()
+    const group = clusters(map)
+    expect(group.getLayers()).toHaveLength(1)
+    expect((group.getLayers()[0] as L.Marker).getLatLng()).toEqual(L.latLng(45.81, 15.98))
+    rerender(<KindergartenMap collection={collection(facility('replacement'))} />)
+    expect(group.getLayers()).toHaveLength(1)
+    expect((group.getLayers()[0] as L.Marker).options.alt).toBe('replacement')
+    expect(maps).toHaveLength(1)
+    const remove = vi.spyOn(map, 'remove')
     unmount()
-    expect(map.listenerCount('click:kindergarten-points')).toBe(0)
-    expect(map.remove).toHaveBeenCalledOnce()
+    expect(group.getLayers()).toHaveLength(0)
+    expect(remove).toHaveBeenCalledOnce()
+    expect(map.listens('click')).toBe(false)
   })
 
-  it('turns a map click into a nearby point only while picking and draws the radius', async () => {
-    const onSelect = vi.fn()
-    const onPick = vi.fn()
-    const nearby = { near: [15.98, 45.81] as [number, number], radius_m: 1000 }
-    const { rerender, unmount } = render(<KindergartenMap onSelect={onSelect} onPick={onPick} />)
-    await waitFor(() => expect(mock.maps).toHaveLength(1))
-    const map = mock.maps[0]
-    act(() => map.emit('style.load'))
-    act(() => map.emit('click', { lngLat: { lng: 16, lat: 45.8 } }))
-    expect(onPick).not.toHaveBeenCalled()
-    rerender(<KindergartenMap onSelect={onSelect} onPick={onPick} picking />)
-    act(() => {
-      map.emit('click:kindergarten-points', { features: [{ id: 'under-the-click' }] })
-      map.emit('click', { lngLat: { lng: 16, lat: 45.8 } })
-    })
-    expect(onSelect).not.toHaveBeenCalled()
-    expect(onPick).toHaveBeenCalledWith([16, 45.8])
-    rerender(<KindergartenMap onSelect={onSelect} onPick={onPick} nearby={nearby} />)
-    const area = map.getSource('nearby-area')?.setData.mock.lastCall?.[0]
-    expect(area.features).toHaveLength(1)
-    // Every ring vertex lies about one kilometre from the centre.
-    for (const [lng, lat] of area.features[0].geometry.coordinates[0]) {
-      const dx = (lng - 15.98) * 111_320 * Math.cos(45.81 * Math.PI / 180)
-      const dy = (lat - 45.81) * 110_574
-      expect(Math.abs(Math.hypot(dx, dy) - 1000)).toBeLessThan(10)
-    }
-    expect(map.getSource('nearby-centre')?.setData).toHaveBeenLastCalledWith(expect.objectContaining({
-      features: [expect.objectContaining({ geometry: { type: 'Point', coordinates: [15.98, 45.81] } })],
-    }))
-    rerender(<KindergartenMap onSelect={onSelect} onPick={onPick} nearby={null} />)
-    expect(map.getSource('nearby-area')?.setData).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] })
-    unmount()
-    expect(map.listenerCount('click')).toBe(0)
+  it('preserves provider colours for both normal and selected markers', async () => {
+    const item = facility('private')
+    item.properties.provider_kind = 'private'
+    const { container } = render(<KindergartenMap collection={collection(item)} selectedId="private" />)
+    await ready()
+    const normal = container.querySelector<HTMLElement>('.location-pin:not(.location-pin-selected) span')!
+    const selected = container.querySelector<HTMLElement>('.location-pin-selected span')!
+    expect(normal.style.backgroundColor).toBe('rgb(200, 140, 253)')
+    expect(selected.style.backgroundColor).toBe(normal.style.backgroundColor)
+    expect(container.querySelector<HTMLElement>('.location-pin-selected')!.style.width).toBe('26px')
   })
 
-  it('forwards point selection to the latest callback and resizes when its panel changes', async () => {
-    const original = vi.fn()
-    const latest = vi.fn()
-    const { rerender } = render(<KindergartenMap onSelect={original} />)
-    await waitFor(() => expect(mock.maps).toHaveLength(1))
-    const map = mock.maps[0]
-    rerender(<KindergartenMap onSelect={latest} />)
-    act(() => map.emit('click:kindergarten-points', { features: [{ id: 'selected-facility' }] }))
-    expect(latest).toHaveBeenCalledWith('selected-facility')
+  it('forwards canonical selection to the latest callback and suppresses it while picking', async () => {
+    const original = vi.fn(), latest = vi.fn(), onPick = vi.fn()
+    const item = facility('rendered')
+    item.properties.location_id = 'canonical'
+    const payload = collection(item)
+    const { rerender } = render(<KindergartenMap collection={payload} onSelect={original} />)
+    const map = await ready()
+    rerender(<KindergartenMap collection={payload} onSelect={latest} />)
+    act(() => markers(map)[0].fire('click', {}, true))
+    expect(latest).toHaveBeenCalledWith('canonical')
     expect(original).not.toHaveBeenCalled()
-    mock.observers[0].callback([], {} as ResizeObserver)
-    expect(map.resize).toHaveBeenCalledOnce()
+    rerender(<KindergartenMap collection={payload} onSelect={latest} picking onPick={onPick} />)
+    latest.mockClear()
+    act(() => {
+      markers(map)[0].fire('click', {}, true)
+      map.fire('click', { latlng: L.latLng(45.8, 16) })
+    })
+    expect(latest).not.toHaveBeenCalled()
+    expect(onPick).toHaveBeenCalledWith([16, 45.8])
+    expect(map.getContainer().style.cursor).toBe('crosshair')
   })
 
-  it('refreshes viewport padding in both rotation directions without resetting the selected camera or map', async () => {
-    const payload = collection(facility('mapped'))
-    const { getByTestId } = render(<div className="kindergarten-explorer" data-testid="explorer">
-      <KindergartenMap collection={payload} selectedId="mapped" />
-      <section className="location-carousel" data-testid="deck" />
-    </div>)
-    await waitFor(() => expect(mock.maps).toHaveLength(1))
-    const map = mock.maps[0]
-    act(() => map.emit('style.load'))
-    const frame = getByTestId('explorer')
-    const deck = getByTestId('deck')
-    map.getContainer.mockReturnValue(frame.querySelector<HTMLElement>('.map-canvas')!)
-    let height = 680
-    let deckHeight = 230
-    Object.defineProperty(frame, 'clientHeight', { get: () => height })
-    deck.getBoundingClientRect = () => ({ height: deckHeight } as DOMRect)
-    map.fitBounds.mockClear()
-    map.jumpTo.mockClear()
-    map.easeTo.mockClear()
-    const sourceWrites = map.getSource()?.setData.mock.calls.length
-
-    act(() => mock.observers[0].callback([], {} as ResizeObserver))
-    expect(map.setPadding).toHaveBeenLastCalledWith({ top: 90, bottom: 275, left: 45, right: 45 })
-    height = 296
-    deckHeight = 174
-    act(() => mock.observers[0].callback([], {} as ResizeObserver))
-    expect(map.setPadding).toHaveBeenLastCalledWith({ top: 59.2, bottom: 177.6, left: 45, right: 45 })
-    height = 680
-    deckHeight = 230
-    act(() => mock.observers[0].callback([], {} as ResizeObserver))
-    expect(map.setPadding).toHaveBeenLastCalledWith({ top: 90, bottom: 275, left: 45, right: 45 })
-    expect(map.resize).toHaveBeenCalledTimes(3)
-    expect(map.resize.mock.invocationCallOrder.at(-1)).toBeLessThan(map.setPadding.mock.invocationCallOrder.at(-1)!)
-    expect(map.fitBounds).not.toHaveBeenCalled()
-    expect(map.jumpTo).not.toHaveBeenCalled()
-    expect(map.easeTo).not.toHaveBeenCalled()
-    expect(map.getSource()?.setData).toHaveBeenCalledTimes(sourceWrites!)
-    expect(mock.maps).toHaveLength(1)
-    expect(map.remove).not.toHaveBeenCalled()
+  it('draws the radius in metres and clears it when the filter is removed', async () => {
+    const onPick = vi.fn()
+    const { rerender } = render(<KindergartenMap onPick={onPick} nearby={{ near: [15.98, 45.81], radius_m: 1000 }} />)
+    const map = await ready()
+    const area = layers(map, L.Circle)[0]
+    expect(area.getRadius()).toBe(1000)
+    expect(area.getLatLng()).toEqual(L.latLng(45.81, 15.98))
+    act(() => map.fire('click', { latlng: L.latLng(45.8, 16) }))
+    expect(onPick).not.toHaveBeenCalled()
+    rerender(<KindergartenMap onPick={onPick} />)
+    expect(layers(map, L.Circle)).toHaveLength(0)
   })
 
-  it('selects the canonical location property when rendered vector tiles omit the UUID feature id', async () => {
-    const onSelect = vi.fn()
-    render(<KindergartenMap onSelect={onSelect} />)
-    await waitFor(() => expect(mock.maps).toHaveLength(1))
-    const map = mock.maps[0]
-    act(() => map.emit('click:kindergarten-points', {
-      features: [{ properties: { location_id: 'canonical-location-uuid' } }],
-    }))
-    expect(onSelect).toHaveBeenCalledWith('canonical-location-uuid')
+  it('clears selection for unlocated results and resizes without recreating the map', async () => {
+    const payload = collection(facility('mapped'), facility('unlocated', false))
+    const { rerender, container } = render(<KindergartenMap collection={payload} selectedId="mapped" />)
+    const map = await ready()
+    expect(map.getZoom()).toBe(15)
+    expect(container.querySelector('.location-pin-selected')).toBeInTheDocument()
+    const resize = vi.spyOn(map, 'invalidateSize')
+    act(() => observers[0].callback([], {} as ResizeObserver))
+    expect(resize).toHaveBeenCalledWith({ pan: false })
+    rerender(<KindergartenMap collection={payload} selectedId="unlocated" />)
+    expect(container.querySelector('.location-pin-selected')).not.toBeInTheDocument()
+    expect(maps).toHaveLength(1)
   })
 
-  it('leaves exactly one live map under StrictMode and disposes its listeners and observer', async () => {
+  it('shows a tile failure and recovers after a successful tile load', async () => {
+    render(<KindergartenMap />)
+    const map = await ready()
+    const tile = layers(map, L.TileLayer)[0]
+    act(() => tile.fire('tileerror'))
+    expect(screen.getByRole('status')).toHaveTextContent('Podlogu karte nije moguće učitati')
+    act(() => tile.fire('tileload'))
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('leaves one live map in StrictMode and releases observers on unmount', async () => {
     const { unmount } = render(<StrictMode><KindergartenMap /></StrictMode>)
-    await waitFor(() => expect(mock.maps).toHaveLength(1))
-    const map = mock.maps[0]
-    expect(map.remove).not.toHaveBeenCalled()
-    expect(map.listenerCount('click:kindergarten-points')).toBe(1)
+    const map = await ready()
+    const remove = vi.spyOn(map, 'remove')
     unmount()
-    expect(mock.observers[0].disconnect).toHaveBeenCalledOnce()
-    expect(map.remove).toHaveBeenCalledOnce()
-    expect(map.listenerCount('click:kindergarten-points')).toBe(0)
+    expect(remove).toHaveBeenCalledOnce()
+    expect(observers[0].disconnect).toHaveBeenCalledOnce()
   })
 
-  it('does not allocate a map when the component unmounts before the lazy import resolves', async () => {
+  it('does not allocate a map after unmounting before initialization', async () => {
     const { unmount } = render(<KindergartenMap />)
     unmount()
     await act(async () => { await Promise.resolve() })
-    expect(mock.maps).toHaveLength(0)
+    expect(maps).toHaveLength(0)
   })
 
-  it('shows a fallback when WebGL is unsupported', async () => {
-    mock.supported.mockReturnValue(false)
-    render(<KindergartenMap />)
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('nije moguće pokrenuti'))
-    expect(mock.maps).toHaveLength(0)
-  })
-
-  it('removes a partially initialized map when observing the panel fails', async () => {
+  it('removes a partially initialized map once if observing the panel fails', async () => {
     vi.stubGlobal('ResizeObserver', class { constructor() { throw new Error('observer failed') } })
+    const remove = vi.spyOn(L.Map.prototype, 'remove')
     const { unmount } = render(<KindergartenMap />)
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('nije moguće pokrenuti'))
-    const map = mock.maps[0]
-    expect(map.remove).toHaveBeenCalledOnce()
-    expect(map.listenerCount('click:kindergarten-points')).toBe(0)
+    expect(remove).toHaveBeenCalledOnce()
     unmount()
-    expect(map.remove).toHaveBeenCalledOnce()
-  })
-
-  it('highlights and focuses list selection above clusters, but never places a seat or an unlocated object', async () => {
-    const payload = collection(facility('mapped'), facility('unlocated', false))
-    const { rerender } = render(<KindergartenMap collection={payload} selectedId="mapped" />)
-    await waitFor(() => expect(mock.maps).toHaveLength(1))
-    const map = mock.maps[0]
-    act(() => map.emit('style.load'))
-    expect(map.addSource).toHaveBeenCalledWith('kindergarten-selection', expect.objectContaining({
-      data: expect.objectContaining({ features: [payload.features[0]] }),
-    }))
-    expect(map.jumpTo).toHaveBeenCalledWith({ center: [15.98, 45.81], zoom: 15, padding: { top: 50, bottom: 50, left: 50, right: 50 } })
-    map.jumpTo.mockClear()
-    rerender(<KindergartenMap collection={payload} selectedId="unlocated" />)
-    expect(map.getSource('kindergarten-selection')?.setData).toHaveBeenLastCalledWith(expect.objectContaining({ features: [] }))
-    expect(map.jumpTo).not.toHaveBeenCalled()
-    rerender(<KindergartenMap collection={payload} selectedId={null} />)
-    expect(map.getSource('kindergarten-selection')?.setData).toHaveBeenLastCalledWith(expect.objectContaining({ features: [] }))
-    expect(mock.maps).toHaveLength(1)
-  })
-
-  it('restores the latest data and selection after a style reload', async () => {
-    const payload = collection(facility('first'))
-    render(<KindergartenMap collection={payload} selectedId="first" />)
-    await waitFor(() => expect(mock.maps).toHaveLength(1))
-    const map = mock.maps[0]
-    act(() => map.emit('style.load'))
-    map.resetStyle()
-    act(() => map.emit('style.load'))
-    expect(map.addSource).toHaveBeenLastCalledWith('kindergarten-selection', expect.objectContaining({
-      data: expect.objectContaining({ features: payload.features }),
-    }))
-    expect(mock.maps).toHaveLength(1)
-    expect(map.listenerCount('click:kindergarten-points')).toBe(1)
-  })
-
-  it('expands a clicked cluster and ignores expansion callbacks after disposal', async () => {
-    const { unmount } = render(<KindergartenMap />)
-    await waitFor(() => expect(mock.maps).toHaveLength(1))
-    const map = mock.maps[0]
-    act(() => map.emit('style.load'))
-    const zoom = map.getSource()?.getClusterExpansionZoom
-    const callbacks: ((error: Error | null, zoom: number) => void)[] = []
-    zoom?.mockImplementation((_id: number, callback: (error: Error | null, zoom: number) => void) => { callbacks.push(callback) })
-    const feature = { geometry: { type: 'Point', coordinates: [16, 45.8] }, properties: { cluster_id: 7 } }
-    act(() => map.emit('click:kindergarten-clusters', { features: [feature] }))
-    callbacks[0](null, 13)
-    expect(map.easeTo).toHaveBeenCalledWith({ center: [16, 45.8], zoom: 13 })
-    act(() => map.emit('click:kindergarten-clusters', { features: [feature] }))
-    map.easeTo.mockClear()
-    unmount()
-    callbacks[1](null, 14)
-    expect(map.easeTo).not.toHaveBeenCalled()
-  })
-
-  it('ignores pending cluster expansion from a superseded filter result', async () => {
-    const { rerender } = render(<KindergartenMap collection={collection(facility('previous'))} />)
-    await waitFor(() => expect(mock.maps).toHaveLength(1))
-    const map = mock.maps[0]
-    act(() => map.emit('style.load'))
-    let finish!: (error: Error | null, zoom: number) => void
-    map.getSource()?.getClusterExpansionZoom.mockImplementation((_id: number, callback: typeof finish) => { finish = callback })
-    act(() => map.emit('click:kindergarten-clusters', {
-      features: [{ geometry: { type: 'Point', coordinates: [16, 45.8] }, properties: { cluster_id: 7 } }],
-    }))
-    rerender(<KindergartenMap collection={collection(facility('current'))} />)
-    finish(null, 14)
-    expect(map.easeTo).not.toHaveBeenCalled()
+    expect(remove).toHaveBeenCalledOnce()
   })
 })

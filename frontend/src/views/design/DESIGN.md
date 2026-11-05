@@ -35,4 +35,4 @@ the map is schematic. No age, availability, pricing or review claims.
 This is a reviewable design prototype, not the production MCP result renderer.
 Croatian copy matches the existing app. Favorites are a proposed UI interaction
 and have no persistence. Final API integration and host fullscreen behavior are
-outside this design pass. No live Mapbox changes are needed.
+outside this design pass. No live map changes are needed.

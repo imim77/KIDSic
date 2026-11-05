@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { Map } from 'mapbox-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
-import { LocationLayer } from './LocationLayer'
-import { NearbyLayer } from './NearbyLayer'
+import type { Map } from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+import type { LocationLayer } from './LocationLayer'
+import type { NearbyLayer } from './NearbyLayer'
 import type { LocationCollection, Nearby } from '../locations/types'
 import { providerColors } from '../locations/types'
 import './map.css'
-
-const accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN?.trim()
 
 interface KindergartenMapProps {
   collection?: LocationCollection | null
@@ -35,24 +33,30 @@ export function KindergartenMap({ collection = null, onSelect, selectedId = null
   const [status, setStatus] = useState('Karta se učitava…')
 
   useEffect(() => {
-    if (!accessToken || !containerRef.current) return
+    if (!containerRef.current) return
     let map: Map | undefined
     let layer: LocationLayer | undefined
     let nearbyLayer: NearbyLayer | undefined
     let observer: ResizeObserver | undefined
     let disposed = false
-    // Loading Mapbox separately keeps the directory usable while it initializes.
-    void import('mapbox-gl').then(({ default: mapboxgl }) => {
+    // Loading the map separately keeps the directory usable during setup.
+    void Promise.all([
+      import('leaflet'), import('./LocationLayer'), import('./NearbyLayer'),
+    ]).then(([{ default: L }, { LocationLayer }, { NearbyLayer }]) => {
       if (disposed || !containerRef.current) return
-      if (!mapboxgl.supported()) throw new Error('WebGL nije dostupan')
-      map = new mapboxgl.Map({
-        container: containerRef.current,
-        accessToken,
-        style: 'mapbox://styles/mapbox/light-v11',
-        center: [15.9819, 45.815],
-        zoom: 11,
-        attributionControl: true,
+      map = L.map(containerRef.current, {
+        center: [45.815, 15.9819], zoom: 11, maxZoom: 19, zoomControl: false,
       })
+      L.control.zoom({ position: 'topright' }).addTo(map)
+      const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      })
+      tiles.on('tileerror', () => {
+        if (!disposed) setStatus('Podlogu karte nije moguće učitati. Provjerite internetsku vezu ili pregledajte objekte na popisu.')
+      })
+      tiles.on('tileload', () => { if (!disposed) setStatus('') })
+      tiles.addTo(map)
       mapRef.current = map
       nearbyLayer = new NearbyLayer(map, (near) => onPickRef.current?.(near))
       nearbyLayerRef.current = nearbyLayer
@@ -62,13 +66,8 @@ export function KindergartenMap({ collection = null, onSelect, selectedId = null
       layerRef.current = layer
       layer.update(collectionRef.current)
       layer.select(selectedIdRef.current)
-      map.addControl(new mapboxgl.NavigationControl(), 'top-right')
-      map.on('load', () => { if (!disposed) setStatus('') })
-      map.on('style.load', () => { if (!disposed) setStatus('') })
-      map.on('error', () => {
-        if (!disposed) setStatus('Kartu nije moguće učitati. Provjerite internetsku vezu ili pregledajte objekte na popisu.')
-      })
-      observer = new ResizeObserver(() => { map?.resize(); layer?.resize() })
+      setStatus('')
+      observer = new ResizeObserver(() => { map?.invalidateSize({ pan: false }); layer?.resize() })
       observer.observe(containerRef.current)
     }).catch(() => {
       observer?.disconnect()
@@ -79,6 +78,8 @@ export function KindergartenMap({ collection = null, onSelect, selectedId = null
       map?.remove()
       if (mapRef.current === map) mapRef.current = null
       map = undefined
+      layer = undefined
+      nearbyLayer = undefined
       if (!disposed) setStatus('Kartu nije moguće pokrenuti u ovom pregledniku. Objekte možete pregledati na popisu.')
     })
     return () => {
@@ -115,9 +116,9 @@ export function KindergartenMap({ collection = null, onSelect, selectedId = null
 
   return (
     <div className="kindergarten-map">
-      <div className="map-canvas" ref={containerRef} />
+      <div className="map-canvas" ref={containerRef} role="region" aria-label="Karta lokacija vrtića" />
       <div className="map-overlay">
-        {accessToken && !status && !!collection?.metadata.mapped && <ul className="map-provider-legend" aria-label="Vrste pružatelja na karti">
+        {!status && !!collection?.metadata.mapped && <ul className="map-provider-legend" aria-label="Vrste pružatelja na karti">
           {([
             ['municipal', 'Javni i ostali'], ['private', 'Privatni'],
             ['religious', 'Vjerski'], ['childminder', 'Dadilje'],
@@ -125,14 +126,14 @@ export function KindergartenMap({ collection = null, onSelect, selectedId = null
             <span aria-hidden="true" style={{ backgroundColor: providerColors[kind] }} />{label}
           </li>)}
         </ul>}
-        {overlay?.(!!accessToken && !status)}
-        {accessToken && !status && collection?.metadata.mapped === 0 && <p className="map-data-message" role="status">Rezultati nemaju potvrđene koordinate. Pregledajte ih na popisu.</p>}
+        {overlay?.(!status)}
+        {!status && collection?.metadata.mapped === 0 && <p className="map-data-message" role="status">Rezultati nemaju potvrđene koordinate. Pregledajte ih na popisu.</p>}
       </div>
-      {(!accessToken || status) && (
+      {status && (
         <div className="map-message" role="status">
           <span className="map-message-marker" aria-hidden="true">↗</span>
-          <h2>{accessToken ? 'Karta lokacija' : 'Karta još nije dostupna'}</h2>
-          <p>{accessToken ? status : 'Karta trenutačno nije dostupna. Objekte možete pregledati na popisu.'}</p>
+          <h2>Karta lokacija</h2>
+          <p>{status}</p>
         </div>
       )}
     </div>

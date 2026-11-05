@@ -4,7 +4,7 @@ from mcp import types
 from mcp.server.lowlevel.helper_types import ReadResourceContents
 
 # Hosts cache the template by URI; bump the version whenever the UI changes.
-UI_URI = 'ui://kidsic/map-v22.html'
+UI_URI = 'ui://kidsic/map-v25.html'
 UI_MIME = 'text/html;profile=mcp-app'
 SERVER_INSTRUCTIONS = (
     'When the user asks which kindergartens fit a home-to-work commute, use '
@@ -58,19 +58,18 @@ TOOL_META = {
     'openai/toolInvocation/invoking': 'Tražim vrtiće…',
     'openai/toolInvocation/invoked': 'Karta vrtića je spremna.',
 }
-MAPBOX_DOMAINS = ['https://api.mapbox.com', 'https://events.mapbox.com',
-                  'https://*.tiles.mapbox.com']
+MAP_DOMAINS = ['https://tile.openstreetmap.org']
 RESOURCE_META = {
     'openai/ui': {'availableDisplayModes': ['inline', 'fullscreen']},
     'ui': {
         'prefersBorder': True,
-        'csp': {'connectDomains': MAPBOX_DOMAINS,
-                'resourceDomains': [*MAPBOX_DOMAINS, 'blob:', 'data:']},
+        'csp': {'connectDomains': MAP_DOMAINS,
+                'resourceDomains': [*MAP_DOMAINS, 'data:']},
     },
     'openai/widgetDescription': 'Karta vrtića s pomičnim karticama naziva i adresa.',
     'openai/widgetPrefersBorder': True,
-    'openai/widgetCSP': {'connect_domains': MAPBOX_DOMAINS,
-                         'resource_domains': [*MAPBOX_DOMAINS, 'blob:', 'data:']},
+    'openai/widgetCSP': {'connect_domains': MAP_DOMAINS,
+                         'resource_domains': [*MAP_DOMAINS, 'data:']},
 }
 
 

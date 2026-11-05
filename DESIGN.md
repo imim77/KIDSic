@@ -152,10 +152,10 @@ uppercase as on Maggie.
 around a cream map with a `2px` ink outline and `--shadow-lg`; `20px` radius in
 MCP, `32px` standalone, no outline, shadow or radius in fullscreen.
 
-**Map** (`KindergartenMap`, `LocationLayer.ts`). Mapbox light basemap. Points
-violet `#c88cfd` with a `2px` ink stroke; the selected point is larger with a
-`4px` ink stroke. Clusters are orange `#ff9124` with an ink stroke and ink count
-text in Mapbox's default font (Titan One is not uploaded as a map glyph set).
+**Map** (`KindergartenMap`, `LocationLayer.ts`). Leaflet with an OpenStreetMap
+basemap. Provider colours distinguish points; the selected point is larger
+with a `4px` ink stroke. Clusters use cream circles with ink counts.
+OpenStreetMap attribution stays visible below the cards.
 
 **Location card** (`LocationCard.tsx`). Cream fill, `2px` ink outline, `20px`
 radius, `--shadow-md`. 92px tall in MCP. The thumbnail is a `10px`-radius tile
@@ -184,8 +184,8 @@ are no ratings or prices, and a lemon note says what the data cannot tell.
 outline, `20px` radius, `--shadow-md`. Heading in the title style; body in the
 body style. Error notices use a rose dot marker, never rose text.
 
-**Map controls** (Mapbox zoom). Mint pill group with `--shadow-sm` and
-ink-wash dividers. The icons are Mapbox's own SVGs and stay dark grey.
+**Map controls** (Leaflet zoom). Mint pill group with `--shadow-sm` and
+ink-wash dividers. The zoom buttons use ink-coloured plus and minus symbols.
 
 ### Motion
 
@@ -224,13 +224,13 @@ Consequences:
   CSP-sandboxed iframe, so Titan One is bundled from `@fontsource/titan-one`
   and inlined by `vite-plugin-singlefile` (about +41 kB gzipped). Nothing is
   fetched from Google Fonts or Framer.
-- **Map colours.** Mapbox paint cannot read CSS variables, so
-  `LocationLayer.ts` keeps a small `palette` constant that mirrors the tokens.
+- **Map colours.** Marker backgrounds use shared `providerColors`; borders
+  and clusters use CSS theme tokens.
 
 ## Open questions
 
-1. **Mapbox style.** A custom style with mint parks and cream land would match
-   more closely than Mapbox Light, but needs a Studio style and token scope.
+1. **Basemap style.** Standard OpenStreetMap tiles use a greyscale CSS filter;
+   provider markers and controls retain their colours.
 2. **Host dark mode.** Maggie has no dark theme. The MCP view paints its own
    background, so it stays light inside dark hosts. Confirm that is acceptable.
 3. **Design preview.** `frontend/src/views/design/` holds an earlier

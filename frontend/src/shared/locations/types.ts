@@ -76,7 +76,7 @@ export interface LocationEnrolment {
   date_kind: 'published' | 'observed' | 'unknown'
 }
 
-// Mirrors theme.css because Mapbox paint expressions cannot read CSS variables.
+// Shared marker colours mirror the provider tokens in theme.css.
 export const providerColors: Record<ProviderKind, string> = {
   municipal: '#82eda6',
   private: '#c88cfd',

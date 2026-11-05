@@ -111,9 +111,12 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
             resource = (await session.read_resource(UI_URI)).contents[0]
             self.assertEqual(resource.mimeType, UI_MIME)
             self.assertIn('KIDSic map', resource.text)
-            self.assertIn('https://api.mapbox.com',
-                          resource.meta['ui']['csp']['connectDomains'])
-            self.assertIn('blob:', resource.meta['ui']['csp']['resourceDomains'])
+            self.assertEqual(resource.meta['ui']['csp']['connectDomains'],
+                             ['https://tile.openstreetmap.org'])
+            self.assertEqual(resource.meta['ui']['csp']['resourceDomains'],
+                             ['https://tile.openstreetmap.org', 'data:'])
+            self.assertEqual(resource.meta['openai/widgetCSP']['connect_domains'],
+                             ['https://tile.openstreetmap.org'])
         service.list_locations.assert_not_awaited()
 
     async def test_city_is_trimmed_and_empty_results_still_have_map_contract(self):

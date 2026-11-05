@@ -1,6 +1,6 @@
 # KIDSic
 
-MCP app za pronalazak dječjih vrtića povezivanjem više otvorenih skupova. Implementirani su PostgreSQL model, CKAN registracija i uvoz imenika, objekata, kontakata te povijesnih zagrebačkih programa i mjesta. MCP alat `prikazi_vrtice` povezuje obavezan grad s Mapbox kartom i karticama. `dohvati_kontekst_vrtica` dohvaća podatke za razgovorne odgovore s izvorima, datumima i opsegom. [RAG](RAG.md) vraća sve prihvaćene dokaze odabranih tema za odabrani vrtić, bez rangiranja i embedding pružatelja. Odgovor sastavlja model MCP klijenta.
+MCP app za pronalazak dječjih vrtića povezivanjem više otvorenih skupova. Implementirani su PostgreSQL model, CKAN registracija i uvoz imenika, objekata, kontakata te povijesnih zagrebačkih programa i mjesta. MCP alat `prikazi_vrtice` povezuje obavezan grad s OpenStreetMap kartom i karticama. `dohvati_kontekst_vrtica` dohvaća podatke za razgovorne odgovore s izvorima, datumima i opsegom. [RAG](RAG.md) vraća sve prihvaćene dokaze odabranih tema za odabrani vrtić, bez rangiranja i embedding pružatelja. Odgovor sastavlja model MCP klijenta.
 
 Aplikacija podržava samo **Zagreb, Varaždin i Rijeku**. Uvoz preskače zapise
 iz drugih gradova prije upisa u bazu; pripadnost gradu određuje se prema
@@ -225,17 +225,16 @@ Frontend pokrenuti u drugom terminalu:
 ```sh
 cd frontend
 npm ci
-cp .env.example .env.local
 npm run dev
 ```
 
-U `frontend/.env.local` postaviti javni `VITE_MAPBOX_ACCESS_TOKEN=pk.…` iz Mapbox računa. Koristiti namjenski javni token s dopuštenim razvojnim i produkcijskim URL-ovima. Vite ugrađuje `VITE_*` vrijednosti u klijentski kod: token je vidljiv korisniku, a tajni `sk.*` token ne pripada frontendu. `.env.local` je ignoriran; nakon promjene ponovno pokrenuti Vite, a za produkciju ponovno izgraditi frontend.
+Karta koristi Leaflet i OpenStreetMap pločice bez API tokena. Potrebna je internetska veza za dohvat podloge; atribucija OpenStreetMap suradnika prikazana je na karti.
 
 Vite služi `src/views/index.html`, učitava env iz mape `frontend/` i prosljeđuje `/api` lokalnom API-ju na portu 8000. Produkcijski samostalni hosting mora usmjeriti `/api` na isti backend; razvojni proxy nije dio statičkog builda. Zajednički resursi su u `src/shared`. MCP prikaz koristi zaseban samostalni HTML build i rezultate alata preko host bridgea, bez HTTP dohvata iz iframea; [upute za MCP povezivanje](MCP.md).
 
 Ako je port 8000 zauzet, API pokrenuti s `--port 18000`, a frontend naredbom `KIDSIC_API_TARGET=http://127.0.0.1:18000 npm run dev`. `KIDSIC_API_TARGET` je varijabla procesa koji pokreće Vite, ne javna varijabla aplikacije iz `.env.local`.
 
-UI prikazuje kartu s vodoravno pomičnim karticama, odabirom objekta i kontrolom za fullscreen. Navigacija i filtri uklonjeni su iz samog prikaza; kompaktna legenda objašnjava boje pružatelja: zelena javne i ostale, ljubičasta privatne, narančasta vjerske i ružičasta dadilje; razvojni dohvat koristi Zagreb kao početni kontekst, a API i dalje prihvaća dokumentirane strukturirane kriterije. Sjedišta i objekti bez koordinata ostaju među karticama. Sjedišta s provjerenim geokodiranjem imaju oznaku na karti, zadržavaju `location_role=seat` i na kartici nose oznaku „Sjedište”. Odabir kartice otvara detalje s tipom pružatelja i dostupnim kontaktima: webom, e-mailom i telefonom. Google karte i izvori nisu prikazani u detaljima; izvori ostaju u API-ju. Odabrana točka na karti zadržava boju tipa pružatelja, uz veći radijus i obrub. Dobna prikladnost, slobodna mjesta i kapacitet ne zaključuju se iz lokacije. Bez Mapbox tokena ili podržanog WebGL-a dostupne su kartice stvarnih rezultata. Prazna baza daje prazan rezultat, a nedostupan API poruku za ponovni pokušaj; aplikacija ne prikazuje zamjenske izmišljene objekte.
+UI prikazuje kartu s vodoravno pomičnim karticama, odabirom objekta i kontrolom za fullscreen. Navigacija i filtri uklonjeni su iz samog prikaza; kompaktna legenda objašnjava boje pružatelja: zelena javne i ostale, ljubičasta privatne, narančasta vjerske i ružičasta dadilje; razvojni dohvat koristi Zagreb kao početni kontekst, a API i dalje prihvaća dokumentirane strukturirane kriterije. Sjedišta i objekti bez koordinata ostaju među karticama. Sjedišta s provjerenim geokodiranjem imaju oznaku na karti, zadržavaju `location_role=seat` i na kartici nose oznaku „Sjedište”. Odabir kartice otvara detalje s tipom pružatelja i dostupnim kontaktima: webom, e-mailom i telefonom. Google karte i izvori nisu prikazani u detaljima; izvori ostaju u API-ju. Odabrana točka na karti zadržava boju tipa pružatelja, uz veći radijus i obrub. Dobna prikladnost, slobodna mjesta i kapacitet ne zaključuju se iz lokacije. Ako podlogu nije moguće učitati, dostupne su kartice stvarnih rezultata. Karta ne zahtijeva WebGL ni Web Workere. Prazna baza daje prazan rezultat, a nedostupan API poruku za ponovni pokušaj; aplikacija ne prikazuje zamjenske izmišljene objekte.
 
 ## Provjere i dokumentacija
 
@@ -243,7 +242,7 @@ UI prikazuje kartu s vodoravno pomičnim karticama, odabirom objekta i kontrolom
 uv run python -m unittest discover -s tests -v
 ```
 
-Frontend provjere iz mape `frontend/`: `npm test`, `npm run build` i `npm run lint`. Testovi komponenti provjeravaju lifecycle karte, potpune odgovore i otkazivanje zastarjelih zahtjeva s izoliranim Mapbox mockom; stvarni prikaz podloge treba provjeriti u pregledniku s javnim tokenom.
+Frontend provjere iz mape `frontend/`: `npm test`, `npm run build` i `npm run lint`. Testovi komponenti provjeravaju lifecycle karte, potpune odgovore i otkazivanje zastarjelih zahtjeva s Leaflet kartom; stvarni dohvat OpenStreetMap podloge treba provjeriti u pregledniku.
 
 Integracijske provjere trebaju zasebnu, migriranu bazu `kidsic_test_*` i `KIDSIC_TEST_DATABASE_URL`. Bez te varijable integracijski testovi se preskaču. Detalji: [baza i RAG](database/README.md), [ERA model](database/ERA.md), [funkcionalnosti](TO-DO.md).
 

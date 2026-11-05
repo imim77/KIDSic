@@ -12,7 +12,6 @@ Iz korijena repozitorija:
 ```sh
 uv sync --locked
 npm --prefix frontend ci
-# Postaviti javni pk.… token u frontend/.env.local prema frontend/.env.example.
 npm --prefix frontend run build:mcp
 export DATABASE_URL=postgresql://kidsic:kidsic_local@localhost:55432/kidsic
 uv run uvicorn KIDSic.api.mcp_server:create_app --factory --host 127.0.0.1 --port 8001
@@ -30,9 +29,7 @@ server. Pakiranje Python wheela samo ne uključuje frontend; deployment mora
 isporučiti taj HTML. Ne pokreću se migracije niti uvoz pri startu.
 
 `npm run build` čisti frontend `dist`; ako se gradi i samostalni preview, zatim
-pokrenuti `build:mcp`. Javni Mapbox token ugrađuje se u HTML. Token ograničen na
-URL mora dopuštati stvarni sandbox origin hosta; lokalni preview ne potvrđuje da
-će ista ograničenja raditi u ChatGPT-u. Privatni `sk.…` token nikad ne koristiti.
+pokrenuti `build:mcp`. Karta koristi Leaflet i OpenStreetMap bez API tokena.
 
 ## Spajanje AI klijenta
 
@@ -189,7 +186,7 @@ pročitati rezultat, ali ne može prikazati interaktivnu kartu.
 
 ## Ugovor UI-ja i provjera
 
-Resurs `ui://kidsic/map-v22.html` ima MIME `text/html;profile=mcp-app`. Hostovi
+Resurs `ui://kidsic/map-v25.html` ima MIME `text/html;profile=mcp-app`. Hostovi
 predložak spremaju po URI-ju, pa se verzija u URI-ju podiže pri svakoj promjeni
 UI-ja, a server se nakon `build:mcp` mora ponovno pokrenuti. Moderni
 `_meta.ui.resourceUri` i kompatibilni `openai/outputTemplate` povezuju ga s alatom.
@@ -215,31 +212,21 @@ visinu dodijeljenog prozora. Klik na karticu traži fullscreen i otvara popis,
 detalje i kartu u stupcima (ispod 1100 px detalji prekrivaju popis, ispod 700 px
 kartu). Detalji prikazuju samo podatke iz izvora i navode što nije poznato;
 vanjske poveznice otvaraju se kroz `ui/open-link`. Nakon nadogradnje ponovno
-povezati konektor kako bi host preuzeo URI resursa v16 te pokrenuti novi poziv
+povezati konektor kako bi host preuzeo URI resursa v25 te pokrenuti novi poziv
 alata.
-Resurs deklarira CSP za Mapbox API, događaje, tiles i blob/data resurse. Host mora
-dopustiti Mapbox blob worker i WebGL; u suprotnom ostaju dostupne kartice. UI je
-jedan HTML bez relativnih JS/CSS zahtjeva. Kod budućih breaking promjena resursa
-promijeniti verziju URI-ja zbog host cachea.
+Resurs deklarira CSP za `https://tile.openstreetmap.org` i ugrađene data resurse.
+Leaflet ne zahtijeva WebGL ili Web Workere. UI je jedan HTML bez relativnih
+JS/CSS zahtjeva. URI resursa je v23; nakon nadogradnje ponovno povezati
+konektor i pozvati alat kako bi host preuzeo novu verziju.
 
 ### MCP Inspector: kartice su vidljive, karta je prazna
 
-U MCP Inspectoru 2.13.0 kartica **Apps** učitava ovaj UI, ali njegov sandbox
-postavlja `worker-src 'none'`. Mapbox GL JS zahtijeva Web Workere za obradu
-pločica i GeoJSON-a pa karta ostaje prazna iako se kartice i kontrole učitaju.
-To ograničenje hosta ne uklanja dodavanje `blob:` u `resourceDomains`: ta lista
-ne upravlja direktivom `worker-src`. Ni CSP meta tag u našem HTML-u ne može
-ublažiti politiku koju je host već primijenio.
-
-Za dijagnostiku u pregledničkim razvojnim alatima odabrati unutarnji iframe
-aplikacije i pregledati njegov `meta[http-equiv="Content-Security-Policy"]`.
-Ako sadrži `worker-src 'none'`, prikaz podloge treba provjeriti u MCP Apps hostu
-koji dopušta blob workere ili u samostalnom Vite pregledu opisanom u README-u.
-Samostalni pregled potvrđuje kartu, ali ne potvrđuje MCP bridge. Zasebno
-provjeriti da Apps prikaz prima grad i stvarne kartice iz rezultata alata.
-
-Vidi [prijedlog podrške za workere u MCP Apps CSP-u](https://github.com/modelcontextprotocol/ext-apps/issues/566)
-i [Mapboxove CSP zahtjeve](https://docs.mapbox.com/mapbox-gl-js/guides/security-and-testing/).
+Provjeriti dopušta li CSP hosta slike s `https://tile.openstreetmap.org` i
+ima li preglednik internetsku vezu. Ograničenje `worker-src 'none'` ne ometa
+Leaflet. Kartice i odabir lokacija ostaju dostupni ako se podloga ne učita.
+Pločice koriste standardno pregledničko predmemoriranje, bez preuzimanja unaprijed.
+Atribucija je stalno vidljiva prema
+[pravilima OpenStreetMap pločica](https://operations.osmfoundation.org/policies/tiles/).
 
 ```sh
 uv run python -m unittest discover -s tests -v
@@ -320,7 +307,7 @@ uspoređenih, dostupnih, nepovezanih i isključenih objekata. Manje od četiri
 rezultata nije razlog za izmišljanje dodatnih opcija.
 
 Novi resurs `ui://kidsic/day-route-v3.html` ugrađuje `frontend/dist/day-mcp.html`.
-To je samostalan Leaflet/OSM prikaz, odvojen od postojećeg Mapbox resursa.
+To je samostalan Leaflet/OSM prikaz, odvojen od glavnog resursa karte.
 Najbolji put je odabran odmah. „Prikaži ovu rutu” prikazuje geometriju alternative
 i ažurira kontekst razgovora. Podaci dolaze kroz MCP bridge (`_meta.commute`),
 a iframe ne poziva lokalni HTTP API. Model dobiva sažetak bez velikih geometrija.
