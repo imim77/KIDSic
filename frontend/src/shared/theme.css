@@ -89,6 +89,11 @@ a { color: var(--ink); }
 .subsidy-links a { text-underline-offset: 3px; }
 /* flow-root keeps child margins inside, so the measured height matches the end state. */
 .disclosure-body { display: flow-root; }
+/* Enrolment status reads as a sticker, matching the app's pill buttons. */
+.enrolment-heading { flex-direction: column; align-items: flex-start; }
+.enrolment-status { display: inline-block; margin: 0 0 3px 3px; padding: 4px 10px; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 999px; box-shadow: var(--shadow-sm); font-family: var(--display); font-size: 11px; letter-spacing: .5px; text-transform: uppercase; }
+.enrolment-status[data-status="open"] { background: var(--lemon); } /* round cards are mint */
+.enrolment-status[data-status="upcoming"] { background: var(--sky); }
 .enrolment-action { align-self: flex-start; padding: 8px 14px; font-weight: 700; text-decoration: none; background: var(--surface); border: 2px solid var(--ink); border-radius: 999px; box-shadow: var(--shadow-lg); }
 .enrolment-action:active { transform: var(--press); box-shadow: none; }
 h1, h2, p { margin: 0; }

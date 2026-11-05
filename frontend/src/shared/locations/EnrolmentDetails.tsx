@@ -1,5 +1,4 @@
 import type { MouseEvent } from 'react'
-import { Badge } from '../ui/badge'
 import type { EnrolmentStatus, LocationEnrolment } from './types'
 import { websiteHref } from './links'
 
@@ -41,9 +40,10 @@ export function EnrolmentDetails({ rounds, openLink }: { rounds: LocationEnrolme
         const application = round.status === 'open' || round.status === 'upcoming' ? websiteHref(round.application_url) : undefined
         const source = websiteHref(round.source_url)
         return <article className="subsidy-policy enrolment-round" key={`${round.source_url}-${round.round}-${index}`}>
-          <div className="subsidy-policy-heading">
+          {/* Status leads the round: parents scan whether they can apply before the year. */}
+          <div className="subsidy-policy-heading enrolment-heading">
+            <span className="enrolment-status" data-status={round.status}>{statusLabels[round.status]}</span>
             <h4>{round.round === 'main' ? `Upisi za ${round.academic_year}` : `Upis tijekom pedagoške godine ${round.academic_year}`}</h4>
-            <Badge variant={round.status === 'open' ? 'default' : 'secondary'}>{statusLabels[round.status]}</Badge>
           </div>
           <p>{period(round)}</p>
           {round.accepting && <p className="subsidy-caption">Kanal: {channelLabels[round.channel]}</p>}
