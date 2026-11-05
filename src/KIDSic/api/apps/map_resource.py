@@ -4,7 +4,7 @@ from mcp import types
 from mcp.server.lowlevel.helper_types import ReadResourceContents
 
 # Hosts cache the template by URI; bump the version whenever the UI changes.
-UI_URI = 'ui://kidsic/map-v29.html'
+UI_URI = 'ui://kidsic/map-v30.html'
 UI_MIME = 'text/html;profile=mcp-app'
 SERVER_INSTRUCTIONS = (
     'When the user asks which kindergartens fit a home-to-work commute, use '

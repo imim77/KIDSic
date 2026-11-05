@@ -70,6 +70,24 @@ describe('Leaflet/OpenStreetMap lifecycle and data', () => {
     expect(credit()).toHaveLength(0)
   })
 
+  it('traces a new route from home to work and keeps it through resize redraws', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false }))
+    const { RouteLayer } = await import('../src/shared/map/RouteLayer')
+    const map = L.map(document.createElement('div')).setView([45.33, 14.42], 13)
+    const routes = new RouteLayer(map)
+    const route = { home: [14.41, 45.33] as [number, number], work: [14.44, 45.33] as [number, number],
+      legs: [{ mode: 'WALK', geometry: '_p~iF~ps|U_ulLnnqC' }] }
+    const points = routes.show(route)
+    const path = () => map.getPane('overlayPane')!.querySelector('path[stroke-dasharray]')!
+    expect(path()).toHaveAttribute('pathLength', '1')
+    // ResizeObserver calls show again with the same route; it must not restart.
+    const before = path()
+    expect(routes.show(route)).toBe(points)
+    expect(path()).toBe(before)
+    routes.dispose()
+    map.remove()
+  })
+
   it('keeps only located results and replaces cluster data without reallocating the map', async () => {
     const { rerender, unmount } = render(<KindergartenMap collection={collection(facility('first'), facility('unlocated', false))} />)
     const map = await ready()
