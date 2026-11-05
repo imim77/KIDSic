@@ -56,10 +56,12 @@ export function LocationDetails({ feature, onClose, openLink, compare }: Locatio
         <button type="button" className="location-details-close" aria-label="Zatvori detalje" onClick={onClose}><X aria-hidden="true" /></button>
       </div>
       <div className="location-details-body">
-        <span className="location-details-kind">{providerLabels[location.provider_kind]}</span>
+        <div className="location-details-top">
+          <span className="location-details-kind">{providerLabels[location.provider_kind]}</span>
+          {compare && <CompareToggle {...compare} name={location.location_name} />}
+        </div>
         <h2>{location.location_name}</h2>
         {location.name !== location.location_name && <p className="location-details-institution">Ustanova: {location.name}</p>}
-        {compare && <CompareToggle {...compare} name={location.location_name} />}
         <p className="location-details-address">
           <MapPin aria-hidden="true" />
           <span>{location.address ?? 'Adresa nije poznata'}{place && `, ${place}`}</span>

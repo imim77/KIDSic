@@ -103,15 +103,14 @@
 /* Comparison: add buttons, tray and side-by-side table. */
 .location-card-compare { position: absolute; top: 6px; right: 6px; z-index: 1; }
 .location-card:has(.location-card-compare) .location-card-text { padding-right: 26px; }
-.compare-toggle { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 12px; color: var(--ink); background: var(--mint); border: 2px solid var(--ink); border-radius: 100px; box-shadow: var(--shadow-sm); font-size: 12px; font-weight: 700; cursor: pointer; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+.compare-toggle { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 12px; color: var(--ink); background: var(--mint); border: 2px solid var(--ink); border-radius: 100px; box-shadow: var(--shadow-sm); font-size: 12px; font-weight: 700; cursor: pointer; }
 .compare-toggle[data-compact="true"] { width: 26px; min-height: 26px; padding: 0; justify-content: center; border-width: 1.5px; box-shadow: none; }
 .compare-toggle[aria-pressed="true"] { background: var(--lemon); }
 .compare-toggle:hover:not(:disabled) { background: var(--lemon); }
-.compare-toggle:active:not(:disabled) { transform: var(--press); box-shadow: none; }
 .compare-toggle:disabled { opacity: .45; cursor: not-allowed; }
 .compare-toggle:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .compare-toggle svg { width: 14px; height: 14px; stroke-width: 2.5; }
-.location-details-body > .compare-toggle { margin: 4px 0 6px 3px; }
+.location-details-top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .compare-tray { display: inline-flex; align-items: center; gap: 6px; padding: 4px 4px 4px 12px; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 100px; box-shadow: var(--shadow-sm); font-size: 12px; font-weight: 600; }
 .compare-tray > svg { width: 14px; height: 14px; }
 .compare-tray button { display: inline-flex; align-items: center; justify-content: center; min-height: 30px; color: var(--ink); border: 0; border-radius: 100px; font: inherit; font-weight: 700; cursor: pointer; }

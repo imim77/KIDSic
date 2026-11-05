@@ -188,3 +188,14 @@ it('links an open round to the official channel and keeps closed and refused rou
   rerender(<LocationDetails feature={item} onClose={() => {}} />)
   expect(screen.getByText(/Službeni kanal upisa za ovaj vrtić nije potvrđen/)).toBeVisible()
 })
+
+it('puts the compare button beside the provider kind, above the name', async () => {
+  const onToggle = vi.fn()
+  render(<LocationDetails feature={facility('item')} onClose={() => {}} compare={{ selected: false, full: false, onToggle }} />)
+  const button = screen.getByRole('button', { name: 'Usporedi' })
+  expect(button.parentElement).toHaveTextContent(/^Gradski vrtić/)
+  expect(button.compareDocumentPosition(screen.getByRole('heading', { name: 'Synthetic facility item' })))
+    .toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+  await userEvent.click(button)
+  expect(onToggle).toHaveBeenCalledOnce()
+})
