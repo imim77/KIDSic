@@ -3,7 +3,8 @@ from pathlib import Path
 from mcp import types
 from mcp.server.lowlevel.helper_types import ReadResourceContents
 
-UI_URI = 'ui://kidsic/map-v16.html'
+# Hosts cache the template by URI; bump the version whenever the UI changes.
+UI_URI = 'ui://kidsic/map-v17.html'
 UI_MIME = 'text/html;profile=mcp-app'
 SERVER_INSTRUCTIONS = (
     'When the user asks to show or find kindergartens in a city, ALWAYS call '
