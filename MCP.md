@@ -262,3 +262,77 @@ Scenariji za provjeru filtra područja i nastavaka razgovora nalaze se u
 [conversational_area.md](tests/fixtures/conversational_area.md).
 
 Scenariji za dob i programe: [conversational_age_program.md](tests/fixtures/conversational_age_program.md).
+
+## Vrtić na putu od doma do posla (Rijeka)
+
+`preporuci_vrtice_usput` je alat za razgovorni upit poput:
+
+> Živim na Zametskoj 6 u Rijeci, radim na Korzu 16. Krećem od doma
+> 5. studenoga 2026. u 07:00 i koristim javni prijevoz. Koji su mi vrtići
+> najbolja opcija na putu do posla?
+
+ChatGPT iz razgovora izdvoji `city`, `home`, `work`, `departure` i `mode`.
+Ako datum, lokacija ili način putovanja nisu jasni, prvo postavi pitanje.
+Samo „ujutro u 7” ne određuje dan voznog reda. Vrijeme bez offseta računa se
+u Europe/Zagreb. Predaja djeteta zadano je 10 minuta i mora se navesti u odgovoru;
+roditelj je može promijeniti kroz razgovor (`dropoff_minutes`, 0–60).
+
+Primjer poziva:
+
+```json
+{
+  "city": "Rijeka",
+  "home": "Zametska 6",
+  "work": "Korzo 16",
+  "departure": "2026-11-05T07:00",
+  "mode": "TRANSIT",
+  "dropoff_minutes": 10
+}
+```
+
+Adrese se razrješavaju u lokalnom OSM indeksu; ne šalju se vanjskom geokoderu.
+Za indeks treba izvorni Geofabrik PBF, jer mali cestovni isječak ne sadrži
+sve kućne brojeve i zgrade. Nakon pripreme [rutera](routing/README.md) pokrenuti:
+
+```sh
+uv run --with osmium==4.3.2 python routing/index_addresses.py \
+  routing/cache/croatia.osm.pbf routing/data/addresses.sqlite
+npm --prefix frontend run build:mcp
+```
+
+`KIDSIC_ADDRESS_INDEX` opcionalno određuje apsolutni put do indeksa. Postojeći
+snapshot daje 8.831 adresni ili imenovani POI zapis u obuhvatu Rijeke i okolice.
+Zapisi s izričitim `addr:city` izvan Rijeke isključeni su; zapisi bez grada
+ograničeni su geografskim okvirom. Zato model treba tražiti grad i točnu adresu,
+a korisnik treba provjeriti da izabrani položaj odgovara namjeri. Koordinate
+zgrada računaju se iz njihove geometrije; nisu potvrda ulaza u objekt.
+Nema fuzzy geokodiranja: samo jedinstven točan normalizirani naziv/adresa
+razrješava se automatski. Nepotpuni ili višeznačni upit vraća
+`status=clarification_required` s kandidatima; roditelj treba potvrditi lokaciju.
+Ako adrese nema u OSM-u, traže se izričite koordinate ili točka odabrana na karti.
+Model ih ne smije procijeniti.
+
+Alat uspoređuje **sve mapirane objekte u obuhvatu** (uz najviše četiri istodobna
+OTP izračuna), uključuje čekanje i predaju djeteta te vraća najbolju opciju
+prema dolasku na posao i do tri alternative. Nema ručnog predodabira vrtića ni
+zračnog radijusa koji bi mogao izbaciti najbolji put. U odgovoru su brojevi
+uspoređenih, dostupnih, nepovezanih i isključenih objekata. Manje od četiri
+rezultata nije razlog za izmišljanje dodatnih opcija.
+
+Novi resurs `ui://kidsic/day-route-v3.html` ugrađuje `frontend/dist/day-mcp.html`.
+To je samostalan Leaflet/OSM prikaz, odvojen od postojećeg Mapbox resursa.
+Najbolji put je odabran odmah. „Prikaži ovu rutu” prikazuje geometriju alternative
+i ažurira kontekst razgovora. Podaci dolaze kroz MCP bridge (`_meta.commute`),
+a iframe ne poziva lokalni HTTP API. Model dobiva sažetak bez velikih geometrija.
+Novi CSP dopušta samo OSM poslužitelj pločica i ugrađene resurse.
+
+Nakon izgradnje ponovno pokrenuti MCP server i osvježiti alate u ChatGPT/MCP
+klijentu. Novi alat i drugi HTML resurs moraju se pojaviti u discoveryju.
+`build:mcp` sada proizvodi oba HTML-a. Ako je `KIDSIC_UI_PATH` prilagođen,
+`day-mcp.html` mora biti uz njega ili se pri kreiranju aplikacije može zadati
+`day_ui_path`. Postojeći opći alat i njegov resurs ostaju dostupni.
+
+„Najbolji” ovdje znači najraniji dolazak među OTP-ovim vraćenim alternativama.
+To ne potvrđuje radno vrijeme, dobnu prikladnost, kvalitetu vrtića, slobodna
+mjesta ni mogućnost upisa. Učitani vozni red je 9. 10. – 8. 11. 2026., bez
+kašnjenja uživo. Pogreška rutera ne zamjenjuje se procjenom.
