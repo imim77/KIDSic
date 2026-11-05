@@ -1,19 +1,18 @@
 import { render, screen, within } from '@testing-library/react'
-import { afterEach, expect, it, vi } from 'vitest'
+import { expect, it } from 'vitest'
 import { ComparisonView } from '../src/shared/locations/ComparisonView'
 import { facility } from './fixtures'
 
-afterEach(() => vi.unstubAllGlobals())
-
-it('stacks one section per criterion on phones instead of a wide table', () => {
-  vi.stubGlobal('matchMedia', (query: string) => ({ matches: query === '(max-width: 650px)', addEventListener: () => {}, removeEventListener: () => {} }))
+it('keeps every criterion of one kindergarten inside its own card', () => {
   const first = facility('a')
   first.properties.district = 'Trnje'
   render(<ComparisonView features={[first, facility('b')]} onRemove={() => {}} onClose={() => {}} />)
-  expect(screen.queryByRole('table')).toBeNull()
-  expect(within(screen.getByRole('list', { name: 'Vrtići u usporedbi' })).getAllByRole('listitem')).toHaveLength(2)
-  const address = screen.getByRole('region', { name: 'Adresa' })
-  expect(within(address).getByText('Synthetic facility a')).toBeVisible()
-  expect(within(address).getByText('Trnje')).toHaveClass('comparison-sticker')
-  expect(within(screen.getByRole('region', { name: 'Programi i dob' })).getAllByText('Nije potvrđeno')).toHaveLength(2)
+  const cards = within(screen.getByRole('list', { name: 'Vrtići u usporedbi' })).getAllByRole('listitem', { name: /^Synthetic facility/ })
+  expect(cards).toHaveLength(2)
+  const terms = within(cards[0]).getAllByRole('term').map((term) => term.textContent)
+  expect(terms).toEqual(['Adresa', 'Programi i dob', 'Upis', 'Sufinanciranje', 'Kontakt', 'Prednosti', 'Provjeriti', 'Sljedeći korak', 'Izvori'])
+  expect(within(cards[0]).getByText('Trnje')).toHaveClass('comparison-sticker')
+  expect(within(cards[1]).queryByText('Trnje')).toBeNull()
+  expect(screen.queryByRole('heading', { name: 'Usporedba vrtića' })).toBeNull()
+  expect(screen.queryByText(/Objavljena slobodna mjesta/)).toBeNull()
 })

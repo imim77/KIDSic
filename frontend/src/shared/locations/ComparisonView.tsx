@@ -1,9 +1,11 @@
-import { useEffect, useRef, type ComponentType, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useRef, type ComponentType, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
+import gsap from 'gsap'
+import { useGSAP } from '@gsap/react'
 import {
-  ArrowRight, BookOpen, Building2, CalendarCheck, Check, Info, Link2, MapPin, Phone, Ruler, Search, Sparkles,
+  ArrowRight, BookOpen, Building2, CalendarCheck, Check, Link2, MapPin, Phone, Ruler, Search, Sparkles,
   Wallet, X,
 } from 'lucide-react'
-import { useMediaQuery } from '../explorer/useMediaQuery'
+import { reducedMotion } from '../motion/reducedMotion'
 import { compareOptions } from './comparison'
 import { currentRound, enrolmentInstant, enrolmentStatusLabels } from './enrolment'
 import { formatDistance } from './distance'
@@ -27,14 +29,24 @@ function ages(program: LocationProgram) {
   return `${min == null ? '?' : min}–${max == null ? '?' : max} mj.`
 }
 
-// ComparisonView sets up to three options side by side, one criterion per row.
-// Each option keeps one card colour from header to last row so the eye can
-// follow it. Phones get one criterion per section instead of a wide table.
-// Unknown values say so explicitly; they are things to check, not a "no".
+// ComparisonView sets up to three options side by side, each one coloured card
+// holding every criterion. Subgrid rows keep the same criterion level across
+// cards; phones swipe between cards. Unknown values say so explicitly; they
+// are things to check, not a "no".
 export function ComparisonView({ features, onRemove, onClose, openLink }: ComparisonViewProps) {
-  const headingRef = useRef<HTMLHeadingElement>(null)
-  const stacked = useMediaQuery('(max-width: 650px)', false)
-  useEffect(() => { headingRef.current?.focus({ preventScroll: true }) }, [])
+  const rootRef = useRef<HTMLElement>(null)
+  const closeRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => { closeRef.current?.focus({ preventScroll: true }) }, [])
+  // Cards rise in one after another, then their criteria settle in; clearing
+  // props afterwards leaves hover styles and scrolling untouched.
+  useGSAP(() => {
+    if (reducedMotion()) return
+    gsap.timeline({ defaults: { ease: 'power3.out', clearProps: 'opacity,transform' } })
+      .from('.comparison-card', { opacity: 0, y: 36, rotate: (index) => [-2, 1.5, -1][index] ?? 0, duration: 0.5, stagger: 0.09 })
+      // Stagger by criterion, not DOM order, so all cards fill in together.
+      .from('.comparison-field', { opacity: 0, x: -10, duration: 0.3,
+        stagger: (_, target: Element) => [...target.parentElement!.children].indexOf(target) * 0.035 }, '-=0.35')
+  }, { scope: rootRef })
   const notes = compareOptions(features)
   // Sandboxed MCP hosts block plain navigation, so links go through the host.
   const open = (event: MouseEvent<HTMLAnchorElement>) => {
@@ -103,56 +115,31 @@ export function ComparisonView({ features, onRemove, onClose, openLink }: Compar
     </ul> },
   ]
 
-  const option = (feature: LocationFeature, index: number) => <div className="comparison-option" data-col={index}>
-    <span className="comparison-option-icon" aria-hidden="true"><Building2 /></span>
-    <span className="comparison-option-text">
-      <span className="comparison-kind">{providerLabels[feature.properties.provider_kind]}</span>
-      <span className="comparison-option-name">{feature.properties.location_name}</span>
-    </span>
-    <button type="button" className="comparison-remove" onClick={() => onRemove(feature.id)}
-      aria-label={`Ukloni iz usporedbe: ${feature.properties.location_name}`}><X aria-hidden="true" /></button>
-  </div>
-
-  return <section className="comparison-view" aria-labelledby="comparison-title"
+  return <section ref={rootRef} className="comparison-view" aria-label="Usporedba vrtića"
     onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); onClose() } }}>
-    <header className="comparison-header">
-      <div>
-        <h2 id="comparison-title" ref={headingRef} tabIndex={-1}>Usporedba vrtića</h2>
-        <p>{features.length} vrtića jedan uz drugi · samo potvrđeni podaci</p>
-      </div>
-      <button type="button" className="location-details-close" aria-label="Zatvori usporedbu" onClick={onClose}><X aria-hidden="true" /></button>
-    </header>
-    {stacked
-      ? <div className="comparison-sheet comparison-stack">
-        <ul className="comparison-options" aria-label="Vrtići u usporedbi">
-          {features.map((feature, index) => <li key={feature.id}>{option(feature, index)}</li>)}
-        </ul>
-        {rows.map(({ label, icon: Icon, tone, cell }) => <section key={label} className="comparison-criterion" aria-label={label}>
-          <h3 className="comparison-row-label"><span className="comparison-row-icon" data-tone={tone}><Icon aria-hidden /></span>{label}</h3>
-          {features.map((feature, index) => <div key={feature.id} className="comparison-cell" data-col={index}>
-            <p className="comparison-cell-name">{feature.properties.location_name}</p>
-            {cell(feature)}
-          </div>)}
-        </section>)}
-      </div>
-      : <div className="comparison-sheet">
-        <div className="comparison-scroll">
-          <table>
-            <thead>
-              <tr>
-                <td />
-                {features.map((feature, index) => <th key={feature.id} scope="col">{option(feature, index)}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(({ label, icon: Icon, tone, cell }) => <tr key={label}>
-                <th scope="row"><span className="comparison-row-label"><span className="comparison-row-icon" data-tone={tone}><Icon aria-hidden /></span>{label}</span></th>
-                {features.map((feature, index) => <td key={feature.id}><div className="comparison-cell" data-col={index}>{cell(feature)}</div></td>)}
-              </tr>)}
-            </tbody>
-          </table>
-        </div>
-      </div>}
-    <p className="comparison-footnote"><Info aria-hidden="true" />Objavljena slobodna mjesta još nisu dio podataka. „Nije potvrđeno” znači da podatak treba provjeriti, a ne da uvjet nije ispunjen. Usporedba nije jamstvo upisa.</p>
+    <button ref={closeRef} type="button" className="location-details-close comparison-close" aria-label="Zatvori usporedbu" onClick={onClose}><X aria-hidden="true" /></button>
+    <div className="comparison-scroll">
+      <ul className="comparison-grid" aria-label="Vrtići u usporedbi"
+        style={{ '--options': features.length, '--fields': rows.length } as CSSProperties}>
+        {features.map((feature, index) => <li key={feature.id} className="comparison-card" data-col={index}
+          style={{ gridColumn: index + 1 }} aria-label={feature.properties.location_name}>
+          <div className="comparison-card-head">
+            <span className="comparison-option-icon" aria-hidden="true"><Building2 /></span>
+            <span className="comparison-option-text">
+              <span className="comparison-kind">{providerLabels[feature.properties.provider_kind]}</span>
+              <span className="comparison-option-name">{feature.properties.location_name}</span>
+            </span>
+            <button type="button" className="comparison-remove" onClick={() => onRemove(feature.id)}
+              aria-label={`Ukloni iz usporedbe: ${feature.properties.location_name}`}><X aria-hidden="true" /></button>
+          </div>
+          <dl className="comparison-fields">
+            {rows.map(({ label, icon: Icon, tone, cell }) => <div key={label} className="comparison-field">
+              <dt><span className="comparison-row-icon" data-tone={tone}><Icon aria-hidden /></span>{label}</dt>
+              <dd>{cell(feature)}</dd>
+            </div>)}
+          </dl>
+        </li>)}
+      </ul>
+    </div>
   </section>
 }

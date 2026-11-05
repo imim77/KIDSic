@@ -119,42 +119,34 @@
 .compare-tray-clear { width: 30px; background: var(--cream); }
 .compare-tray-clear svg { width: 14px; height: 14px; }
 .compare-tray button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
-/* Comparison sheet: every value is a card in its option's colour, so one
-   kindergarten reads as one coloured line from header to last row. */
-.comparison-view { --col-0: var(--lemon); --col-1: var(--sky); --col-2: var(--blush); position: absolute; inset: 0; z-index: 12; display: flex; flex-direction: column; gap: 14px; min-height: 0; padding: 18px 18px 16px; color: var(--ink); background: var(--mint); }
-.comparison-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 0 4px; }
-.comparison-header h2 { font-family: var(--display); font-size: 30px; font-weight: 400; line-height: 1; letter-spacing: .01em; outline: none; }
-.comparison-header p { margin-top: 6px; font-size: 13px; font-weight: 600; }
-.comparison-header .location-details-close { position: static; flex: none; }
-.comparison-sheet { flex: 0 1 auto; min-height: 0; overflow: hidden; background: var(--cream); border: 2px solid var(--ink); border-radius: 24px; box-shadow: var(--shadow-lg); }
-.comparison-scroll { height: 100%; overflow: auto; overscroll-behavior: contain; }
-.comparison-view table { width: 100%; min-width: 680px; border-collapse: separate; border-spacing: 0; font-size: 13px; line-height: 1.45; }
-.comparison-view th, .comparison-view td { padding: 7px 8px; text-align: left; vertical-align: top; }
-.comparison-view td { min-width: 190px; height: 1px; } /* lets a cell card fill the row height */
-.comparison-view thead > tr > * { position: sticky; top: 0; z-index: 2; padding: 14px 8px 10px; background: var(--cream); border-bottom: 2px solid var(--ink); }
-.comparison-view thead td { left: 0; z-index: 3; }
-.comparison-view tbody tr:first-child > * { padding-top: 14px; }
-.comparison-view tbody tr:last-child > * { padding-bottom: 16px; }
+/* Comparison: one card per kindergarten in its colour. Subgrid rows keep the
+   same criterion at the same height across cards. */
+.comparison-view { --col-0: var(--lemon); --col-1: var(--sky); --col-2: var(--blush); position: absolute; inset: 0; z-index: 12; display: flex; flex-direction: column; min-height: 0; color: var(--ink); background: var(--mint); }
+.comparison-close.location-details-close { position: absolute; top: 14px; right: 14px; z-index: 2; }
+.comparison-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 64px 22px 26px 26px; }
+.comparison-view ul, .comparison-view dl, .comparison-view dd { margin: 0; padding: 0; list-style: none; }
+.comparison-grid { display: grid; grid-template-columns: repeat(var(--options), minmax(260px, 1fr)); grid-template-rows: auto repeat(var(--fields), auto); column-gap: 22px; }
 .comparison-view [data-col="0"] { --col: var(--col-0); }
 .comparison-view [data-col="1"] { --col: var(--col-1); }
 .comparison-view [data-col="2"] { --col: var(--col-2); }
-.comparison-option { position: relative; display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 10px 40px 10px 10px; background: var(--col); border: 2px solid var(--ink); border-radius: 18px; box-shadow: var(--shadow-sm); }
-.comparison-option-icon { display: grid; place-items: center; flex: 0 0 40px; height: 48px; background: var(--cream); border: 1.5px solid var(--ink); border-radius: 12px; }
-.comparison-option-icon svg { width: 22px; height: 22px; stroke-width: 2; }
-.comparison-option-text { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; min-width: 0; }
-.comparison-option-name { font-family: var(--display); font-size: 15px; font-weight: 400; line-height: 1.15; overflow-wrap: anywhere; }
+.comparison-card { display: grid; grid-row: 1 / -1; grid-template-rows: subgrid; padding: 6px 18px 8px; background: var(--col); border: 2px solid var(--ink); border-radius: 26px; box-shadow: var(--shadow-lg); }
+.comparison-card-head { position: relative; display: flex; align-items: center; gap: 12px; padding: 14px 34px 16px 0; border-bottom: 2px solid var(--ink); }
+.comparison-option-icon { display: grid; place-items: center; flex: 0 0 46px; height: 54px; background: var(--cream); border: 2px solid var(--ink); border-radius: 14px; box-shadow: var(--shadow-sm); }
+.comparison-option-icon svg { width: 24px; height: 24px; stroke-width: 2; }
+.comparison-option-text { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
+.comparison-option-name { font-family: var(--display); font-size: 18px; font-weight: 400; line-height: 1.15; overflow-wrap: anywhere; }
 /* Same mint sticker as the provider kind in kindergarten details. */
-.comparison-kind { display: inline-block; margin-left: 3px; padding: 4px 10px; font-family: var(--display); font-size: 10px; letter-spacing: .5px; text-transform: uppercase; background: var(--mint); border: 1.5px solid var(--ink); border-radius: 100px; box-shadow: var(--shadow-sm); }
+.comparison-kind { display: inline-block; margin-left: 3px; padding: 4px 10px; font-family: var(--display); font-size: 11px; letter-spacing: .5px; text-transform: uppercase; background: var(--mint); border: 2px solid var(--ink); border-radius: 100px; box-shadow: var(--shadow-sm); }
 /* Same sticker as the enrolment status, e.g. "Otvoreno". */
 .comparison-sticker { display: inline-block; margin-left: 3px; padding: 4px 10px; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 999px; box-shadow: var(--shadow-sm); font-family: var(--display); font-size: 11px; letter-spacing: .5px; text-transform: uppercase; }
-.comparison-remove { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 26px; height: 26px; color: var(--ink); background: var(--cream); border: 1.5px solid var(--ink); border-radius: 50%; cursor: pointer; }
+.comparison-remove { position: absolute; top: 12px; right: -6px; display: grid; place-items: center; width: 30px; height: 30px; color: var(--ink); background: var(--cream); border: 2px solid var(--ink); border-radius: 50%; cursor: pointer; }
 .comparison-remove:hover { color: var(--rose); }
-.comparison-remove svg { width: 13px; height: 13px; stroke-width: 2.5; }
-.comparison-cell { height: 100%; padding: 12px 12px 12px 14px; background: var(--col); border: 2px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow-sm); }
-.comparison-cell > * + * { margin-top: 7px; }
-/* Criterion labels stay visible while the columns scroll sideways. */
-.comparison-view tbody th { position: sticky; left: 0; z-index: 1; width: 150px; padding-top: 18px; background: var(--cream); font-weight: 700; }
-.comparison-row-label { display: inline-flex; align-items: center; gap: 8px; }
+.comparison-remove svg { width: 14px; height: 14px; stroke-width: 2.5; }
+.comparison-fields { display: grid; grid-row: 2 / -1; grid-template-rows: subgrid; }
+.comparison-field { display: flex; flex-direction: column; gap: 8px; padding: 14px 0; font-size: 15px; font-weight: 500; line-height: 1.5; }
+.comparison-field + .comparison-field { border-top: 2px dashed color-mix(in srgb, var(--ink) 45%, transparent); }
+.comparison-field dt { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 13px; letter-spacing: .3px; }
+.comparison-field dd > * + * { margin-top: 8px; }
 .comparison-row-icon { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border: 1.5px solid var(--ink); border-radius: 50%; background: var(--mint); }
 .comparison-row-icon[data-tone="sky"] { background: var(--sky); }
 .comparison-row-icon[data-tone="blush"] { background: var(--blush); }
@@ -162,37 +154,29 @@
 .comparison-row-icon[data-tone="apricot"] { background: var(--apricot); }
 .comparison-row-icon[data-tone="lemon"] { background: var(--lemon); }
 .comparison-row-icon svg { width: 14px; height: 14px; stroke-width: 2.3; }
-.comparison-view ul { margin: 0; padding: 0; list-style: none; }
 .comparison-address { display: block; }
-.comparison-figure { font-family: var(--display); font-size: 20px; font-weight: 400; }
+.comparison-figure { font-family: var(--display); font-size: 22px; font-weight: 400; }
 .comparison-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .comparison-tags li { padding: 3px 10px; background: var(--cream); border: 1.5px solid var(--ink); border-radius: 100px; font-weight: 600; }
 .comparison-tags small { font-weight: 400; }
 .comparison-plain { display: flex; flex-direction: column; gap: 4px; }
-.comparison-plain li { padding-left: 10px; border-left: 3px solid var(--ink); }
 .comparison-wrap { overflow-wrap: anywhere; }
-.comparison-fine { font-size: 12px; }
-.comparison-marks { display: flex; flex-direction: column; gap: 6px; }
-.comparison-marks li { display: flex; align-items: flex-start; gap: 7px; }
-.comparison-marks svg { flex: none; width: 18px; height: 18px; padding: 3px; margin-top: 1px; border: 1.5px solid var(--ink); border-radius: 50%; stroke-width: 3; }
+.comparison-fine { font-size: 14px; }
+.comparison-marks { display: flex; flex-direction: column; gap: 8px; }
+.comparison-marks li { display: flex; align-items: flex-start; gap: 8px; }
+.comparison-marks svg { flex: none; width: 20px; height: 20px; padding: 3px; margin-top: 2px; border: 1.5px solid var(--ink); border-radius: 50%; stroke-width: 3; }
 .comparison-marks[data-kind="strength"] svg { background: var(--mint); }
 .comparison-marks[data-kind="check"] svg { background: var(--apricot); stroke-width: 2.5; }
-.comparison-next { display: inline-block; padding: 7px 12px; color: var(--ink); background: var(--cream); border: 2px solid var(--ink); border-radius: 14px; box-shadow: var(--shadow-sm); font-weight: 700; line-height: 1.3; text-decoration: none; overflow-wrap: anywhere; }
+.comparison-next { display: inline-block; padding: 8px 14px; color: var(--ink); background: var(--cream); border: 2px solid var(--ink); border-radius: 14px; box-shadow: var(--shadow-sm); font-weight: 700; line-height: 1.3; text-decoration: none; overflow-wrap: anywhere; }
 a.comparison-next:hover { background: var(--mint); }
-.comparison-view a { text-underline-offset: 3px; overflow-wrap: anywhere; }
-.comparison-view .enrolment-status { margin-left: 3px; }
-.comparison-unknown { display: inline-block; padding: 3px 10px; color: var(--ink); background: var(--cream); border: 1.5px dashed var(--ink); border-radius: 100px; font-size: 12px; font-style: italic; }
-.comparison-footnote { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 14px; background: var(--lemon); border: 2px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow-sm); font-size: 12px; line-height: 1.45; }
-.comparison-footnote svg { flex: none; width: 16px; height: 16px; margin-top: 1px; }
-/* Phones: one criterion per section, options stacked as full-width cards. */
-.comparison-stack { overflow-y: auto; overscroll-behavior: contain; padding: 14px 14px 18px 17px; font-size: 14px; line-height: 1.45; }
-.comparison-options { display: flex; flex-direction: column; gap: 10px; }
-.comparison-criterion { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 2px dashed var(--ink-wash); }
-.comparison-criterion h3 { font-family: var(--display); font-size: 17px; font-weight: 400; }
-.comparison-cell-name { font-family: var(--display); font-size: 13px; line-height: 1.2; }
+.comparison-view a { text-underline-offset: 3px; text-decoration-thickness: 1.5px; overflow-wrap: anywhere; }
+.comparison-view .enrolment-status { margin-left: 3px; font-size: 12px; }
+.comparison-unknown { display: inline-block; padding: 3px 12px; color: var(--ink); background: var(--cream); border: 1.5px dashed var(--ink); border-radius: 100px; font-size: 14px; font-style: italic; }
+/* Phones: swipe between full-height cards; criteria still line up. */
 @media (max-width: 650px) {
-  .comparison-view { padding: 12px 10px 10px; gap: 10px; }
-  .comparison-header h2 { font-size: 24px; }
-  .comparison-option { min-height: 0; }
-  .comparison-sheet { flex: 1 1 auto; }
+  .comparison-scroll { padding: 62px 16px 18px 19px; scroll-snap-type: x mandatory; scroll-padding-left: 19px; }
+  .comparison-grid { grid-template-columns: repeat(var(--options), 76vw); column-gap: 12px; } /* the next card peeks in */
+  .comparison-card { scroll-snap-align: start; padding: 4px 14px 6px; }
+  .comparison-option-name { font-size: 16px; }
+  .comparison-field { font-size: 15px; }
 }
