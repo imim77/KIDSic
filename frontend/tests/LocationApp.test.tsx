@@ -186,7 +186,7 @@ describe('directory interactions', () => {
     const table = screen.getByRole('table')
     expect(screen.getByRole('heading', { name: 'Usporedba vrtića' })).toHaveFocus()
     expect(within(table).getAllByRole('columnheader').map((cell) => cell.textContent))
-      .toEqual(['Synthetic facility a', 'Synthetic facility b', 'Synthetic facility c'])
+      .toEqual(['Gradski vrtićSynthetic facility a', 'Gradski vrtićSynthetic facility b', 'Gradski vrtićSynthetic facility c'])
     const programs = within(table).getByRole('row', { name: /^Programi i dob/ })
     expect(within(programs).getAllByText('Nije potvrđeno')).toHaveLength(3)
     expect(within(table).getByRole('row', { name: /^Sljedeći korak/ })).toHaveTextContent('Nazovi vrtić: 01 111 222')
