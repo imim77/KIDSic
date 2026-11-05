@@ -21,7 +21,7 @@
 - [x] Filtrirati prema vrsti pružatelja: gradski, privatni, vjerski vrtić ili obrt dadilja.
 - [ ] Filtrirati prema dobi djeteta i programu kada postoje potvrđeni podaci, uz zasebnu oznaku za rezultate s nepoznatim uvjetima.
 - [x] Prikazivati rezultate na listi i karti, s međusobno povezanim odabirom objekta.
-- [ ] Omogućiti sortiranje prema udaljenosti i objasniti aktivne kriterije pretrage.
+- [x] Omogućiti sortiranje prema udaljenosti i objasniti aktivne kriterije pretrage (radijusni rezultati od najbližeg; iznad kartica i u popisu broj rezultata, kriteriji i redoslijed).
 - [ ] Omogućiti pretragu „Vrtić usput do posla” odabirom lokacija doma i posla te načina putovanja, uz rangiranje objekata prema dodatnom vremenu u odnosu na izravnu rutu dom–posao.
 - [ ] Za opcije usput do posla prikazivati rutu dom–vrtić–posao i procijenjene dodatne minute putovanja za odabrani način putovanja.
 
