@@ -41,7 +41,7 @@ src/KIDSic/
 frontend/src/
   shared/                   # zajednički stilovi i resursi
   views/                    # HTML ulazi i React prikazi
-scripts/                    # pomoćni razvojni alati
+scripts/                    # uvoz ručno pregledane geografije (scripts/README.md)
 tests/                      # provjere servisa, infrastrukture i upita
 database/                   # lokalni ERA model i generirani rječnik (ignorirano)
 ```
@@ -195,7 +195,7 @@ Skup ima starije objekte; datum izmjene resursa ne potvrđuje aktualnost
 svakog retka. Uvoz ne provodi geokodiranje.
 
 Jednokratno pregledana geografija za 27 riječkih objekata nalazi se u
-lokalnoj snimci opisanoj u [data-enrichment/README.md](data-enrichment/README.md#riječki-objekti-vrtića).
+lokalnoj snimci opisanoj u [scripts/README.md](scripts/README.md#riječki-objekti-vrtića).
 Za ostala 23 objekta nije prihvaćeno dovoljno precizno OSM podudaranje.
 Upis čuva postojeće identitete i kontakte, a promjena CSV adrese poništava
 primjenjivost starog geografskog dokaza do novog pregleda.
@@ -208,7 +208,7 @@ Spremaju se naziv, adresa sjedišta, mjesto i poštanski broj, vrsta `childminde
 
 Stupci su označeni kao adrese sjedišta; ne proglašavaju se fizičkim objektima za čuvanje djece. Skup nema koordinate, kvartove, dobne uvjete ni podatke o slobodnim mjestima. Uvoz ne stvara takve podatke ni RAG dokumente iz kontakata. Obrti su dostupni u imeniku i pretrazi kao `childminder`, sa sjedištem i nepoznatom dobnom prikladnošću. API lokacija podržava `provider_kind=childminder`; bez koordinata nema oznake na karti.
 
-Dodatno geokodiranje sjedišta nalazi se u `data-enrichment/varazdin-childminders-nominatim.json` i uvozi naredbom `uv run python data-enrichment/import_childminder_geography.py --apply`. Revizija `0003_seat_geography` dodaje `seat_longitude`, `seat_latitude` i `seat_attributes` postojećoj tablici `kindergarten`. Provjera izvora i podudaranja trenutačne adrese objedinjena je u pogledu `kindergarten_seat_geography`. Poznati kvartovi, predjeli, susjedstva i naselja koriste se za filtriranje pretrage prije RAG dohvaćanja; geografski dokumenti ostaju odvojeni od dokaza dobne prikladnosti.
+Dodatno geokodiranje sjedišta nalazi se u `scripts/varazdin-childminders-nominatim.json` i uvozi naredbom `uv run python scripts/import_childminder_geography.py --apply`. Revizija `0003_seat_geography` dodaje `seat_longitude`, `seat_latitude` i `seat_attributes` postojećoj tablici `kindergarten`. Provjera izvora i podudaranja trenutačne adrese objedinjena je u pogledu `kindergarten_seat_geography`. Poznati kvartovi, predjeli, susjedstva i naselja koriste se za filtriranje pretrage prije RAG dohvaćanja; geografski dokumenti ostaju odvojeni od dokaza dobne prikladnosti.
 
 ## Lokalni pregled MCP sučelja
 
@@ -248,7 +248,7 @@ Integracijske provjere trebaju zasebnu, migriranu bazu `kidsic_test_*` i `KIDSIC
 
 Testovi CKAN klijenta i normalizacije rade offline. Testovi uvoza nad PostgreSQL-om provjeravaju ponovljivost, povijest, povezivanje izvora, nepoznatu dob i rollback. [Lokalna Postman simulacija](postman/README.md) dodatno provjerava stvarni HTTP promet, timeout i pogreške bez vanjskih servisa; uključuje se varijablom `KIDSIC_CKAN_SIMULATION_URL`.
 
-Lokalno istraživanje u `docs/`, dokumentacija baze u `database/` i pomoćne skripte u `scripts/` ne ulaze u Git. Razvojni rezultati, `.env`, `.venv` i `node_modules` također su ignorirani. Commits slijede Conventional Commits (`chore`, `feat`, `test`, `docs` s odgovarajućim scopeom).
+Lokalno istraživanje u `docs/`, dokumentacija baze u `database/`, `scripts/export_database_model.py` i lokalne JSON snimke u `scripts/` ne ulaze u Git. Razvojni rezultati, `.env`, `.venv` i `node_modules` također su ignorirani. Commits slijede Conventional Commits (`chore`, `feat`, `test`, `docs` s odgovarajućim scopeom).
 
 
 ### Vrtići na putu do posla: Rijeka, Zagreb i Šibenik
@@ -265,5 +265,5 @@ povezana je sa zagrebačkim sjedištem. Za rute su trenutačno provjerena **tri
 OSM objekta**: Šibenski tići, Vidici i Blažena Hozana. To nije potpun popis
 objekata. Sjedišta bez potvrđenog objekta ne ulaze u rangiranje. Programi,
 radno vrijeme, cijene i slobodna mjesta nisu preuzeti s nelicenciranih stranica.
-[Šibenski uvoz](data-enrichment/README.md#šibenik),
+[Šibenski uvoz](scripts/README.md#šibenik),
 [priprema prometa](routing/README.md#šibenik).

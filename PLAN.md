@@ -33,7 +33,7 @@ izvršava pripadni `.sql`, s naredbama odvojenima retkom `-- statement`.
 Svaki uvoz piše nove `source_record` retke s novim `batch_id`, pa prebacuje
 `data_source.active_batch_id` na njega (`asyncpg_source.py:211`,
 `asyncpg_enrolment.py:99`, `asyncpg_historical.py:62`, `Batch` u
-`data-enrichment/reviewed_snapshot.py`). Stari retci se nikad ne brišu. Svi upiti za dokaze traže
+`scripts/reviewed_snapshot.py`). Stari retci se nikad ne brišu. Svi upiti za dokaze traže
 `s.active_batch_id=r.batch_id`.
 
 Postoji jedna iznimka: `asyncpg_location.py:14-22` (`approved_record`) čita i
@@ -57,7 +57,7 @@ Stare snimke danas služe dvjema stvarima:
 
 Zapise i `active_batch_id` pišu četiri mjesta: `asyncpg_source.py:211`,
 `asyncpg_enrolment.py:99`, `asyncpg_historical.py:62` i
-`Batch.source`/`Batch.record` u `data-enrichment/reviewed_snapshot.py`. Pet
+`Batch.source`/`Batch.record` u `scripts/reviewed_snapshot.py`. Pet
 skripti pregledane geografije (Varaždin, Rijeka, Šibenik, sjedišta obrta)
 piše isključivo preko `Batch`.
 
@@ -66,7 +66,7 @@ je uvijek popunjen, ali ključ `varazdin-primary-venue` pojavljuje se 10 puta u
 `varazdin-other-osm-18a5f04e778a1af0` i 5 puta u
 `varazdin-other-venue-a16ccf2ded9adcd5`, unutar iste snimke i za različite
 ustanove. Ključ je `item['location_key']` u
-`data-enrichment/import_other_varazdin.py`, koji je isti za svaku ustanovu
+`scripts/import_other_varazdin.py`, koji je isti za svaku ustanovu
 čija je lokacija njezino glavno mjesto.
 
 ### Izmjereno stanje (lokalna baza, 6. 11. 2026.)
@@ -115,7 +115,7 @@ FROM refs JOIN source_record r ON r.id=refs.id JOIN data_source s ON s.id=r.sour
 
 ### Tko što piše i čita
 
-**`availability`.** Nijedan SQL u `src/` ni `data-enrichment/` je ne spominje.
+**`availability`.** Nijedan SQL u `src/` ni `scripts/` je ne spominje.
 Spominju je samo testovi ograničenja (`tests/test_database.py:179`,
 `tests/test_source_database.py:92,123`). `historical_record.vacancies` čuva
 povijesna mjesta. Ona ostaju povijesna i nisu zamjena za buduću aktualnu
@@ -185,7 +185,7 @@ upis za godinu, njeni opći krugovi te godine se ne nude.
 ### Sjedište ustanove
 
 Sjedište zauzima 11 stupaca na `kindergarten`. Piše ga `asyncpg_source.py:158-165`,
-a geografiju `data-enrichment/import_childminder_geography.py`. Čitaju ga
+a geografiju `scripts/import_childminder_geography.py`. Čitaju ga
 `asyncpg_location.py`, `asyncpg_kindergarten.py`, `asyncpg_enrolment.py`,
 `asyncpg_historical.py` i `services/concrete/location.py`.
 

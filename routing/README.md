@@ -266,7 +266,7 @@ java -Xmx3G -jar routing/data/otp.jar --load --serve \
 Docker alternativa je profil `sibenik`, servis `otp-sibenik`. Aplikacijske
 varijable su `OTP_URL_SIBENIK=http://127.0.0.1:18082/otp/gtfs/v1` i
 `KIDSIC_ADDRESS_INDEX_SIBENIK=routing/data/sibenik/addresses.sqlite`.
-Nakon pripreme treba uvesti [pregledane objekte](../data-enrichment/README.md#šibenik).
+Nakon pripreme treba uvesti [pregledane objekte](../scripts/README.md#šibenik).
 
 Graf OTP 2.8.1 uspješno je izgrađen sa 227 stajališta i 32 obrasca vožnje.
 Uvoz prijavljuje 33 izolirana stajališta, 46 bez povezivanja za presjedanja

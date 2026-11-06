@@ -19,9 +19,9 @@ from KIDSic.dto.source import SourceSnapshot
 from KIDSic.services.concrete.kindergarten_normalizer import normalize_records
 from test_rijeka import rijeka_records, rijeka_source
 
-ENRICHMENT = Path(__file__).resolve().parents[1] / 'data-enrichment'
-sys.path.insert(0, str(ENRICHMENT))  # Scripts import their shared reviewed_snapshot helper.
-spec = importlib.util.spec_from_file_location('rijeka_geography', ENRICHMENT / 'import_rijeka_geography.py')
+SCRIPTS = Path(__file__).resolve().parents[1] / 'scripts'
+sys.path.insert(0, str(SCRIPTS))  # Scripts import their shared reviewed_snapshot helper.
+spec = importlib.util.spec_from_file_location('rijeka_geography', SCRIPTS / 'import_rijeka_geography.py')
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 RijekaGeographyImporter = module.RijekaGeographyImporter

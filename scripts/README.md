@@ -25,8 +25,8 @@ OSM nazivi područja nisu potvrda službenih granica gradskih četvrti.
 Pregled i upis (potreban `DATABASE_URL`):
 
 ```sh
-uv run python data-enrichment/import_varazdin.py
-uv run python data-enrichment/import_varazdin.py --apply
+uv run python scripts/import_varazdin.py
+uv run python scripts/import_varazdin.py --apply
 ```
 
 Uvoz povezuje devet objekata s postojećom ustanovom, koristi stabilne ID-eve
@@ -66,8 +66,8 @@ ostalih vrtića. Drugi zapis čuva rezultate adresnih pretraga, odbačene
 kandidate, izvore fizičkih lokacija i odabrane koordinate/područja.
 
 ```sh
-uv run python data-enrichment/import_other_varazdin.py
-uv run python data-enrichment/import_other_varazdin.py --apply
+uv run python scripts/import_other_varazdin.py
+uv run python scripts/import_other_varazdin.py --apply
 ```
 
 Svih deset ima koordinate i `suburb`; devet ima `quarter`. Zečić ima
@@ -105,8 +105,8 @@ registriranu adresu; ne potvrđuju zasebno mjesto rada ni točan ulaz.
 
 ```sh
 uv run alembic -c src/KIDSic/db/alembic/alembic.ini upgrade head
-uv run python data-enrichment/import_childminder_geography.py
-uv run python data-enrichment/import_childminder_geography.py --apply
+uv run python scripts/import_childminder_geography.py
+uv run python scripts/import_childminder_geography.py --apply
 ```
 
 Svih 14 sjedišta ima koordinate; 12 ima `quarter`, 13 `suburb`, a 10
@@ -141,8 +141,8 @@ Obje datoteke su lokalne generirane snimke, izuzete iz Gita. Uvoz nema
 mrežnih zahtjeva i nije ovisnost aplikacije tijekom korištenja.
 
 ```sh
-uv run python data-enrichment/import_rijeka_geography.py
-uv run python data-enrichment/import_rijeka_geography.py --apply
+uv run python scripts/import_rijeka_geography.py
+uv run python scripts/import_rijeka_geography.py --apply
 ```
 
 Pregled od 2026-11-04 potvrđuje 27 lokacija: točne adresne točke/zgrade i
@@ -198,8 +198,8 @@ Prvo uvesti nacionalni registar, zatim pregledane fizičke objekte:
 
 ```sh
 uv run kidsic-sync-kindergartens --source national
-uv run python data-enrichment/import_sibenik.py
-uv run python data-enrichment/import_sibenik.py --apply
+uv run python scripts/import_sibenik.py
+uv run python scripts/import_sibenik.py --apply
 ```
 
 Naredbe zahtijevaju `DATABASE_URL` u okruženju. Nacionalni registar pod

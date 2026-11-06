@@ -168,10 +168,10 @@ tags
 # Local research documentation
 /docs/
 /database/
-/scripts/
+/scripts/export_database_model.py
 
 # Local geocoding snapshots can include source contacts and tax identifiers.
-/data-enrichment/*.json
+/scripts/*.json
 
 # Local open-routing archives and generated graph
 /routing/data/
