@@ -1,400 +1,507 @@
-# Plan: RAG bez rangiranja, uz teme koje bira MCP klijent
+# Plan: pojednostavniti shemu baze bez gubitka dokaza
 
-Cilj je ukloniti leksičko i vektorsko rangiranje iz `dohvati_kontekst_vrtica`.
-Namjeru pitanja određuje model MCP klijenta preko strukturiranog parametra
-`topics`. Server deterministički vraća sve prihvaćene dokaze za te teme unutar
-odabrane ustanove/objekta. Sve postojeće granice ostaju: opseg, izvori, datumi,
-višeznačnost i budžet odgovora.
+Cilj je ukloniti dijelove sheme koje nitko ne puni ni ne čita, čuvati samo
+trenutačno stanje svakog izvora umjesto svih snimki i prestati kopirati isti
+upisni tekst za svaki gradski vrtić. Pravila podrijetla ostaju ista: aktivni izvor, prihvaćen
+zapis, isti vlasnik/objekt, datumi i licenca. Javni MCP/HTTP ugovori se ne
+mijenjaju, osim u cjelini 4, koja je izričito odluka o funkcionalnosti.
+
+Prethodni plan (RAG bez rangiranja, rute za Zagreb i Šibenik) je proveden i
+ostaje u povijesti gita, revizija `de0b1ed`. Ova verzija uključuje recenziju
+prve verzije od 6. 11. 2026.
 
 ## 1. Istraživanje
 
-### Trenutni tok (necommitano na grani `codex/rag-context`)
+### Kako je shema nastala
 
-Cijela RAG značajka još nije commitana. To uključuje alat, servise, embedding
-indeks i migraciju 0008, pa se uklanjanje ne kosi s objavljenim stanjem.
+Osam migracija u `src/KIDSic/db/alembic/versions/`. Svaka ima `.py` koji
+izvršava pripadni `.sql`, s naredbama odvojenima retkom `-- statement`.
 
-1. `RagTools.call_tool` (`src/KIDSic/api/rag_tools.py`) validira `RagQuery`
-   (`city`, `name`, `question`, `feature_id`) i poziva `RagService.retrieve`.
-2. `RagService.retrieve` (`src/KIDSic/services/concrete/rag.py:59`) unutar jedne
-   read-only snimke:
-   - dohvaća objekte preko `work.locations.list_locations`;
-   - vraća `not_found` ili `clarification_required` (više ustanova ili više od
-     20 objekata) bez dokaza;
-   - iz pitanja izdvaja pojmove (`EvidenceRanker.terms`) i preko
-     `work.search.retrieve_context` dohvaća `knowledge_chunk` dokumente.
-     Leksički se koristi `OR` pojmova i `limit=30`, a hibridno svi dokumenti s
-     `all_documents=True, limit=None`;
-   - `RagEvidenceBuilder.collect` gradi dokaze iz strukturiranih zapisa
-     (kontakti, povijesni programi i mjesta, aktualni programi, sufinanciranje)
-     i iz dokumenata (`topic='document'`).
-3. Nakon zatvaranja snimke dokaze rangira `EvidenceRanker.rank` ili
-   `HybridRanker.rank`. Zatim se bira najviše 12 dokaza do 24.000 znakova.
+- `0001_simple_rag` kreira `data_source`, `kindergarten`, `location`,
+  `source_record`, `program`, `availability`, `enrolment`, `knowledge_chunk`.
+  Prva naredba je `CREATE EXTENSION IF NOT EXISTS vector` (redak 1).
+- `0002` dodaje `municipality`, `seat_*` stupce na `kindergarten`, te
+  `enrolment.municipality_id` i `enrolment_scope_check`.
+- `0003` dodaje koordinate sjedišta i view `kindergarten_seat_geography`.
+- `0005` briše podatke izvan tadašnjih gradova (Zagreb, Varaždin, Rijeka).
+  To je zapis stanja podrške u to vrijeme, a ne greška.
+- `0006` dodaje `municipality_subsidy_policy`, `0007` `historical_record`,
+  `0008` `enrolment.round` i `accepting`.
 
-### Što leksički dio stvarno radi
+### Snimke (batch)
 
-`EvidenceRanker` (`rag.py:11-48`) ima dvije uloge:
+Svaki uvoz piše nove `source_record` retke s novim `batch_id`, pa prebacuje
+`data_source.active_batch_id` na njega (`asyncpg_source.py:211`,
+`asyncpg_enrolment.py:99`, `asyncpg_historical.py:62`, `Batch` u
+`data-enrichment/reviewed_snapshot.py`). Stari retci se nikad ne brišu. Svi upiti za dokaze traže
+`s.active_batch_id=r.batch_id`.
 
-- **Usmjeravanje na temu** (`accepts`). Tablica prefiksa `_topics` mapira riječi
-  pitanja na teme i tvrdo filtrira dokaze. Ako nijedan prefiks ne pogodi, filtar
-  ne vrijedi i odlučuje bodovanje.
-- **Bodovanje** (`score`). Broji podudaranja preko `term[:4]` prefiksa i dodaje
-  +5 za temu. Dokumenti umjesto toga koriste `ts_rank` iz SQL-a
-  (`_lexical_score`, `rag_evidence.py:43`).
+Postoji jedna iznimka: `asyncpg_location.py:14-22` (`approved_record`) čita i
+neaktivne zapise. Razlog je što provenance polja (`kindergarten.provenance`,
+`location.provenance`, JSON s `source_record_id`) može pokazivati na stariju
+snimku. API to izlaže zastavicom `active_snapshot` (`dto/location.py:85`,
+`asyncpg_location.py:174`).
 
-Slabosti:
+Stare snimke danas služe dvjema stvarima:
 
-- Hrvatska morfologija pokrivena je ručnim prefiksima. Pitanja izvan liste
-  („Gdje se nalazi?”, „Radno vrijeme?”) završavaju s `no_evidence`.
-- SQL koristi `websearch_to_tsquery('simple', '"upis" OR …')`, dakle točne
-  leksme bez stemminga (`asyncpg_kindergarten.py:141,160`). `upis` ne pogađa
-  `upisa`, što se ne slaže s prefiksnom logikom u Pythonu.
-- `HybridRanker` (OpenAI `text-embedding-3-small`, 384 dimenzije, prag 0,45)
-  postoji uglavnom da zakrpa ove propuste. Uvodi ključ, migraciju, naredbu za
-  indeksiranje, predmemoriju i prag koji nije kalibriran (vidi RAG.md, odjeljak
-  „OpenAI embedding indeks”).
+- **Zadržane vrijednosti.** Ako novi red nema vrijednost, uvoz zadržava staru.
+  To vrijedi za `COALESCE` u `asyncpg_source.py:193` i za `provider_kind`
+  (`:137`, provenance se ažurira samo kad red nije `unknown`). Provenance
+  tada pokazuje na stari zapis. Lokalno postoji jedan takav slučaj:
+  `provider_kind` jednog vrtića iz stare snimke imenika `national`, jer novi
+  red daje `unknown`.
+- **Ponovno prepoznavanje.** `asyncpg_source.py:64` za svaki `source_key`
+  traži zadnju prihvaćenu vezu kroz sve snimke. Tako zapis koji nestane i
+  vrati se zadržava vlasnika. Lokalno nijedan ključ iz stare snimke ne
+  nedostaje u aktivnoj, pa se to još nije dogodilo.
 
-### Zašto rangiranje ovdje ne donosi vrijednost
+Zapise i `active_batch_id` pišu četiri mjesta: `asyncpg_source.py:211`,
+`asyncpg_enrolment.py:99`, `asyncpg_historical.py:62` i
+`Batch.source`/`Batch.record` u `data-enrichment/reviewed_snapshot.py`. Pet
+skripti pregledane geografije (Varaždin, Rijeka, Šibenik, sjedišta obrta)
+piše isključivo preko `Batch`.
 
-- Korpus je unaprijed sužen na jednu ustanovu i njene objekte. Strukturirani
-  dokazi su nekoliko odlomaka u pet tema, a hibridni način već dohvaća sve
-  dokumente u opsegu.
-- Alat poziva LLM (ChatGPT, Claude), koji pitanje na hrvatskom razumije bolje
-  od tablice prefiksa ili praga sličnosti.
-- `RagEvidence.topic` je već `Literal['programs', 'vacancies', 'subsidies',
-  'contacts', 'document']` (`src/KIDSic/dto/rag.py:53`), pa enum postoji.
+**`source_key` nije jedinstven unutar izvora.** `source_record.source_key`
+je uvijek popunjen, ali ključ `varazdin-primary-venue` pojavljuje se 10 puta u
+`varazdin-other-osm-18a5f04e778a1af0` i 5 puta u
+`varazdin-other-venue-a16ccf2ded9adcd5`, unutar iste snimke i za različite
+ustanove. Ključ je `item['location_key']` u
+`data-enrichment/import_other_varazdin.py`, koji je isti za svaku ustanovu
+čija je lokacija njezino glavno mjesto.
 
-### Sve upotrebe koje promjena dodiruje
+### Izmjereno stanje (lokalna baza, 6. 11. 2026.)
 
-Pronađeno pretragom
-`grep -rniE "embedding|HybridRanker|EvidenceRanker|RAG_MIN|OPENAI|lexical|retrieval"`.
+| | Ukupno | Aktivna snimka | Stare snimke |
+| --- | --- | --- | --- |
+| `source_record` | 1.652 | 913 | 739 |
+| `knowledge_chunk` | 2.477 (107 tekstova) | 870 (106 tekstova) | 1.607 |
+| `zagreb-enrolment-notice-2026-2027` | 1.131 | 377 | 754 (2 stare snimke) |
+| `zagreb-enrolment-page` | 1.098 | 366 | 732 |
+| `zagreb-preschool-notice-2026-2027` | 132 | 44 | 88 |
+| `enrolment` | 244 | 122 (61 vrtić × 2 poziva) | 122 |
+| `historical_record` | 423 | 423 | 0 |
 
-| Mjesto | Uloga |
+Provenance polja pokazuju na 752 aktivna zapisa i **1 neaktivan**.
+
+Ostalo:
+
+| Tablica / stupac | Stanje |
 | --- | --- |
-| `services/concrete/rag.py` | `EvidenceRanker`, poziv `retrieve_context` s `text`, grananje na `_hybrid` |
-| `services/concrete/hybrid_ranker.py` | RRF spajanje leksičkog i kosinusnog poretka |
-| `services/concrete/embedding_index.py`, `commands/index_embeddings.py`, `pyproject.toml:22` | naredba `kidsic-index-embeddings` |
-| `integrations/{interfaces,concrete}/…embedding.py` | OpenAI HTTP klijent |
-| `dao/{interfaces,concrete}/…embedding.py`, `db/uow/{base,source,asyncpg,asyncpg_source}.py` | `work.embeddings` repozitorij |
-| `dto/embedding.py`, `dto/rag.py` (`_lexical_score`, `RagRetrieval`, `RagContext.retrieval`) | embedding DTO-i i metapodaci dohvata |
-| `services/concrete/rag_evidence.py:43-44` | prijenos `lexical_rank` u dokaz |
-| `factories/rag.py`, `services/dependency.py:53-70` | spajanje embedding klijenta, `httpx` u `conversation_services` |
-| `config/settings.py:25-27,42-45,71-73`, `.env.example:14-18` | `OPENAI_API_KEY`, `EMBEDDING_TIMEOUT`, `RAG_MIN_SIMILARITY` |
-| `exceptions.py:38` | `EmbeddingError` |
-| `db/alembic/versions/0008_rag_embeddings.{py,sql}` | tablica `rag_embedding` |
-| `dao/concrete/asyncpg_kindergarten.py:141` | stupac `lexical_rank` dodan na ovoj grani |
-| `api/rag_tools.py` | opis alata spominje hibridni dohvat; sheme polja |
-| testovi | `test_hybrid_rag.py`, `test_embedding_database.py`, `test_embedding_http.py`, `test_historical_database.py:175-210`, `test_rag.py`, `fixtures/rag_queries.json`, `test_mcp_server.py:48-90` |
-| dokumentacija | `RAG.md`, `MCP.md:151-164`, `TO-DO.md:50`, `README.md` |
+| `availability` | 0 redaka |
+| `program` | 0 redaka |
+| `knowledge_chunk.embedding`, `embedding_model`, `program_id` | 0 popunjenih |
+| `enrolment.steps`, `documents` | 122 neprazna, ostatak ranijeg uvoza |
+| `location.postal_code` | 0 od 447 |
+| `kindergarten.seat_postal_code` | 243 od 310 |
+| `location.county` / `kindergarten.seat_county` | 50 / 229 |
+| `location.municipality_id` | 447 od 447 |
+| `location.kind='unknown'` | 72 |
 
-**Izvan opsega:** `KindergartenSearchService.recommend`
-(`services/concrete/kindergarten_search.py:13-26`) je stariji, commitani kod.
-Koristi `retrieve_context(text=…, embedding=…)` nad `knowledge_chunk.embedding`
-iz migracije 0001. Ne dira se. Zato `retrieve_context` zadržava parametre
-`text` i `embedding`.
+Upiti za ponovno mjerenje:
+
+```sql
+SELECT (s.active_batch_id=r.batch_id) active, count(*), count(DISTINCT c.content_sha256)
+FROM knowledge_chunk c JOIN source_record r ON r.id=c.source_record_id
+JOIN data_source s ON s.id=r.source_id GROUP BY 1;
+
+WITH refs AS (
+  SELECT (f.value->>'source_record_id')::uuid id FROM kindergarten k, jsonb_each(k.provenance) f
+  WHERE f.value ? 'source_record_id'
+  UNION SELECT (f.value->>'source_record_id')::uuid FROM location l, jsonb_each(l.provenance) f
+  WHERE f.value ? 'source_record_id')
+SELECT (s.active_batch_id=r.batch_id) active, count(DISTINCT r.id)
+FROM refs JOIN source_record r ON r.id=refs.id JOIN data_source s ON s.id=r.source_id GROUP BY 1;
+```
+
+### Tko što piše i čita
+
+**`availability`.** Nijedan SQL u `src/` ni `data-enrichment/` je ne spominje.
+Spominju je samo testovi ograničenja (`tests/test_database.py:179`,
+`tests/test_source_database.py:92,123`). `historical_record.vacancies` čuva
+povijesna mjesta. Ona ostaju povijesna i nisu zamjena za buduću aktualnu
+raspoloživost.
+
+**Embeddingi.** `KindergartenSearchService.recommend`
+(`services/concrete/kindergarten_search.py:13`) i `retrieve_context`
+(`dao/concrete/asyncpg_kindergarten.py:127`) primaju vektor. Ni CLI
+(`commands/search.py`) ni RAG (`services/concrete/rag.py:41`) ga ne predaju.
+Koriste ga samo `tests/test_database.py:59-135`.
+
+**`enrolment.steps` i `documents`.** Nijedan `INSERT` ih ne puni
+(`asyncpg_enrolment.py:92`) i nijedan upit ih ne čita. Koraci i dokumenti
+čitaju se iz citiranog izvora (`dto/location.py:104`).
+
+**`program` se aktivno koristi.** Iz njega rade dobni filtar i filtar programa
+alata `prikazi_vrtice` (`api/location_tools.py:61-138`), `valid_program` u
+`asyncpg_kindergarten.py:61` i `asyncpg_location.py:24`, te RAG dokazi o
+aktualnim programima. Postoje i integracijski testovi. Tablica je prazna jer
+nijedan uvoz ne piše `INSERT INTO program`. Uz nju idu
+`data_source.stale_after_days` i `knowledge_chunk.program_id`.
+
+**Leksička grana trenutačno nije dostupna.** `kidsic-search` poziva
+`retrieve_context(text=…)` samo za vrtiće s potvrđenom dobi
+(`kindergarten_search.py:20-28`). Uz prazan `program` takvih nema. RAG je
+zaobilazi s `all_documents=True`.
+
+**`location.postal_code` nije propust.** `national.py:78` izričito tretira
+adresu iz imenika kao pravno sjedište (`scope='institution'`), pa poštanski
+broj ide u `seat_postal_code`. Isto vrijedi za `childminder.py:30`. Izvori
+objekata poštanski broj ne daju.
+
+**`location.kind='unknown'` je legitimno stanje.** Izvor nije naveo je li
+objekt matični ili područni, a uvoz ne nagađa.
+
+### Upisni dokumenti: zašto se kopiraju
+
+`AsyncpgEnrolmentDocumentRepository.import_document`
+(`dao/concrete/asyncpg_enrolment.py:18`) ovako radi:
+
+1. Pri uvozu određuje vlasnike: aktivne ustanove traženih `provider_kinds`
+   u gradu, prema sjedištu ili aktivnom objektu.
+2. Za svakog vlasnika piše vlastiti `source_record`, iste odlomke i iste
+   upisne krugove.
+
+Kopiranje rješava dva stvarna problema:
+
+1. **Vrsta pružatelja.** `municipality_id` ne zna za `provider_kinds`, pa bi
+   gradski red zahvatio i privatne vrtiće. Zato `asyncpg_location.py:115`
+   čita samo krugove ustanove.
+2. **Zamrznut obuhvat.** Ustanova uvezena nakon pregleda ne dobiva dokument.
+
+Odlomci imenovanih ustanova (`excerpt.institutions`) i iznimke
+(`call.not_accepting` → `accepting=false`) već su po ustanovi i nisu kopije.
+`EnrolmentRoundSelector` (`services/concrete/enrolment_round.py:17-24`)
+pravilo nadjačavanja primjenjuje po pedagoškoj godini. Ako ustanova odbija
+upis za godinu, njeni opći krugovi te godine se ne nude.
+
+Čitatelji upisa:
+- `retrieve_context` (`asyncpg_kindergarten.py:141-170`) spaja odlomak i zapis
+  preko `r.kindergarten_id=c.kindergarten_id`, a opseg čita iz
+  `r.raw_data->>'scope'`.
+- `RagEvidenceBuilder` (`rag_evidence.py:41`) od toga gradi
+  `scope='municipality'` ili `'institution'`.
+- `asyncpg_location.py:115-128` gradi `rounds` za karticu vrtića.
+
+### Sjedište ustanove
+
+Sjedište zauzima 11 stupaca na `kindergarten`. Piše ga `asyncpg_source.py:158-165`,
+a geografiju `data-enrichment/import_childminder_geography.py`. Čitaju ga
+`asyncpg_location.py`, `asyncpg_kindergarten.py`, `asyncpg_enrolment.py`,
+`asyncpg_historical.py` i `services/concrete/location.py`.
+
+View `kindergarten_seat_geography` (0003) radi dvije stvari:
+- povezuje sjedište s dokazom preko teksta iz JSON-a
+  (`k.provenance->'seat_geography'->>'source_record_id'`);
+- odbacuje koordinate kad se `k.seat_address` ne podudara s
+  `k.seat_attributes->>'address'`. Koordinate tada pripadaju staroj adresi.
 
 ## 2. Pristupi
 
-### A. Teme iz klijenta i sve u opsegu, bez rangiranja (odabrano)
+### Stare snimke
 
-- **Što se mijenja:** `RagQuery` dobiva obavezni `topics`. Server filtrira dokaze
-  po temi i vraća ih stabilnim redoslijedom. Uklanjaju se `EvidenceRanker`,
-  `HybridRanker` i cijeli embedding stog.
-- **Rizik:** klijent može odabrati pogrešnu temu ili poslati preširok skup.
-  Odgovor tada sadrži više konteksta, ali nikad dokaze izvan odabranog vrtića.
-- **Kompromis:** najmanje koda i determinističko ponašanje, uz oslanjanje na
-  klijentov LLM. Ugovor alata se mijenja, a za necommitanu značajku to je
-  prihvatljivo.
+- **A. Zadržati sve.** Stare snimke čine 45 % zapisa i 65 % odlomaka. Nijedan
+  dokazni upit ih ne vraća.
+- **B. Brisati neaktivne zapise nakon uvoza.** Uvoz i dalje stvara punu
+  snimku, a zatim briše staru, osim zapisa na koje pokazuje provenance.
+  Model ostaje složen: snimke, iznimke za referencirane zapise i
+  ponovno prepoznavanje kroz povijest.
+- **C. Samo trenutačno stanje izvora (odabrano).** Uvoz ažurira zapis na
+  mjestu prema `(source_id, source_key)`, uz stabilan `id`. Dodaje nove
+  zapise, a uklanja nestale zajedno s izvedenim retcima. Starih snimki nema,
+  pa ih nije potrebno čistiti. Veze (`provenance`, `knowledge_chunk`,
+  `enrolment`, `program`) ostaju ispravne jer `id` ostaje isti. Odluka o
+  povezivanju, uključujući ručne, ostaje na istom retku.
+  Cijena: nema povijesti promjena, a zapis koji nestane pa se vrati ponovno
+  prolazi povezivanje. To se lokalno još nije dogodilo. Za povijest izvora
+  dovoljni su `pg_dump` i snimke u `seeds/`.
 
-### B. Popraviti leksički dio i zadržati embeddinge kao opciju
+### Obuhvat upisnih dokumenata
 
-- **Što se mijenja:** prefiksni tsquery (`upis:*`), `unaccent` i usklađivanje
-  Python i SQL logike.
-- **Rizik:** tablica prefiksa ostaje ručno održavana, a hrvatska morfologija
-  ostaje djelomično pokrivena. Embedding stog i dalje treba kalibraciju praga.
-- **Kompromis:** zadržava slobodno pitanje kao jedini ulaz, uz najveću
-  složenost.
+Zajedničko svim varijantama: tekst postoji jednom po izvornom zapisu. Isti
+tekst iz različitih izvora, datuma ili obuhvata **ne** spaja se.
 
-### C. Samo embeddingi, bez leksičkog dijela
+- **A. Status quo.** Jedna kopija po ustanovi.
+- **B. Pravilo za opće pozive, poveznice za imenovane (preporuka).** Opći
+  dokument ima pravilo „grad + vrste pružatelja”. Imenovani dokumenti i
+  iznimke imaju poveznice na ustanove. Ustanova uvezena kasnije dobiva gradsku
+  obavijest. To odgovara stvarnosti, jer gradska obavijest vrijedi za sve
+  gradske vrtiće. Svrha 2 gubi se samo za opće pozive.
+- **C. Zamrznut popis.** Tablica s parovima (zapis, ustanova). Čuva obje
+  svrhe, ali za 61 vrtić i dalje drži 61 redak po zapisu. Uklanja kopije
+  teksta, ali ne i kopije obuhvata.
 
-- **Rizik:** slabo radi na točnim pojmovima (Montessori, telefon, e-mail), a
-  prag 0,45 nije kalibriran. I dalje treba usmjeravanje na temu.
-- **Kompromis:** ne smanjuje složenost i uvodi vanjsku ovisnost u svaki upit.
+Između B i C odlučuje vlasnik; vidi otvoreno pitanje 1. Zaštita „ustanova
+aktivna na datum objave” nije izvediva: re-import zamjenjuje snimku imenika,
+pa se datum prvog pojavljivanja ustanove ne čuva.
 
-### D. Uvijek vratiti sve dokaze, bez `topics`
+### Sjedište
 
-- **Rizik:** dulje subvencijske politike s tarifama mogu potrošiti budžet od
-  24.000 znakova prije kontakata ili programa. Odgovor tada postaje
-  `truncated`, iako je pitanje usko.
-- **Kompromis:** najjednostavnije, ali bez kontrole veličine. Vrijedi kao
-  mjerilo: ako mjerenje (korak 0 niže) pokaže da svi dokazi uvijek stanu,
-  `topics` može postati neobavezan.
+- **A. `location` s `kind='seat'`.** Svaki upit za kartu, rute,
+  `clarification_required` i provjeru aktivnosti pretpostavlja da je lokacija
+  fizički objekt. Odbijeno.
+- **B. Tablica `kindergarten_seat` 1:1 (odabrano).** Parser već razlikuje
+  sjedište od objekta (`national.py:78`), pa se semantika ne mijenja.
+- **C. Status quo.**
 
-## 3. Odabrani pristup (A)
+## 3. Odabrani pristup
 
-### Korak 0: mjerenje (napravljeno 5. 11. 2026.)
+Šest cjelina, svaka s vlastitom migracijom i commitom. Svaka mora biti zelena
+prije sljedeće. Prije svake migracije napraviti `pg_dump` lokalne baze.
 
-Mjereno je na lokalnoj bazi (`docker-compose.yaml`, port 55432, revizija s
-0008). Privremena skripta je izvan repozitorija. Za svaku ustanovu
-(`list_locations` po gradu, grupirano po `kindergarten_id`) i za svaki objekt
-zasebno skripta je pozvala `RagEvidenceBuilder.collect` sa svim dokumentima u
-opsegu (`retrieve_context(all_documents=True, limit=None)`). Mjerila je
-`len(content)` po temi.
+### Cjelina 1: usko čišćenje (`0009_remove_unused`)
 
-Baza: 545 objekata, 304 ustanove (Zagreb 266, Varaždin 25, Rijeka 13) i 95
-`knowledge_chunk` redaka ukupno. Jedna ustanova ima više od 20 objekata, pa
-ionako dobiva `clarification_required`.
+Shema:
+- `DROP TABLE availability`.
+- `knowledge_chunk`: ukloniti `embedding`, `embedding_model`, njihove CHECK-ove.
+- `enrolment`: ukloniti `steps` i `documents`.
 
-| Skup | Znakova medijan / p90 / max | Odlomaka medijan / p90 / max | Stane u 12 / 24.000 |
-| --- | --- | --- | --- |
-| Po objektu (`feature_id`) | 2.123 / 3.391 / 3.620 | 4 / 5 / 6 | 545 / 545 |
-| Po ustanovi (svi objekti) | 1.468 / 3.802 / 6.172 | 4 / 15 / 27 | 268 / 304 |
+**Proširenje `vector` i pgvector u slici ostaju.** `0001` izvršava
+`CREATE EXTENSION vector`, pa slika bez pgvectora ne može instalirati bazu
+od nule. Naknadni `DROP EXTENSION` to ne rješava. Uklanjanje bi tražilo
+izmjenu 0001 (prepisivanje povijesti) ili uvjetnu naredbu u njoj. Ušteda je
+samo jedno proširenje u slici, pa se to ne radi.
 
-Po temi, na razini ustanove:
+`knowledge_chunk.program_id`, `program` i `stale_after_days` ostaju do
+cjeline 4.
 
-| Tema | Max znakova | Max odlomaka | Ne stane |
-| --- | --- | --- | --- |
-| `subsidies` | 2.492 | 1 | 0 |
-| `document` | 4.028 | 14 | 1 (DV Rijeka) |
-| `contacts` | 864 | 24 | 23 |
-| `vacancies` | 781 | 1 | 0 |
-| `programs` | 242 | 1 | 0 |
+Kod:
+- `retrieve_context` (`dao/interfaces/kindergarten.py`,
+  `dao/concrete/asyncpg_kindergarten.py:127`) gubi `embedding`,
+  `embedding_model`, granu `vector`, kolonu `distance` i `import math` ako
+  ostane nekorišten.
+- `KindergartenSearchService.recommend` i njegovo sučelje gube `embedding`
+  i `embedding_model`.
+- README: ukloniti rečenicu o predanom embeddingu.
 
-Zaključci:
+Testovi:
+- ukloniti embedding testove (`tests/test_database.py:59-135`), a ostale
+  provjere opsega iz njih prenijeti na leksički poziv;
+- iz `test_availability_and_enrolment_scope_constraints` (`:179`) ukloniti
+  `availability`, a dio za `enrolment` zadržati;
+- u `tests/test_source_database.py:92,123` ukloniti `availability`.
 
-- **Budžet znakova nikad nije dosegnut.** Najveći skup ima četvrtinu budžeta
-  (6.172 od 24.000 znakova, oko 2.000 tokena).
-- **Granica od 12 odlomaka jedino je stvarno ograničenje.** Pogađa 36 ustanova,
-  i to samo kad se upit odnosi na sve objekte. Uzrok su kontakti po objektu (do
-  24 kratka odlomka) i dokumenti DV Rijeka (14). Ni filtriranje po temama to ne
-  rješava, jer i sami `contacts` ne stanu u 23 slučaja.
-- **Dokumentima ne treba retrieval.** Najviše ih je 14 po ustanovi, ukupno
-  4.028 znakova. `question` stoga nije potreban ni za dokumente.
-- **`topics` nije nužan za veličinu odgovora.** Svi dokazi stanu i bez njega.
-  Vrijednost `topics` je samo u manje šuma za klijentov model.
+Downgrade vraća stupce i tablicu prazne.
 
-Posljedica za plan: `topics` postaje neobavezan i bez njega se vraćaju sve
-teme. Granica broja odlomaka uklanja se, a budžet znakova ostaje kao zaštita.
-Pristup D je zapravo podskup pristupa A.
+### Cjelina 2: samo trenutačno stanje izvora (`0010_current_source_state`)
 
-**Ponovljeno mjerenje nakon uvoza upisnih dokumenata (5. 11. 2026.).** Ista
-metoda, nakon `kidsic-sync-enrolment` (787 novih odlomaka za 61 gradski vrtić
-Zagreba). Po ustanovi: 1.468 / 10.947 / 12.423 znakova (medijan / p90 / max) i
-4 / 27 / 41 odlomak; svih 304 stane u 24.000 znakova. Tema `document` ima
-najviše 8.394 znakova i 15 odlomaka (DV Duga), ispod granice od 30 dokumenata.
-Zaključak koraka 0 vrijedi: dohvat nad dokumentima nije potreban.
+Uvodi se u dva koraka. Prvi korak ne mijenja nijedan upit za čitanje.
 
-### Ugovor alata (`src/KIDSic/dto/rag.py`)
+**Korak 2a: preduvjeti.**
+- `import_other_varazdin.py` piše jedinstven ključ po ustanovi, npr.
+  `f"{item['kindergarten_id']}:{item['location_key']}"`, a migracija na isti
+  način ispravlja postojeće retke. Ispraviti samo jedno od to dvoje vratilo
+  bi ponovljeni ključ pri sljedećem uvozu.
+- `provider_kind` vrtića čiji dokaz postoji samo u staroj snimci treba
+  pregledani izvor, kao u migraciji 0004. Nasljeđivanje se ne smije
+  zamijeniti s `unknown`, jer bi vrtić ispao iz filtra `provider_kind`,
+  pravila sufinanciranja i općeg upisnog obuhvata (cjelina 3, varijanta B).
+  Upit iz odjeljka 1 pokazuje sve takve slučajeve.
 
-- Dodati `Topic = Literal['programs', 'vacancies', 'subsidies', 'contacts',
-  'document']` i koristiti ga u `RagEvidence.topic` i `RagQuery.topics`.
-- Dodati neobavezni `RagQuery.topics: list[Topic] | None`. `None` znači sve
-  teme. Prazan popis se odbija, a duplikati se uklanjaju validatorom.
-- Ukloniti `question`, jer ga server više ne koristi. Korak 0 pokazuje da ni
-  dokumenti ne trebaju pretragu.
-- Ukloniti `RagEvidence._lexical_score`, `RagRetrieval` i `RagContext.retrieval`.
+**Korak 2b: zajednička operacija zamjene stanja.**
 
-### Servis (`src/KIDSic/services/concrete/rag.py`)
+`SourceStateWriter` (ime je prijedlog) prima izvor, `fetched_at` i retke s
+`source_key`. Unutar transakcije i uz advisory lock
+`pg_advisory_xact_lock(194733, 1)` radi sljedeće:
 
-- Obrisati `EvidenceRanker` i parametre `ranker` i `hybrid`.
-- Dokumente dohvaćati samo kad `topics` uključuje `'document'` ili je `None`, preko
-  `retrieve_context(..., all_documents=True, limit=30)`. `text` se ne šalje.
-  Gornja granica od 30 i `truncated` pri 30 ostaju kao sada. Validacija limita
-  u `asyncpg_kindergarten.py:131` to već dopušta.
-- Filtrirati `evidence` po `topics` i sortirati stabilno: redoslijed tema iz
-  enuma, zatim `reference_date` silazno (`None` na kraj), zatim `citation_id`.
-- Ukloniti granicu od 12 odlomaka i zadržati budžet od 24.000 znakova bez
-  rezanja. Prema koraku 0, granica od 12 odlomaka nepotrebno skraćuje 36
-  ustanova, a budžet znakova nijednu. `test_bounded_context_…` u `test_rag.py`
-  treba prilagoditi.
-  Komentar „Network calls happen after releasing…” više nije potreban, jer
-  nakon snimke nema mrežnih poziva.
-- Ažurirati docstring modula, jer više nema „lexical retrieval”.
+1. Provjerava novi skup prije ikakve izmjene: nije prazan i nema ponovljenih
+   ključeva. Pri grešci ništa se ne mijenja.
+2. Ažurira postojeće zapise prema `(source_id, source_key)` uz isti `id`, a
+   dodaje nove.
+3. Briše nestale zapise i njihove izvedene retke redom ovisnosti, jer FK
+   nemaju `ON DELETE CASCADE`: `knowledge_chunk`, `enrolment`, `program`,
+   zatim `source_record`.
+4. Postavlja `batch_id` svih zapisa izvora na novi batch i prebacuje
+   `active_batch_id`. Zato svi postojeći filtri
+   `s.active_batch_id=r.batch_id` rade bez promjene.
 
-### Ostale izmjene
+Sva četiri pisca iz odjeljka 1 koriste tu operaciju. Za skripte je dovoljno
+promijeniti `Batch` u `reviewed_snapshot.py`. Ne smije ostati drugi put
+pisanja, jer bi se model raspao.
 
-- `rag_evidence.py`: ukloniti `lexical_rank` granu.
-- `asyncpg_kindergarten.py`: vratiti `ts_rank(...) AS lexical_rank`, dodan na
-  ovoj grani. `s.license` i `all_documents` ostaju.
-- `factories/rag.py`: `create(uow_factory)` bez embedding klijenta.
-- `services/dependency.py`: `conversation_services` bez `httpx` klijenta.
-  Ukloniti `_embedding_client` i `embedding_index_service`.
-- Obrisati embedding datoteke iz tablice gore, `EmbeddingError`, postavke i
-  `.env.example` unose te skriptu u `pyproject.toml`.
-- Migracija 0008: lokalno prvo pokrenuti
-  `uv run alembic -c src/KIDSic/db/alembic/alembic.ini downgrade 0007_historical_records`,
-  pa tek onda obrisati datoteke. Inače `alembic` ne nalazi trenutnu reviziju.
-- `api/rag_tools.py`: opis polja `topics` mora za svaku temu reći što pokriva.
-  Primjerice, „jelovnik, radno vrijeme i upis” idu pod `document`. Opis mora
-  reći i kada alat ne pozivati: kad tema ne postoji, odgovor je „podatak nije
-  dostupan”. Ukloniti rečenicu o hibridnom dohvatu i ažurirati primjer.
+Shema (`0010`):
+- obrisati sve zapise neaktivnih snimki i njihove izvedene retke, osim
+  zapisa na koje pokazuje provenance;
+- dodati `UNIQUE(source_id, source_key)` na `source_record`. Ograničenje
+  pada ako korak 2a nije dovršen, i to je namjerno.
 
-### Testovi
+`historical_record` se ne mijenja; vidi cjelinu 6. Njegovi „mjesta na dan
+1. 1. 2025.” namjerno su povijesni sadržaj, a ne stara snimka.
 
-- `test_rag.py`: pitanja zamijeniti s `topics`. Test za pitanja bez teme
-  (`test_missing_topic_…`) postaje test da `topics=['document']` bez dokumenata
-  vraća `no_evidence` i ne vraća programe ni mjesta. Dodati test da se dokumenti
-  ne dohvaćaju kad `'document'` nije među temama. Test budžeta ostaje.
-- `fixtures/rag_queries.json`: provjera prepoznavanja teme iz teksta prelazi na
-  klijenta, pa fiksture postaju suvišne. Zamijeniti ih parametriziranim testom
-  po temi i kombinaciji tema.
-- `test_mcp_server.py:60`: `required` postaje `['city', 'name']`.
-  Proširiti nevaljane argumente (prazan popis, nepoznata tema).
-- `test_historical_database.py:175-210`: hibridni test obrisati. Revokacija i
-  zamjena snimke već su pokrivene testom iznad (`:165-173`). Pod
-  `KIDSIC_TEST_DATABASE_URL` provjeriti da i dalje prolazi s `topics`.
-- Obrisati `test_hybrid_rag.py`, `test_embedding_database.py` i
-  `test_embedding_http.py`.
+**Vrijednosti koje izvor više ne daje.**
+- Kontakti, koordinate, četvrt i slično postaju nepoznati, ali samo ako
+  provenance polja pokazuje na isti izvor. Polje koje dokazuje drugi izvor
+  (npr. `rijeka-reviewed-geography`) uvoz ne dira. To zamjenjuje
+  `COALESCE` u `asyncpg_source.py:193`.
+- Polja koja određuju klasifikaciju (`provider_kind`, `name`) ne postaju
+  tiho nepoznata. Uvoz ili zadržava vrijednost uz dokaz drugog aktivnog
+  izvora, ili pada s popisom vrtića kojima treba pregled.
+- Provenance više nikad ne pokazuje na nepostojeći zapis. Zastavica
+  `active_snapshot` (`asyncpg_location.py:174`) tada je uvijek `true`.
+  Uklanja se u koraku 2c.
 
-### Dokumentacija
+**Korak 2c (kasnije, mehanički):** ukloniti `batch_id`, `active_batch_id`,
+filtre `s.active_batch_id=r.batch_id`, `approved_record`/`active_snapshot`
+u `asyncpg_location.py` i potragu kroz snimke u `asyncpg_source.py:64`.
+Ta potraga postaje obično čitanje postojećeg retka po ključu.
 
-`RAG.md` treba prepisati odjeljke „Poziv i odabir”, „Dohvat i podrijetlo”
-(zadnji odlomak) i „OpenAI embedding indeks”. Ažurirati i `MCP.md:151-164`,
-`TO-DO.md:50` te `README.md`, gdje se spominje hibridni dohvat.
+Očekivani rezultat na lokalnoj bazi: oko 738 manje `source_record`, 1.607
+manje `knowledge_chunk` i 122 manje `enrolment` redaka. Svaki sljedeći uvoz
+zadržava isti broj redaka umjesto da ga udvostruči.
 
-### Provjera
+Testovi (`tests/test_source_database.py`, `test_enrolment_database.py`,
+`test_location_database.py`):
+- ponovni uvoz istog skupa ne mijenja `id` ni broj redaka;
+- nestali zapis se briše zajedno s odlomcima i upisnim krugovima;
+- ponovljeni `source_key` ili prazan skup ruše uvoz bez ikakve izmjene;
+- kontakt koji izvor više ne daje postaje nepoznat, a polje drugog izvora ostaje;
+- `provider_kind` ne pada tiho u `unknown`;
+- ručna odluka o povezivanju preživi ponovni uvoz;
+- opoziv izvora (`import_allowed=false`) i dalje skriva sve.
 
-```sh
-uv run python -m unittest discover -s tests -v
-KIDSIC_TEST_DATABASE_URL=… uv run python -m unittest discover -s tests -v
-grep -rniE "embedding|EvidenceRanker|HybridRanker|RAG_MIN|OPENAI_API" src tests docs *.md
+### Cjelina 3: upisni dokumenti bez kopija (`0011_document_scope`)
+
+Ovdje je opisana varijanta B. Ako vlasnik odabere C, `document_scope` sadrži
+samo retke s `kindergarten_id`.
+
+Shema:
+```sql
+-- DocumentScope određuje kome dokument vrijedi: pravilom ili imenovanjem.
+CREATE TABLE document_scope (
+ source_record_id uuid NOT NULL REFERENCES source_record(id),
+ municipality_id uuid REFERENCES municipality(id),
+ provider_kinds text[],
+ kindergarten_id uuid REFERENCES kindergarten(id),
+ CHECK ((municipality_id IS NOT NULL AND provider_kinds IS NOT NULL AND kindergarten_id IS NULL)
+     OR (municipality_id IS NULL AND provider_kinds IS NULL AND kindergarten_id IS NOT NULL))
+);
+
+-- EnrolmentRefusal čuva objavljeno neprihvaćanje s izvorom i krugom.
+CREATE TABLE enrolment_refusal (
+ enrolment_id uuid NOT NULL REFERENCES enrolment(id),
+ kindergarten_id uuid NOT NULL REFERENCES kindergarten(id),
+ source_record_id uuid NOT NULL REFERENCES source_record(id),
+ PRIMARY KEY (enrolment_id, kindergarten_id)
+);
 ```
 
-Zadnja naredba smije pogoditi samo `kindergarten_search.py`,
-`asyncpg_kindergarten.py`, `dao/interfaces/kindergarten.py`, migraciju 0001 i
-`test_database.py`. To su stari, commitani `knowledge_chunk` dijelovi.
+- `source_record.kindergarten_id` i `knowledge_chunk.kindergarten_id` smiju
+  biti NULL za zapis s pravilom. CHECK ili okidač osigurava da takav zapis
+  ima redak u `document_scope`.
+- `enrolment` dobiva jedan red po pozivu. `accepting` se uklanja, jer ga
+  zamjenjuje `enrolment_refusal`. Pedagoška godina i izvor dolaze preko
+  `enrolment_id`, a nadjačavanje ostaje kao u `EnrolmentRoundSelector`:
+  odbijanje za godinu skriva opće krugove te godine za tu ustanovu.
+- `enrolment.municipality_id` i `enrolment_scope_check` uklanjaju se, jer
+  obuhvat sada određuje `document_scope`.
+- Migracija ne pretvara postojeće redove. Briše upisne zapise
+  (`data_source.metadata->>'kind'='enrolment_document'`) i ovisne retke, a
+  upute traže ponovni `kidsic-sync-enrolment`. Snimke su u
+  `src/KIDSic/db/seeds/`.
 
-## 4. Otvorena pitanja
+Kod:
+- `import_document`: za opći dokument piše jedan `source_record`, jedan
+  `document_scope` s pravilom i odlomke jednom. Imenovani odlomci ostaju po
+  ustanovi, s retkom u `document_scope`. `not_accepting` postaje
+  `enrolment_refusal`. Provjera da imenovane ustanove postoje i da je pravilo
+  pogodilo barem jednu aktivnu ustanovu ostaje kao danas.
+- `retrieve_context` i `asyncpg_location.py` (`rounds`) dobivaju istu
+  provjeru primjenjivosti:
+  - zapis pripada vrtiću (`r.kindergarten_id`), ili
+  - `document_scope` imenuje vrtić, ili
+  - pravilo pogađa vrtić: `provider_kind = ANY(provider_kinds)` i grad
+    sjedišta ili aktivnog objekta jednak `municipality_id`. Isti uvjet danas
+    ima `import_document`.
 
-1. **Ostaje li `question`?** Korak 0 to rješava: uklanja se, jer dokumenti ne
-   trebaju pretragu. Treba ga vratiti tek uz otvoreno pitanje 2.
-2. **Što ako dokumenata po ustanovi bude previše?** Danas ih je najviše 14
-   (4.028 znakova). Mjerenje treba ponoviti nakon uvoza upisnih dokumenata.
-   Ako tada premaše budžet, retrieval nad
-   dokumentima ima smisla. Prvo treba isprobati prefiksni `tsquery` s
-   `unaccent`, a embeddinge tek uz evaluaciju na stvarnim upisnim dokumentima.
-   To se ne radi sada, jer automatsko preuzimanje dokumenata još ne postoji.
-3. **Pretpostavka:** klijentski modeli pouzdano popunjavaju enum iz opisa alata.
-   To treba ručno provjeriti u ChatGPT-u i Claudeu na pitanjima iz
-   `rag_queries.json` prije brisanja fiksture.
-4. **Je li migracija 0008 primijenjena negdje osim lokalno** (staging, dijeljena
-   baza)? Ako jest, treba nova migracija koja briše `rag_embedding`, umjesto
-   brisanja datoteke 0008.
+  Provjeru treba napisati jednom, npr. kao SQL funkciju ili view
+  `document_applicability`, a ne kopirati je u dva upita.
+- Komentar u `asyncpg_location.py:115` ažurirati, jer pravilo sada nosi vrstu
+  pružatelja.
 
-## Proširenje ruta na Zagreb (6. 11. 2026.)
+Očekivani rezultat za aktivnu snimku: oko 106 odlomaka umjesto 870 i 2 retka
+`enrolment` umjesto 122.
 
-Istraživanje: `api/commute_tools.py` → `services/concrete/commute.py` →
-`services/concrete/day_route.py` → postojeći LocationService i baza. Zagreb je već
-u imeniku. Grad, okvir, kalendar, izvor i adresni indeks trenutno su vezani uz
-Rijeku u DTO-u, servisu, MCP opisu, frontend parseru i routing skriptama.
-ZET potvrđuje Otvorenu dozvolu RH na
-https://www.zet.hr/preuzimanja/odredbe/datoteke-u-gtfs-formatu/669.
-Arhiva https://www.zet.hr/gtfs-scheduled/scheduled-000-000397.zip ima SHA256
-2ddf4051147837545bc1b77af5a82bc8961096da630b11fe7a1079ce3654edf8.
-Kalendar ima sve tjedne zastavice ugašene; stvarni dodani datumi u
-calendar_dates.txt su 21. 10. – 31. 12. 2026., usprkos feed_end_date=20301231.
+Testovi (`test_enrolment_database.py`, `test_rag.py`, `test_location_database.py`):
+- privatni vrtić u Zagrebu ne dobiva gradski krug ni obavijest;
+- imenovani dokument ne prelazi na drugu ustanovu;
+- iznimka skriva opće krugove samo svoje godine;
+- opoziv izvora skriva sve;
+- dokaz ima isti `scope`, `applies_to` i datume kao prije;
+- za varijantu B: ustanova dodana kasnije dobiva gradsku obavijest.
 
-Pristupi: jedan zajednički graf oba grada olakšao bi pokretanje, ali bi tražio
-ponovnu izgradnju riječkog grafa i proširio indeks adresa bez razdvajanja grada.
-Odabrano: zajednički kod s postavkama po gradu i zasebni graf/indeks za Zagreb
-(port 18081). Postojeće putanje i port Rijeke ostaju zadani.
+### Cjelina 4: odluka o `program`, dobnom filtru i CLI-ju
 
-Dodati postavke izvora, SHA256, kalendara i okvira po gradu. DTO provjerava
-koordinate prema odabranom gradu; servis pretražuje katalog tog grada; MCP bira
-ruter i adresni indeks tog grada. Frontend provjerava rezultate prema gradu.
-Routing skripte dobivaju --city i pripremaju Zagreb u routing/data/zagreb.
-Dokumentirati licencu, atribuciju, datume i naredbe. Provjeriti izolaciju gradova,
-kalendare, MCP poziv, frontend prikaz i stvarni lokalni OTP izračun.
+Ovo nije čišćenje nego odluka o funkcionalnosti javnih alata; vidi otvoreno
+pitanje 2. Ishodi su:
+- **Uvoz programa.** Napisati uvoz koji puni `program`. Tada leksička grana
+  CLI-ja i `knowledge_chunk.program_id` postaju dostupni.
+- **Uklanjanje.** Ukloniti `program`, `stale_after_days`,
+  `knowledge_chunk.program_id`, `age_months`/`program` iz `prikazi_vrtice`,
+  `find_options(age…)`, RAG temu aktualnih programa i, ako ostane bez svrhe,
+  `kidsic-search` s leksičkom granom. Povijesni programi iz
+  `historical_record` ostaju.
 
-Preostale nepoznanice: uspjeh OTP uvoza, trajanje rangiranja cijelog zagrebačkog
-kataloga i pokrivenost adresa u lokalnom OSM snapshotu. Provjeriti tijekom
-implementacije; ne zamjenjivati nedostupne rute procijenjenim vremenima.
+### Cjelina 5: sjedište i županija (`0012_kindergarten_seat`)
 
+- `kindergarten_seat(kindergarten_id PK FK, address, postal_code, settlement,
+  settlement_key, municipality_id, longitude, latitude, attributes,
+  geography_source_record_id FK)`. Podaci se prenose iz `seat_*` stupaca,
+  a zatim se ti stupci brišu.
+- `geography_source_record_id` zamjenjuje `provenance->'seat_geography'`.
+  **Provjera da geokodirana adresa (`attributes->>'address'`) odgovara
+  trenutačnoj `address` mora ostati**, u viewu ili u upitima. Bez nje bi se
+  koordinate stare adrese prikazivale uz novu. Sam pravi FK ne uklanja tu
+  krhkost.
+- `seat_county` i `location.county` se uklanjaju; županija se čita iz
+  `municipality`. Migracija prvo provjerava usklađenost i pada s popisom
+  razlika umjesto da ih prešuti. Izvorna vrijednost ostaje u `raw_data`.
+- `location.postal_code` ostaje.
+- Svi čitatelji iz popisa „Sjedište ustanove” prelaze na
+  `LEFT JOIN kindergarten_seat`.
 
-Rezultat provjere: graf Zagreba izgrađen je iz prikvačenog ZET-a i OSM-a.
-Lokalni MCP poziv nad stvarnom bazom, Ilica 10 → Radnička cesta 1, 6. 11. 2026.
-u 07:00, uspješno rangira 358 objekata u 31,5 sekundi (357 dostupnih ruta).
-Primjeri i ograničenja uvoza zabilježeni su u routing/README.md i zasebnom
-zagreb-manifest.json. Python: 187 testova, 72 preskočena zbog vanjskih testnih
-ovisnosti. Frontend: 101 test, lint, standardni i MCP build prolaze.
+### Cjelina 6: `historical_record` (možda nikad)
 
-## Proširenje na Šibenik — manje radne cjeline (6. 11. 2026.)
+Dijeli sedam stupaca sa `source_record`, ali ima drugačiju jedinstvenost
+(`UNIQUE(source_id,batch_id,source_key)`) i zaseban životni ciklus. Razmotriti
+tek nakon cjelina 1–5, i to samo ako postoji konkretan problem.
 
-### Istraživanje i opseg
+## 4. Izvan opsega
 
-Postojeći tok je `api/commute_tools.py` → `CommuteService` → `DayRouteService`
-→ LocationService/repozitorij i lokalni OTP. Opći imenik/RAG koriste katalog
-`dto/municipality.py`, a normalizator odbacuje gradove izvan tog kataloga.
-Uvoz nacionalnog registra stvara sjedišta ustanova, nikad automatski objekte.
-Šibenik nije u katalogu; Zagreb proširenje već je u radnom stablu i čuva se.
-Stara migracija 0005 je povijesno čišćenje, a ne ograničenje tablice: ne mijenja
-se; nakon nje novi grad može ući redovnim uvozom.
+- `location.kind='unknown'` ostaje; to je istinito stanje izvora.
+- `municipality.supported` ima smisla tek ako baza postane jedini autoritet
+  za podržane gradove. Danas je to kod.
 
-Otvoreni izvori:
-- MZOM https://data.gov.hr/ckan/dataset/djecji-vrtici — Otvorena dozvola RH,
-  sedam polja, šest ustanova za Šibenik/Brodaricu. Hozana je pod zagrebačkim
-  sjedištem; podružnica traži zasebno povezivanje na postojeću ustanovu.
-- OSM snapshot Hrvatske 2026-11-04T21:21:03Z — ODbL. Samo imenovani objekti
-  s adresom i provjerenim odnosom prema ustanovi ulaze u planiranje ruta.
-  Neimenovani zapisi i neprovjerene adrese nisu kandidati za preporuku.
-- Gradski parking https://www.gradski-parking.hr/stranice/datoteke-u-gtfs-formatu/105.html
-  izričito navodi Otvorenu dozvolu za static i realtime. Preuzeti ZIP ima SHA256
-  6fd33879adc8a57e66fab75dbdcebc9136b383be0e7a7274e0accb4561530128,
-  227 stajališta, 32 zapisa linija, 346 vožnji i 5.319 stop_times zapisa.
-  Kalendar 2026-09-07–2027-06-07; bez shapes.txt. Koristi se raspored, bez RT.
+## 5. Otvorena pitanja
 
-### Pristupi i odluka
+1. **Obuhvat općih dokumenata: pravilo (B) ili zamrznut popis (C)?** Treba
+   odgovor prije cjeline 3. Preporuka je B.
+2. **Puni li ikad netko `program`?** Treba odgovor prije cjeline 4. Bez uvoza
+   dobni filtar uvijek vraća „dob nepoznata”, a dio javnog ugovora alata ne
+   radi ništa.
+3. **Je li gubitak povijesti prihvatljiv?** Cjelina 2 pretpostavlja da
+   povijest promjena izvora i prepoznavanje zapisa koji nestane pa se vrati
+   nisu zahtjevi. Ako jesu, vrijedi varijanta B iz odjeljka 2.
+4. **Kako pregledati `provider_kind` bez izvora** (korak 2a)? Moguće je
+   dodati pregledani izvor kao u 0004 ili ostaviti `unknown` uz svjesno
+   prihvaćanje posljedica.
+5. **Starije baze.** Cjelina 3 briše upisne zapise i traži ponovni uvoz.
+   Pretpostavka je da su sve baze lokalne i obnovljive iz `seeds/`.
 
-Uvoz svih web-stranica dao bi više objekata/programa, ali otvorene licence
-za taj sadržaj nisu potvrđene. Odabrano: MZOM ustanove i odvojena pregledana
-OSM snimka objekata. To daje manju, ali dokazivu pokrivenost. Kod ne smije
-pretvoriti sjedišta u objekte ni obećavati potpunost fizičkih lokacija.
-Zaseban šibenski OTP/indeks na portu 18082 čuva postojeće grafove.
+## 6. Provjera
 
-### Radne cjeline
+Za svaku cjelinu:
 
-1. Imenik: dodati grad/alias i potvrđenu Brodaricu unutar šibenske županije;
-   proširiti opće MCP/RAG opise i testove. Nacionalni uvoz ostaje isti izvor.
-2. Objekti: dodati ponovljiv pregledani OSM uvoz s provjerom nepromijenjenih
-   nacionalnih roditelja, stabilnim identitetima, atomskim aktiviranjem i
-   provjerom source.import_allowed. Dopune iz web-stranica ne ulaze u podatke.
-3. Promet: dodati RoutingCity, SHA256 i datume, gradom odvojene putanje/env,
-   normalizaciju Šibenik/22000, OSM okvir i Docker profil. Izgraditi stvarni graf.
-4. Integracija: proširiti DTO i frontend provjere grada/okvira, MCP metapodatke,
-   testirati gradsko filtriranje, idempotentnost uvoza, nedostupne izvore,
-   povrat stare snimke, pogrešne koordinate/datum i stvarni MCP izračun.
+```sh
+uv run alembic -c src/KIDSic/db/alembic/alembic.ini upgrade head
+KIDSIC_TEST_DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/kidsic_test \
+  uv run python -m unittest discover -s tests -v
+```
 
-### Otvorena pitanja
+Zatim:
+- provjeriti `downgrade -1` i ponovni `upgrade head` na kopiji baze;
+- provjeriti instalaciju od nule (`docker compose down -v`, `up`,
+  `upgrade head`). Time se potvrđuje da 0001 i dalje radi.
 
-Pregled svih OSM oznaka još treba potvrditi konačan broj prihvatljivih objekata.
-Adresna pokrivenost i kvalitetni prometni spojevi provjeravaju se na stvarnom
-grafu. Bez shapes.txt OTP može konstruirati prometnu geometriju; treba provjeriti
-što prikazuje karta. Pravila konkretnog datathona nisu dostavljena; potvrđujemo
-licence izvora, ne prihvatljivost prema nepoznatim pravilima natjecanja.
-
-
-### Rezultat Šibenik
-
-Sve četiri cjeline su implementirane. Nacionalni uvoz dodao je šest ustanova;
-imenik za Šibenik vraća sedam zapisa (tri objekta i četiri sjedišta), uključujući
-podružnicu Hozane sa zagrebačkim roditeljem. Pregledana OSM snimka prihvaća tri
-objekta i isključuje četiri nedovoljno potvrđena kandidata. Ponovljeni uvoz,
-promjena roditelja, zabrana izvora i očuvanje aktivne snimke provjereni su u
-izoliranoj PostgreSQL bazi migriranoj od nule.
-
-Šibenski OTP radi na 18082; graf ima 227 stajališta/32 obrasca, adresni indeks
-4.564 zapisa. Manifest bilježi hashove, licence, opseg i upozorenja. Zbog
-nedostatka shapes.txt autobusna geometrija povezuje stajališta; to je navedeno
-u dokumentaciji i detaljima puta. Nepotpuna pokrivenost vrtića navedena je i u
-MCP odgovoru i UI-ju. Mrežni MCP na 8002 provjeren je sa stvarnom bazom i
-OTP-om: Svilajska 20 → Ulica Velimira Škorpika 10, 9. 11. 2026. u 07:00,
-tri uspoređena i tri dostupna objekta, autobus/hodanje, oko 0,3 sekunde.
-Stvarni odgovor prolazi frontend parser, dekodiranje geometrija i render.
-
-Python: 193 testa, 3 preskočena jer CKAN/Postman simulator nije pokrenut;
-svih 190 ostalih, uključujući DB testove, prolazi. Frontend: 102 testa,
-lint i oba builda prolaze. Posebna privremena provjera stvarnog MCP payload-a
-također je prošla i nije ostavljena kao ovisnost redovitih testova.
-
-Preostala ograničenja su pokrivenost fizičkih objekata, kvaliteta izvornog
-GTFS-a i nedostajući otvoreni podaci o programima/radnom vremenu/mjestima.
-Pravila datathona nisu pretpostavljena; navedene su stvarne licence izvora.
+Za cjeline 2 i 3: usporediti izlaz `dohvati_kontekst_vrtica` za DV Duga
+(`topics=["document"]`) i karticu jednog zagrebačkog gradskog vrtića prije i
+poslije, uz ponovljena mjerenja iz odjeljka 1. Dokazi, datumi, `scope` i
+`applies_to` moraju biti jednaki.

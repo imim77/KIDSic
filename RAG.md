@@ -103,7 +103,7 @@ pretrage po riječima pitanja.
 
 Mjerenje nakon uvoza upisnih dokumenata (5. 11. 2026., lokalna snimka: 545
 objekata, 304 ustanove, 61 zagrebački gradski vrtić s dokumentima; metoda iz
-koraka 0 u [PLAN.md](PLAN.md)):
+koraka 0 u [PLAN.md](https://github.com/imim77/KIDSic/blob/de0b1ed/PLAN.md)):
 
 | Skup | Znakova medijan / p90 / max | Odlomaka medijan / p90 / max |
 | --- | --- | --- |
