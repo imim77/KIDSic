@@ -42,8 +42,8 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
     async def fixture(self, name='Synthetic', *, city='Zagreb', provider='municipal',
                       coords=(15.98, 45.81), active=True, seat=False):
         institution = await self.c.fetchval('''INSERT INTO kindergarten
-            (name,provider_kind,seat_address,seat_settlement,seat_settlement_key)
-            VALUES ($1,$2,'Seat 1','Zagreb','zagreb') RETURNING id''', name, provider)
+            (name,provider_kind) VALUES ($1,$2) RETURNING id''', name, provider)
+        await self.c.execute("INSERT INTO kindergarten_seat(kindergarten_id,address,settlement,settlement_key) VALUES ($1,'Seat 1','Zagreb','zagreb')", institution)
         location = None
         if not seat:
             location = await self.c.fetchval('''INSERT INTO location
@@ -139,9 +139,9 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         owner, _ = await self.fixture('Childminder seat', provider='childminder', seat=True)
         geo_source = await self.c.fetchval("INSERT INTO data_source(dataset_key,title,publisher,url,import_allowed,active_batch_id) VALUES ($1,'Geo','Test','https://example.invalid/geo',true,$2) RETURNING id", str(uuid4()), self.batch)
         record = await self.c.fetchval("INSERT INTO source_record(source_id,batch_id,raw_data,kindergarten_id,match_status,match_method) VALUES ($1,$2,'{}',$3,'accepted','manual') RETURNING id", geo_source, self.batch, owner)
-        await self.c.execute("UPDATE kindergarten SET seat_longitude=15.98,seat_latitude=45.81,seat_attributes=$2,provenance=$3 WHERE id=$1", owner,
+        await self.c.execute("UPDATE kindergarten_seat SET longitude=15.98,latitude=45.81,attributes=$2,geography_source_record_id=$3 WHERE kindergarten_id=$1", owner,
                              {'address':'Seat 1','quarter':'Synthetic quarter','suburb':'Banfica','neighbourhood':'Synthetic neighbourhood','settlement':'Zagreb'},
-                             {'seat_geography':{'source_record_id':str(record)}})
+                             record)
         await self.c.execute('UPDATE source_record SET raw_data=$2 WHERE id=$1', record,
                              {'evidence_scope':'registered_seat_geography'})
         await self.c.execute("INSERT INTO knowledge_chunk(kindergarten_id,source_record_id,ordinal,content,source_url,content_sha256) VALUES ($1,$2,0,'Banfica seat geography','https://example.invalid/geo',$3)", owner, record, 'a'*64)
@@ -151,21 +151,25 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Banfica', rows[0]['areas'])
         self.assertEqual(len(await self.repository.list_locations(LocationQuery(area='banfica'))), 1)
         search = AsyncpgKindergartenRepository(self.c)
-        self.assertIn('Banfica', [r['name'] for r in await search.list_areas(city='Zagreb')])
         self.assertEqual(len(await search.retrieve_context(location_ids=[],kindergarten_ids=[owner])), 1)
         await self.c.execute('UPDATE data_source SET import_allowed=false WHERE id=$1', geo_source)
         self.assertIsNone((await self.repository.list_locations(LocationQuery()))[0]['longitude'])
         self.assertEqual(await self.repository.list_locations(LocationQuery(area='Banfica')), [])
-        self.assertEqual(await search.list_areas(city='Zagreb'), [])
         await self.c.execute('UPDATE data_source SET import_allowed=true WHERE id=$1', geo_source)
-        await self.c.execute("UPDATE kindergarten SET seat_address='New seat 2' WHERE id=$1", owner)
+        await self.c.execute("UPDATE kindergarten_seat SET address='New seat 2' WHERE kindergarten_id=$1", owner)
         self.assertEqual(await self.repository.list_locations(LocationQuery(area='Banfica')), [])
         self.assertIsNone((await self.repository.list_locations(LocationQuery()))[0]['longitude'])
         self.assertEqual(await search.retrieve_context(location_ids=[],kindergarten_ids=[owner]), [])
         self.assertEqual(await self.repository.list_locations(LocationQuery(bbox=(15,45,16,46))), [])
-        # Evidence linked to another institution never authorizes a pin.
-        await self.c.execute("UPDATE kindergarten SET seat_address='Seat 1',provenance=$2 WHERE id=$1", owner,
-                             {'seat_geography':{'source_record_id':str(uuid4())}})
+        # The FK rejects missing records; an existing sibling owner's proof is
+        # also excluded by the geography view's ownership check.
+        import asyncpg
+        with self.assertRaises(asyncpg.ForeignKeyViolationError):
+            async with self.c.transaction():
+                await self.c.execute('UPDATE kindergarten_seat SET geography_source_record_id=$2 WHERE kindergarten_id=$1', owner, uuid4())
+        other = await self.c.fetchval("INSERT INTO kindergarten(name) VALUES ('Other owner') RETURNING id")
+        other_record = await self.c.fetchval("INSERT INTO source_record(source_id,batch_id,raw_data,kindergarten_id,match_status,match_method) VALUES ($1,$2,'{}',$3,'accepted','manual') RETURNING id",geo_source,self.batch,other)
+        await self.c.execute("UPDATE kindergarten_seat SET address='Seat 1',geography_source_record_id=$2 WHERE kindergarten_id=$1", owner, other_record)
         self.assertIsNone((await self.repository.list_locations(LocationQuery()))[0]['longitude'])
 
     async def test_seat_fallback_and_unlocated_facility_stay_distinct(self):

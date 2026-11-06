@@ -29,7 +29,7 @@
 
 - [ ] Prikazivati naziv ustanove, odabrani objekt, adresu, lokaciju, vrstu pružatelja, kontakte i službenu web-stranicu.
 - [ ] Prikazivati potvrđene programe, jezike i atribute objekta kada postoje u povezanim izvorima.
-- [x] Omogućiti usporedbu do tri vrtića ili objekta prema udaljenosti i procijenjenom vremenu putovanja kada je dostupno, vrsti pružatelja, potvrđenim programima i dobnim uvjetima, objavljenim mjestima uz dobnu skupinu i datum stanja te postupku upisa, uz prikaz telefona, e-maila i službene web-stranice kada su dostupni. (web i MCP app: zračna udaljenost, vrsta, programi i dob, upis, sufinanciranje, kontakti; vrijeme putovanja i objavljena mjesta još nisu u podacima.)
+- [x] Omogućiti usporedbu do tri vrtića ili objekta prema udaljenosti i procijenjenom vremenu putovanja kada je dostupno, vrsti pružatelja, objavljenim mjestima uz dobnu skupinu i datum stanja te postupku upisa, uz prikaz telefona, e-maila i službene web-stranice kada su dostupni. (web i MCP app: zračna udaljenost, vrsta, upis, sufinanciranje, kontakti; vrijeme putovanja i objavljena mjesta još nisu u podacima.)
 - [x] U usporedbi objasniti prednosti i nedostatke svake opcije prema vidljivim kriterijima roditelja i dostupnim podacima, uz poveznice na izvore i jasan sljedeći korak za provjeru ili kontakt.
 - [x] U usporedbi jasno označiti nepoznate podatke i uvjete koje treba provjeriti; nepoznat podatak ne tumačiti kao nezadovoljavanje uvjeta, a objavljeno slobodno mjesto ne prikazivati kao jamstvo upisa.
 - [ ] Omogućiti promjenu objekta unutar iste ustanove uz očuvanje povezanih podataka ustanove.

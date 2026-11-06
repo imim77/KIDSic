@@ -1,8 +1,8 @@
 # KIDSic MCP app
 
 `prikazi_vrtice` je read-only MCP alat koji vraća postojeći GeoJSON za grad i
-prikazuje kartu s vodoravnim karticama. Dob i program provjerava samo prema
-aktualnim potvrđenim programima; ne potvrđuje pravo na upis ni slobodna mjesta.
+prikazuje kartu s vodoravnim karticama. Filtrira grad, naziv, vrstu pružatelja,
+područje i radijus; ne potvrđuje dobnu prikladnost, pravo na upis ni slobodna mjesta.
 
 ## Pokretanje
 
@@ -48,7 +48,6 @@ Nakon povezivanja odabrati KIDSic aplikaciju u chatu i pokušati:
 - „Samo gradski vrtići u Zagrebu.” → `{"city":"Zagreb","provider_kind":"municipal"}`.
 - „Privatni vrtić Bajka u Varaždinu.” → `{"city":"Varaždin","name":"Bajka","provider_kind":"private"}`.
 - „Vrtići na Banfici u Varaždinu.” → `{"city":"Varaždin","area":"Banfica"}`.
-- „Montessori u Zagrebu za dijete od 2 godine.” → `{"city":"Zagreb","age_months":24,"program":"Montessori"}`.
 - „Tražim Čarobnu kućicu.” → pitati za grad, bez pretrage po pretpostavljenom gradu.
 - „Prikaži mi vrtiće u Splitu.” → poruka da su podržani Zagreb, Varaždin, Rijeka i Šibenik, bez čitanja baze.
 - „Prikaži mi vrtiće.” → AI pita „U kojem gradu želiš prikaz vrtića?” prije poziva.
@@ -100,38 +99,12 @@ važećim dokazom i nepromijenjenom adresom. Nepoznato područje se ne pretposta
 OSM nazivi ne potvrđuju službene granice; pokrivenost je nepotpuna i nula
 rezultata ne dokazuje da u području nema vrtića.
 
-Opcionalni `age_months` je cijeli broj od 0 do 216 ili `null`/izostavljeno za
-pretragu bez dobi. AI klijent pretvara izričitu dob u mjesece: 2 godine = 24,
-2 godine i 6 mjeseci = 30. Nula je valjana vrijednost, nije izostavljena dob.
-Ako dob nije jasna, klijent pita za mjesece; ne zaključuje je iz riječi „jaslice”.
-Program se može pretraživati i bez dobnog filtra, bez tvrdnje o prikladnosti za dob.
-
-Opcionalni `program` je naziv ili dio naziva programa, triman, do 200 znakova;
-prazno/izostavljeno znači bez tog filtra. Podudaranje je literalno i zanemaruje
-velika slova i hrvatske dijakritike. `name` i dalje označava ustanovu/objekt.
-Programi se ne zaključuju iz naziva ustanove, kontakata ili pravila sufinanciranja.
-
-`include_unknown` je boolean, zadano `true`. `false` se šalje samo na izričit
-zahtjev „samo potvrđeni”. Uz dob/program rezultati su podijeljeni:
-
-- `confirmed`: isti aktualni program zadovoljava traženi naziv programa i dob
-  (donja granica uključiva, gornja isključiva), za svaki zadani kriterij.
-- `unknown`: nema aktualnog dokaza za traženi program ili nedostaje njegova
-  potpuna dobna granica. Drugi objavljeni program ne dokazuje da traženi ne postoji.
-- Poznati potpuni rasponi traženog programa koji ne uključuju dob ne ulaze u
-  rezultat; jedan drugi program ne smije poslužiti kao dobni dokaz za traženi.
-
-Bez dobi i programa status je `not_evaluated`, a `include_unknown` nema učinka.
-`metadata.confirmed` i `metadata.unknown` broje vraćene skupine. UI prikazuje
-oznaku samo za potvrđena podudaranja, bez oznake nepoznatih uvjeta i naslova skupina. Gornji red
-kriterija nije prikazan; primijenjeni kriteriji i brojevi ostaju u odgovoru alata. Detalji navode raspon, datum provjere, izvor i je li dokaz za
-ustanovu ili konkretan objekt. Podatak za ustanovu ne jamči provedbu u svakom
-objektu. Potvrđeno podudaranje nije jamstvo mjesta ni upisa.
-
-Trenutačno u lokalnoj snimci imenika nema potvrđenih zapisa u tablici `program`.
-Pretraga s dobi/programom zato vraća nepoznate uvjete; `include_unknown: false`
-vraća nulu. Implementacija ne dodaje izmišljene programe. Potvrđena i rubna
-podudaranja provjeravaju se sintetičkim podacima samo u rollback testnoj bazi.
+Dobni/programski filtri i aktualni programi uklonjeni su u migraciji 0012.
+Parametri `age_months`, `program` i `include_unknown` odbijaju se; alat ne
+prikazuje oznake prikladnosti ni brojeve potvrđenih/nepoznatih uvjeta.
+Za pitanje o programu imenovane ustanove alat `dohvati_kontekst_vrtica` može
+vratiti povijesno objavljene programe, uz datum i upozorenje da ne potvrđuju
+aktualnu provedbu. Program se ne smije prešutno pretvoriti u naziv ustanove.
 
 Detalji zagrebačkih vrtića dodatno prikazuju `historical_data`: programe iz XLSX-a
 objavljenog 9. 10. 2019. i slobodna mjesta iz CSV snimki na dan 1. 1. 2025.
@@ -153,7 +126,7 @@ ili šalje `""`. Server ne čuva razgovorno stanje. Ako grad ili željena promje
 nisu jasni, klijent traži pojašnjenje. Promjena kriterija prikazuje novi skup
 rezultata i briše stari odabir kartice.
 
-Uspješan rezultat uvijek vraća primijenjeni `city`, `name`, `provider_kind`, `area`, `age_months`, `program` i `include_unknown`. UI čuva kriterije
+Uspješan rezultat uvijek vraća primijenjeni `city`, `name`, `provider_kind`, `area`, `near` i `radius_m`. UI čuva kriterije
 pri ponovnom pokušaju i briše prethodni odabir pri novom upitu, bez gornjeg reda
 filtra iznad karte. Nula rezultata prikazuje praznu kartu s pozivom da se naziv provjeri ili
 skrati; server i UI ne proširuju pretragu automatski. Za sve vrste izostaviti `provider_kind` ili poslati `null`; za sve nazive
@@ -195,11 +168,11 @@ pročitati rezultat, ali ne može prikazati interaktivnu kartu.
 
 ## Ugovor UI-ja i provjera
 
-Resurs `ui://kidsic/map-v34.html` ima MIME `text/html;profile=mcp-app`. Hostovi
+Resurs `ui://kidsic/map-v35.html` ima MIME `text/html;profile=mcp-app`. Hostovi
 predložak spremaju po URI-ju, pa se verzija u URI-ju podiže pri svakoj promjeni
 UI-ja, a server se nakon `build:mcp` mora ponovno pokrenuti. Moderni
 `_meta.ui.resourceUri` i kompatibilni `openai/outputTemplate` povezuju ga s alatom.
-Uspješan rezultat ima sažetak `structuredContent: {city, name, provider_kind, area, age_months, program, include_unknown, metadata}`, uz deklarirani
+Uspješan rezultat ima sažetak `structuredContent: {city, name, provider_kind, area, near, radius_m, metadata}`, uz deklarirani
 `outputSchema`. Potpuni GeoJSON prenosi se bez gubitka u `_meta.locations` kao
 `{encoding: "gzip+base64", data: "…"}`. UI ga dekodira preko pregledničkog
 `DecompressionStream` API-ja prije validacije. Time veliki gradski skupovi s
@@ -335,7 +308,7 @@ odabranog kandidata umjesto naziva. `top_k` i dalje određuje koliko ih se
 prikazuje.
 Ako ima manje dostupnih ruta, alat vraća samo njih i točne brojeve pokrivenosti.
 
-Oba alata koriste isti resurs `ui://kidsic/map-v34.html` iz `frontend/dist/mcp.html`.
+Oba alata koriste isti resurs `ui://kidsic/map-v35.html` iz `frontend/dist/mcp.html`.
 Preporuka koristi istu sivu Leaflet/OSM kartu, boje oznaka, vodoravne kartice i
 fullscreen prikaz kao `prikazi_vrtice`. Na karti i karticama su samo vraćenih
 `top_k` vrtića u poretku dolaska na posao. Najbolja ruta je odabrana odmah;

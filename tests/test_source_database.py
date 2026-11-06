@@ -10,7 +10,6 @@ from urllib.parse import urlparse
 import httpx
 
 from KIDSic.dao.concrete.asyncpg_source import AsyncpgSourceRepository
-from KIDSic.dao.concrete.asyncpg_kindergarten import AsyncpgKindergartenRepository
 from KIDSic.dao.concrete.asyncpg_location import AsyncpgLocationRepository
 from KIDSic.dto.location import LocationQuery
 from KIDSic.db.database import database_pool
@@ -57,17 +56,18 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
             ('Rijeka', 'Primorsko-goranska županija'), ('Split', 'Splitsko-dalmatinska županija'))]
         snapshot = self.snapshot(records)
         await self.repo.import_snapshot(snapshot)
-        identities = await self.c.fetch('SELECT id,seat_settlement FROM kindergarten ORDER BY id')
+        identities = await self.c.fetch('SELECT k.id,ks.settlement AS seat_settlement FROM kindergarten k LEFT JOIN kindergarten_seat ks ON ks.kindergarten_id=k.id ORDER BY k.id')
         self.assertEqual({r['seat_settlement'] for r in identities}, {'Zagreb', 'Varaždin', 'Rijeka'})
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 3)
         await self.repo.import_snapshot(self.snapshot(records))
-        self.assertEqual(await self.c.fetch('SELECT id,seat_settlement FROM kindergarten ORDER BY id'), identities)
+        self.assertEqual(await self.c.fetch('SELECT k.id,ks.settlement AS seat_settlement FROM kindergarten k LEFT JOIN kindergarten_seat ks ON ks.kindergarten_id=k.id ORDER BY k.id'), identities)
         bad = replace(snapshot, rows=(replace(snapshot.rows[0], municipality='split'),))
         with self.assertRaises(SourceImportError):
             await self.repo.import_snapshot(bad)
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 3)
 
     async def test_city_cleanup_preserves_supported_branches_and_removes_dependent_data(self):
+        await self.c.execute('ALTER TABLE kindergarten ADD COLUMN seat_settlement text, ADD COLUMN seat_settlement_key text, ADD COLUMN seat_municipality_id uuid REFERENCES municipality(id)')
         legacy = (Path(__file__).resolve().parents[1] / 'src/KIDSic/db/alembic/versions/0001_simple_rag.sql').read_text()
         for sql in legacy.split('\n-- statement\n'):
             if sql.startswith(('CREATE TABLE program', 'CREATE INDEX ix_program')):
@@ -131,8 +131,6 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 4)
         self.assertIsNone(await self.c.fetchval("SELECT id FROM municipality WHERE key='osijek'"))
         self.assertEqual(await self.c.fetchval('SELECT active_batch_id FROM data_source WHERE id=$1', source_id), batch)
-        cities_after = await AsyncpgKindergartenRepository(self.c).list_cities()
-        self.assertEqual({r['city_key'] for r in cities_after}, {'zagreb', 'varazdin', 'rijeka'})
         await self.c.execute(migration)
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM kindergarten'), 3)
 
@@ -165,6 +163,8 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
                    {**NATIONAL, 'Naziv': 'Udruga Primjer', 'Mjesto': 'Zagreb',
                     'Zupanija': 'Grad Zagreb'}]
         await self.repo.import_snapshot(self.snapshot(records))
+        await self.c.execute('ALTER TABLE kindergarten ADD COLUMN seat_settlement text, ADD COLUMN seat_settlement_key text, ADD COLUMN seat_municipality_id uuid, ADD COLUMN seat_county text')
+        await self.c.execute('UPDATE kindergarten k SET seat_settlement=ks.settlement,seat_settlement_key=ks.settlement_key,seat_municipality_id=ks.municipality_id,seat_county=m.county FROM kindergarten_seat ks LEFT JOIN municipality m ON m.id=ks.municipality_id WHERE k.id=ks.kindergarten_id')
         # Simulate a legacy row without passing through the now city-limited import.
         await self.c.execute("INSERT INTO kindergarten(name,seat_settlement,seat_settlement_key) "
                              "VALUES ('DV Bajka','Drugi grad','drugi grad')")
@@ -240,7 +240,7 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await self.c.fetchval('SELECT count(*) FROM location'), 0)
             self.assertEqual(await self.c.fetchval('SELECT count(*) FROM knowledge_chunk'), 0)
             self.assertEqual(await self.c.fetchval("SELECT count(*) FROM kindergarten WHERE provider_kind='childminder'"), 2)
-            self.assertEqual(await self.c.fetchval("SELECT seat_address FROM kindergarten WHERE oib='00123456789'"), 'Primjer 99')
+            self.assertEqual(await self.c.fetchval("SELECT ks.address FROM kindergarten k JOIN kindergarten_seat ks ON ks.kindergarten_id=k.id WHERE k.oib='00123456789'"), 'Primjer 99')
             rows = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='varazdin'))
             self.assertEqual({row['location_role'] for row in rows}, {'seat'})
             before = await self.c.fetchval("SELECT active_batch_id FROM data_source WHERE dataset_key='varazdin-childminders'")
@@ -288,8 +288,8 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(second['kindergartens_added'], 0)
         self.assertEqual(await self.c.fetchval('SELECT id FROM source_record'), record_identity)
         self.assertEqual(await self.c.fetchval('SELECT id FROM kindergarten'), identity)
-        seat = await self.c.fetchrow('SELECT seat_address,seat_settlement,seat_postal_code,m.key '
-                                     'FROM kindergarten k JOIN municipality m ON m.id=k.seat_municipality_id')
+        seat = await self.c.fetchrow('SELECT ks.address,ks.settlement,ks.postal_code,m.key '
+                                     'FROM kindergarten k JOIN kindergarten_seat ks ON ks.kindergarten_id=k.id JOIN municipality m ON m.id=ks.municipality_id')
         self.assertEqual(tuple(seat), ('Primjer 1', 'Varaždin', '42000', 'varazdin'))
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM location'), 0)
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 1)
@@ -338,11 +338,11 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
                      'Telefon': '051/000001', 'ePosta': 'test@example.invalid'}
                     for i, name in enumerate(parents)]
         await self.repo.import_snapshot(self.snapshot(national))
-        owners = await self.c.fetch('SELECT id,name,seat_address FROM kindergarten ORDER BY id')
+        owners = await self.c.fetch('SELECT k.id,k.name,ks.address AS seat_address FROM kindergarten k LEFT JOIN kindergarten_seat ks ON ks.kindergarten_id=k.id ORDER BY k.id')
         source = rijeka_source()
         first = await self.repo.import_snapshot(self.snapshot(records, source, 'rijeka-kindergartens'))
         self.assertEqual((first['accepted'], first['kindergartens_added'], first['locations_added']), (8, 0, 8))
-        self.assertEqual(await self.c.fetch('SELECT id,name,seat_address FROM kindergarten ORDER BY id'), owners)
+        self.assertEqual(await self.c.fetch('SELECT k.id,k.name,ks.address AS seat_address FROM kindergarten k LEFT JOIN kindergarten_seat ks ON ks.kindergarten_id=k.id ORDER BY k.id'), owners)
         locations = await self.c.fetch('SELECT id,kindergarten_id FROM location ORDER BY id')
         api = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Rijeka'))
         self.assertEqual(len(api), 8)
@@ -444,6 +444,10 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(SourceImportError, 'provider_kind'):
             await self.repo.import_snapshot(replace(original, rows=(replace(original.rows[0], provider_kind='unknown'),)))
         self.assertEqual(await self.c.fetch('SELECT * FROM source_record'), before)
+        await self.c.execute("UPDATE kindergarten SET provenance=jsonb_set(provenance,'{provider_kind}',(provenance->'provider_kind')-'dataset_key')")
+        with self.assertRaisesRegex(SourceImportError, 'provider_kind'):
+            await self.repo.import_snapshot(replace(original, rows=(replace(original.rows[0], provider_kind='unknown'),)))
+        self.assertEqual(await self.c.fetch('SELECT * FROM source_record'), before)
 
     async def test_removed_state_deletes_derived_rows_and_dangling_provenance(self):
         second = {**NATIONAL, 'Naziv': 'DV Drugi', 'Adresa': 'Druga 2'}
@@ -456,6 +460,35 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await self.c.fetchval(f'SELECT count(*) FROM {table}'), 0)
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 1)
         self.assertEqual(await self.c.fetchval('SELECT provenance FROM kindergarten WHERE id=$1', record['kindergarten_id']), {})
+
+    async def test_seat_migration_rejects_county_disagreements(self):
+        import asyncpg
+        await self.repo.import_snapshot(self.snapshot())
+        await self.c.execute('ALTER TABLE kindergarten ADD COLUMN seat_county text, ADD COLUMN seat_municipality_id uuid')
+        await self.c.execute('ALTER TABLE location ADD COLUMN county text')
+        await self.c.execute("UPDATE kindergarten SET seat_county='Wrong county',seat_municipality_id=(SELECT id FROM municipality WHERE key='varazdin')")
+        check = (Path(__file__).resolve().parents[1] / 'src/KIDSic/db/alembic/versions/0013_kindergarten_seat.sql').read_text().split('\n-- statement\n')[0]
+        with self.assertRaisesRegex(asyncpg.RaiseError, 'Review county differences.*Wrong county'):
+            async with self.c.transaction():
+                await self.c.execute(check)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM kindergarten_seat'),1)
+
+    async def test_removing_geography_clears_the_seat_foreign_key_and_coordinates(self):
+        from KIDSic.dao.concrete.source_state import SourceStateWriter
+        await self.repo.import_snapshot(self.snapshot([NATIONAL, {**NATIONAL, 'Naziv':'DV Drugi'}]))
+        owners = [r['id'] for r in await self.c.fetch('SELECT id FROM kindergarten ORDER BY id')]
+        source = await self.c.fetchval("INSERT INTO data_source(dataset_key,title,publisher,url,import_allowed) VALUES ('geography','Geo','Test','https://example.invalid/geo',true) RETURNING id")
+        state = SourceStateWriter(self.c,source,datetime.now(timezone.utc))
+        record = await state.record('one',{},owner=owners[0])
+        await state.record('two',{},owner=owners[1])
+        await state.finish()
+        await self.c.execute("UPDATE kindergarten_seat SET geography_source_record_id=$2,longitude=16.3,latitude=46.3,attributes=jsonb_build_object('address',address) WHERE kindergarten_id=$1",owners[0],record)
+        next_state = SourceStateWriter(self.c,source,datetime.now(timezone.utc))
+        await next_state.record('two',{},owner=owners[1])
+        await next_state.finish()
+        seat = await self.c.fetchrow('SELECT geography_source_record_id,longitude,latitude FROM kindergarten_seat WHERE kindergarten_id=$1',owners[0])
+        self.assertEqual(tuple(seat),(None,None,None))
+        self.assertFalse(await self.c.fetchval('SELECT EXISTS(SELECT 1 FROM source_record WHERE id=$1)',record))
 
     async def test_ambiguous_match_is_retained_for_review(self):
         for name in ('DV Primjer', 'Dječji vrtić "Primjer"'):

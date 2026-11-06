@@ -74,6 +74,8 @@ class SourceStateWriter:
             source, batch, fetched_at, observed_on)
 
     async def _forget_fields(self, ids):
+        await self._connection.execute('''UPDATE kindergarten_seat SET geography_source_record_id=NULL,
+            longitude=NULL,latitude=NULL,attributes='{}' WHERE geography_source_record_id=ANY($1::uuid[])''', ids)
         texts = {str(value) for value in ids}
         for table in ('kindergarten', 'location'):
             rows = await self._connection.fetch(f'''SELECT * FROM {table} t WHERE EXISTS (
@@ -92,17 +94,26 @@ class SourceStateWriter:
                     if active and ('name' in removed or row['provider_kind'] != 'unknown'):
                         raise SourceImportError(f'Review classification before removing evidence: {row["name"]}.')
                 values = {}
+                seat_values = {}
                 attributes = dict(row.get('attributes') or {})
                 for key in removed:
                     provenance.pop(key)
-                    if key == 'seat_geography':
-                        values.update(seat_longitude=None, seat_latitude=None, seat_attributes={})
+                    if table == 'kindergarten' and key in {
+                            'seat_address', 'seat_postal_code', 'seat_settlement',
+                            'seat_settlement_key', 'seat_municipality_id'}:
+                        seat_values[key.removeprefix('seat_')] = None
                     if key in ('name', 'provider_kind', 'location_name', 'settlement'):
                         continue  # Inactive orphan identities may retain their display label.
                     if key in row and key not in ('id', 'kindergarten_id'):
                         values[key] = None
                     elif key in attributes:
                         attributes.pop(key)
+                if seat_values:
+                    if 'settlement' in seat_values:
+                        seat_values['settlement_key'] = None
+                    columns = ','.join(f'{key}=${index}' for index,key in enumerate(seat_values,2))
+                    await self._connection.execute(f'UPDATE kindergarten_seat SET {columns} WHERE kindergarten_id=$1',
+                                                   row['id'], *seat_values.values())
                 if table == 'location':
                     values['attributes'] = attributes
                 values['provenance'] = provenance

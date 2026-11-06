@@ -33,19 +33,20 @@ class AsyncpgLocationRepository(LocationRepository):
             FROM location l
             WHERE EXISTS (SELECT 1 FROM active_record r WHERE r.location_id=l.id)
             UNION ALL
-            SELECT NULL,k.id,k.name,k.seat_address,k.seat_settlement,
-              k.seat_settlement_key,k.seat_municipality_id,NULL,sg.longitude,sg.latitude,'seat',
+            SELECT NULL,k.id,k.name,ks.address,ks.settlement,
+              ks.settlement_key,ks.municipality_id,NULL,sg.longitude,sg.latitude,'seat',
               jsonb_build_object('location_name',k.provenance->'name',
                 'address',k.provenance->'seat_address',
-                'longitude',k.provenance->'seat_geography','latitude',k.provenance->'seat_geography',
-                'quarter',k.provenance->'seat_geography','suburb',k.provenance->'seat_geography',
-                'neighbourhood',k.provenance->'seat_geography','settlement',k.provenance->'seat_geography'),NULL,
+                'longitude',jsonb_build_object('source_record_id',sg.source_record_id),'latitude',jsonb_build_object('source_record_id',sg.source_record_id),
+                'quarter',jsonb_build_object('source_record_id',sg.source_record_id),'suburb',jsonb_build_object('source_record_id',sg.source_record_id),
+                'neighbourhood',jsonb_build_object('source_record_id',sg.source_record_id),'settlement',jsonb_build_object('source_record_id',sg.source_record_id)),NULL,
               jsonb_build_object('quarter',sg.quarter,'suburb',sg.suburb,
                 'neighbourhood',sg.neighbourhood,'settlement',sg.geo_settlement),
               (SELECT jsonb_agg(DISTINCT r.evidence ORDER BY r.evidence)
                FROM active_record r WHERE r.kindergarten_id=k.id)
-            FROM kindergarten k LEFT JOIN kindergarten_seat_geography sg ON sg.kindergarten_id=k.id
-            WHERE k.seat_settlement_key IS NOT NULL
+            FROM kindergarten k LEFT JOIN kindergarten_seat ks ON ks.kindergarten_id=k.id
+            LEFT JOIN kindergarten_seat_geography sg ON sg.kindergarten_id=k.id
+            WHERE ks.settlement_key IS NOT NULL
               AND EXISTS (SELECT 1 FROM active_record r WHERE r.kindergarten_id=k.id)
               -- A facility outside the requested bounds still rules out a seat.
               AND NOT EXISTS (SELECT 1 FROM location l JOIN active_record r

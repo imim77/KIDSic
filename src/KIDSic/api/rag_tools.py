@@ -21,7 +21,7 @@ class RagTools:
         for key, description in {
             'city': 'Izričito odabran grad: Zagreb, Varaždin, Rijeka ili Šibenik; pitaj ako nedostaje.',
             'name': 'Naziv ili dio naziva ustanove/objekta, npr. Bajka; ne cijeli upit roditelja.',
-            'topics': 'Neobavezne teme pitanja; izostavi za sve. programs: programi i jezici; '
+            'topics': 'Neobavezne teme pitanja; izostavi za sve. programs: povijesno objavljeni programi i jezici; '
                       'vacancies: objavljena slobodna mjesta; subsidies: cijena, sufinanciranje, olakšice; '
                       'contacts: telefon, e-mail, web; document: ostali tekstovi ustanove (upis, rokovi, '
                       'jelovnik, radno vrijeme).',
@@ -36,7 +36,7 @@ class RagTools:
                 'and does not change map selection. Requires explicit city and kindergarten name; '
                 'topics narrows the excerpts to what the parent asked about. '
                 'Returns matched objects and relevant excerpts with citation_id, source links, dates and scope. '
-                'Unknown age suitability does not block factual retrieval. Historical evidence NEVER confirms '
+                'Historical evidence NEVER confirms '
                 'current programs or vacancies. Institution counts must not be summed across branches. '
                 'When status=clarification_required ask which name/address and retry with a returned feature_id; '
                 'not_found means check city/name; no_evidence means say the requested fact is unconfirmed. '

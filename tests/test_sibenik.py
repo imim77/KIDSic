@@ -140,7 +140,7 @@ class SibenikImportTests(unittest.IsolatedAsyncioTestCase):
         await self.importer.apply(DATA)
         self.assertEqual(first, await self.c.fetch('SELECT id,kindergarten_id FROM location ORDER BY id'))
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM kindergarten'), 3)
-        self.assertEqual(await self.c.fetchval("SELECT seat_settlement FROM kindergarten WHERE name LIKE '%Hozana%'"), 'Zagreb')
+        self.assertEqual(await self.c.fetchval("SELECT ks.settlement FROM kindergarten k JOIN kindergarten_seat ks ON ks.kindergarten_id=k.id WHERE k.name LIKE '%Hozana%'"), 'Zagreb')
         rows = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Šibenik'))
         self.assertEqual(len(rows), 3)
         for row in rows:

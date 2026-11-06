@@ -46,7 +46,8 @@ class SibenikLocationImporter:
         db = self._connection
         batch = await Batch.start(db, data['retrieved_at'])
         parents = await db.fetch('''
-            SELECT k.id,k.name,k.seat_settlement_key FROM kindergarten k
+            SELECT k.id,k.name,ks.settlement_key AS seat_settlement_key FROM kindergarten k
+            LEFT JOIN kindergarten_seat ks ON ks.kindergarten_id=k.id
             WHERE EXISTS (SELECT 1 FROM source_record r JOIN data_source s ON s.id=r.source_id
               WHERE r.kindergarten_id=k.id AND r.location_id IS NULL
                 AND r.match_status='accepted' AND s.dataset_key='national'

@@ -166,7 +166,7 @@ class EnrolmentDatabaseTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_enrolment_records_never_keep_a_dropped_kindergarten_active(self):
         # A Zagreb seat makes the owner eligible through any accepted active record.
-        await self.c.execute("UPDATE kindergarten SET seat_municipality_id=(SELECT id FROM municipality WHERE key='zagreb')")
+        await self.c.execute("INSERT INTO kindergarten_seat(kindergarten_id,municipality_id) SELECT id,(SELECT id FROM municipality WHERE key='zagreb') FROM kindergarten ON CONFLICT(kindergarten_id) DO UPDATE SET municipality_id=EXCLUDED.municipality_id")
         await self.load()
         await self.c.execute("UPDATE data_source SET import_allowed=false WHERE dataset_key='directory'")
         with self.assertRaisesRegex(SourceImportError, 'No active institutions'):

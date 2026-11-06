@@ -52,7 +52,7 @@ Tok ovisnosti: naredba/API → DependencyService/factory → service → Unit of
 
 Prezentacijski sloj čine `api` i `commands`: validiraju ulaz, pozivaju servis i pretvaraju rezultat ili aplikacijsku pogrešku u HTTP/MCP/CLI odgovor. `McpServer` upravlja transportom, `LocationTools` alatom, a `MapResource` HTML resursom. Stari `KIDSic.mcp.server:create_app` ostaje podržan.
 
-Poslovni sloj čine `services/interfaces` i `services/concrete`: `SourceRegistrationPlanner` provjerava odabir izvora, `SourceRecordNormalizer` primjenjuje ubrizganu strategiju parsera i čuva pravila identiteta snimke, a `SourceService` koordinira dohvat i atomarni uvoz. Nova shema dodaje se parserom koji implementira `SourceRowParser` i registracijom u sastavljanju, bez promjene petlje normalizacije. `RequestParser` interpretira podatke kataloga koje dohvaća servis; ne poziva bazu.
+Poslovni sloj čine `services/interfaces` i `services/concrete`: `SourceRegistrationPlanner` provjerava odabir izvora, `SourceRecordNormalizer` primjenjuje ubrizganu strategiju parsera i čuva pravila identiteta snimke, a `SourceService` koordinira dohvat i atomarni uvoz. Nova shema dodaje se parserom koji implementira `SourceRowParser` i registracijom u sastavljanju, bez promjene petlje normalizacije.
 
 Podatkovni sloj čine ugovori i implementacije `dao`, vanjski adapteri `integrations` te `db/uow`. SQL ostaje u konkretnim DAO klasama, a HTTP dohvat u CKAN adapteru. UoW ugovori nemaju driver ovisnosti; `asyncpg.py` i `asyncpg_source.py` provode read-only snimku odnosno serijalizirani upis. Driver pogreške prelaze prema servisima kao `PersistenceError`, uz očuvanje uzroka i oslobađanje veze. Postojeća commit/rollback pravila nisu promijenjena.
 
@@ -114,11 +114,11 @@ uv run kidsic-sync-kindergartens --source rijeka-kindergartens --dry-run
 uv run kidsic-sync-kindergartens --source rijeka-kindergartens
 ```
 
-Registracija poziva `package_show`, traži aktivan resurs zadanog formata (JSON ili CSV) i provjerava očekivanu licencu po izvoru: `open-license` (Otvorena dozvola), odnosno `cc-by` za Rijeku. Metapodatke sprema u `data_source`; ponovljena registracija čuva `import_allowed`, aktivnu snimku i povijest. Ne uvozi sadržaj. Sync registrira izvore po potrebi i zasebno preuzima njihove JSON/CSV datoteke; ne pretpostavlja uključen DataStore. Nazivi portala, ID-jevi skupova, timeout i ograničenje veličine odgovora konfiguriraju se `CKAN_*` varijablama iz `.env.example`. Mapiranja su namijenjena ovim pet shemama. Za varaždinske dadilje i riječke objekte dodatno se provjerava točan ID CSV resursa; drugi CSV nije automatska zamjena.
+Registracija poziva `package_show`, traži aktivan resurs zadanog formata (JSON ili CSV) i provjerava očekivanu licencu po izvoru: `open-license` (Otvorena dozvola), odnosno `cc-by` za Rijeku. Metapodatke sprema u `data_source`; ponovljena registracija čuva `import_allowed` i trenutačno stanje. Ne uvozi sadržaj. Sync registrira izvore po potrebi i zasebno preuzima njihove JSON/CSV datoteke; ne pretpostavlja uključen DataStore. Nazivi portala, ID-jevi skupova, timeout i ograničenje veličine odgovora konfiguriraju se `CKAN_*` varijablama iz `.env.example`. Mapiranja su namijenjena ovim pet shemama. Za varaždinske dadilje i riječke objekte dodatno se provjerava točan ID CSV resursa; drugi CSV nije automatska zamjena.
 
-Sync provjerava sve odabrane resurse prije transakcije. Sprema izvorne retke u `source_record`, normalizirane ustanove i objekte te podrijetlo polja. MZOM-ov redak opisuje pravnu osobu: njegova adresa sprema se kao sjedište ustanove, a ne kao objekt. Objekte daju zagrebački i riječki skupovi; ustanova bez poznatog objekta u pretrazi se prikazuje sa sjedištem (`scope=seat`). Spajanje koristi prethodni identitet izvora, OIB kada postoji te normalizirane nazive, grad/mjesto i adresu; ne koristi neprovjerene približne podudarnosti. Način odluke sprema se u `source_record.match_method`. Višeznačni zapisi ostaju `candidate` za pregled. Sve odabrane snimke aktiviraju se atomarno, a neuspjeh čuva prethodnu aktivnu snimku. Stari retci ostaju u povijesti. Ponovljeni uvoz istih identiteta čuva ID-jeve ustanova i lokacija; pisci se serijaliziraju transakcijskim advisory lockom.
+Sync provjerava sve odabrane resurse prije transakcije. Sprema izvorne retke u `source_record`, normalizirane ustanove i objekte te podrijetlo polja. MZOM-ov redak opisuje pravnu osobu: njegova adresa sprema se kao sjedište ustanove, a ne kao objekt. Objekte daju zagrebački i riječki skupovi; ustanova bez poznatog objekta u pretrazi se prikazuje sa sjedištem (`location_role=seat`). Spajanje koristi prethodni identitet izvora, OIB kada postoji te normalizirane nazive, grad/mjesto i adresu; ne koristi neprovjerene približne podudarnosti. Način odluke sprema se u `source_record.match_method`. Višeznačni zapisi ostaju `candidate` za pregled. Sve odabrane snimke aktiviraju se atomarno, a neuspjeh čuva prethodnu aktivnu snimku. Nestali izvorni zapisi i izvedeni retci uklanjaju se, a povijest promjena čuva dump. Ponovljeni uvoz istih identiteta čuva ID-jeve izvornih zapisa, ustanova i lokacija; pisci se serijaliziraju transakcijskim advisory lockom.
 
-Ovi skupovi nemaju potvrđene dobne uvjete, slobodna mjesta ni upisne upute. Uvoz ih ne izmišlja i ne stvara programe ni RAG dokumente iz kontaktnih podataka. Rezultati zato imaju dobni status `unknown`. Datum preuzimanja i izmjene resursa spremaju se odvojeno; ne proglašavaju se datumom stvarnog stanja podataka.
+Ovi skupovi nemaju potvrđene dobne uvjete, slobodna mjesta ni upisne upute. Uvoz ih ne izmišlja i ne stvara programe ni RAG dokumente iz kontaktnih podataka. Datum preuzimanja i izmjene resursa spremaju se odvojeno; ne proglašavaju se datumom stvarnog stanja podataka.
 
 ### Povijesni zagrebački programi i slobodna mjesta
 
@@ -207,7 +207,7 @@ Spremaju se naziv, adresa sjedišta, mjesto i poštanski broj, vrsta `childminde
 
 Stupci su označeni kao adrese sjedišta; ne proglašavaju se fizičkim objektima za čuvanje djece. Skup nema koordinate, kvartove, dobne uvjete ni podatke o slobodnim mjestima. Uvoz ne stvara takve podatke ni RAG dokumente iz kontakata. Obrti su dostupni u imeniku i pretrazi kao `childminder`, sa sjedištem i nepoznatom dobnom prikladnošću. API lokacija podržava `provider_kind=childminder`; bez koordinata nema oznake na karti.
 
-Dodatno geokodiranje sjedišta nalazi se u `scripts/varazdin-childminders-nominatim.json` i uvozi naredbom `uv run python scripts/import_childminder_geography.py --apply`. Revizija `0003_seat_geography` dodaje `seat_longitude`, `seat_latitude` i `seat_attributes` postojećoj tablici `kindergarten`. Provjera izvora i podudaranja trenutačne adrese objedinjena je u pogledu `kindergarten_seat_geography`. Poznati kvartovi, predjeli, susjedstva i naselja koriste se za filtriranje pretrage prije RAG dohvaćanja; geografski dokumenti ostaju odvojeni od dokaza dobne prikladnosti.
+Dodatno geokodiranje sjedišta nalazi se u `scripts/varazdin-childminders-nominatim.json` i uvozi naredbom `uv run python scripts/import_childminder_geography.py --apply`. Geografija se od revizije `0013_kindergarten_seat` čuva uz sjedište u `kindergarten_seat`, s FK-om na izvorni zapis. Provjera izvora i podudaranja trenutačne adrese objedinjena je u pogledu `kindergarten_seat_geography`. Poznati kvartovi, predjeli, susjedstva i naselja koriste se za filtriranje pretrage prije RAG dohvaćanja; geografski dokumenti ne potvrđuju dobnu prikladnost.
 
 ## Lokalni pregled MCP sučelja
 
@@ -245,7 +245,7 @@ Frontend provjere iz mape `frontend/`: `npm test`, `npm run build` i `npm run li
 
 Integracijske provjere trebaju zasebnu, migriranu bazu `kidsic_test_*` i `KIDSIC_TEST_DATABASE_URL`. Bez te varijable integracijski testovi se preskaču. Detalji: [baza i RAG](database/README.md), [ERA model](database/ERA.md), [funkcionalnosti](TO-DO.md).
 
-Testovi CKAN klijenta i normalizacije rade offline. Testovi uvoza nad PostgreSQL-om provjeravaju ponovljivost, povijest, povezivanje izvora, nepoznatu dob i rollback. [Lokalna Postman simulacija](postman/README.md) dodatno provjerava stvarni HTTP promet, timeout i pogreške bez vanjskih servisa; uključuje se varijablom `KIDSIC_CKAN_SIMULATION_URL`.
+Testovi CKAN klijenta i normalizacije rade offline. Testovi uvoza nad PostgreSQL-om provjeravaju stabilne identitete, zamjenu stanja, povijesne objave, obuhvat dokumenata, povezivanje izvora i rollback. [Lokalna Postman simulacija](postman/README.md) dodatno provjerava stvarni HTTP promet, timeout i pogreške bez vanjskih servisa; uključuje se varijablom `KIDSIC_CKAN_SIMULATION_URL`.
 
 Lokalno istraživanje u `docs/`, dokumentacija baze u `database/`, `scripts/export_database_model.py` i lokalne JSON snimke u `scripts/` ne ulaze u Git. Razvojni rezultati, `.env`, `.venv` i `node_modules` također su ignorirani. Commits slijede Conventional Commits (`chore`, `feat`, `test`, `docs` s odgovarajućim scopeom).
 
@@ -275,6 +275,9 @@ Migracija 0011 uklanja dotadašnje upisne kopije; odmah zatim pokrenuti
 prema gradu i vrstama pružatelja, uključujući kasnije dodane ustanove; imenovani
 odlomci i odbijanja ostaju ograničeni na navedene ustanove. Downgrade vraća
 shemu, a izbrisani sadržaj vraća se iz dumpa ili ponovnim uvozom.
+
+Migracija 0013 izdvaja sjedišta u `kindergarten_seat`; županija dolazi iz
+`municipality`, a geografija se koristi samo uz istu adresu i aktivan dokaz.
 
 Migracija 0012 uklanja aktualne programe i pripadajuće filtre. `prikazi_vrtice`
 i HTTP više ne prihvaćaju `age_months`, `program` ni `include_unknown`;

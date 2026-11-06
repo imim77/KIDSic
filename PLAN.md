@@ -540,3 +540,22 @@ Korak 2c i objedinjavanje historical_record ostaju odgođeni kako plan navodi.
   Sjedište je zbog zasebne migracije ove cjeline pomaknuto na 0013.
   Provjeren downgrade/upgrade, 181 poslužiteljski test i 97 frontend testova,
   TypeScript/Vite za web i MCP te ESLint.
+
+- Cjelina 5: migracija 0013_kindergarten_seat, svi čitatelji/pisci i pregledani
+  geografski uvozi koriste novu tablicu. Provjera županije odbija razlike;
+  FK geografski dokaz ne zamjenjuje provjeru adrese i vlasnika. Svih 310
+  sjedišta ima identična prenesena polja i geografske reference.
+  Provjeren upgrade/downgrade/upgrade i na kopiji popunjene baze.
+  Svih pet skripti pregledane geografije prolazi dry-run nad lokalnim podacima.
+  Backup prije migracije: /tmp/kidsic_before_0013.dump u Docker spremniku database.
+
+Završna provjera: novi odvojeni Docker spremnik iz iste slike instalira sve
+revizije od 0001 do 0013 na praznoj bazi (bez diranja postojećeg volumena).
+184 poslužiteljska testa prolaze, uz 3 preskočene vanjske simulacije;
+97 frontend testova, oba produkcijska builda i ESLint prolaze.
+RAG za DV Duga, uključujući citate, datume, scope i applies_to, identičan je
+početnom odgovoru; kartice se razlikuju samo po uklonjenim programskim poljima.
+Ponovni uvoz upisnih seedova nakon 0013 zadržava završne brojeve:
+771 source_record, 106 knowledge_chunk, 2 enrolment i 423 historical_record.
+Početni dump kopiran je i na host: /private/tmp/kidsic_before_reconstruction_20261106.dump.
+Korak 2c i cjelina 6 ostaju odgođeni; nema preostalih odluka za cjeline 1–5.

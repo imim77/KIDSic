@@ -76,8 +76,8 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         before=self.pool.get_size()-self.pool.get_idle_size()
         with self.assertRaisesRegex(RuntimeError,'synthetic failure'):
             async with AsyncpgUnitOfWork(self.pool) as uow:
-                await uow.search.list_cities()
+                await uow.search.retrieve_context(location_ids=[])
                 raise RuntimeError('synthetic failure')
         self.assertEqual(self.pool.get_size()-self.pool.get_idle_size(),before)
         async with AsyncpgUnitOfWork(self.pool) as uow:
-            self.assertIsInstance(await uow.search.list_cities(),list)
+            self.assertIsInstance(await uow.search.retrieve_context(location_ids=[]),list)

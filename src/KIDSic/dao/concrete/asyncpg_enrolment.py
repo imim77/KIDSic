@@ -42,8 +42,9 @@ class AsyncpgEnrolmentDocumentRepository(EnrolmentDocumentRepository):
                 AND s.metadata->>'kind' IS DISTINCT FROM $3
             )
             SELECT k.id,k.name FROM kindergarten k
+            LEFT JOIN kindergarten_seat ks ON ks.kindergarten_id=k.id
             WHERE k.provider_kind=ANY($2::text[]) AND EXISTS(SELECT 1 FROM active a WHERE a.kindergarten_id=k.id)
-              AND (EXISTS(SELECT 1 FROM municipality m WHERE m.id=k.seat_municipality_id AND m.key=$1)
+              AND (EXISTS(SELECT 1 FROM municipality m WHERE m.id=ks.municipality_id AND m.key=$1)
                 OR EXISTS(SELECT 1 FROM location l JOIN municipality m ON m.id=l.municipality_id
                   JOIN active a ON a.location_id=l.id WHERE l.kindergarten_id=k.id AND m.key=$1))
         ''', document.municipality, list(document.provider_kinds), KIND)

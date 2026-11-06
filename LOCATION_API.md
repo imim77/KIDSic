@@ -58,13 +58,13 @@ The dedicated `kidsic-sync-historical` command and migration `0007` populate thi
 field from the pinned 2019/2025 Zagreb resources; other cities return an empty list.
 
 `properties.field_sources` separately attributes stored fields to their accepted,
-still import-approved evidence, including historical records. It defaults to `{}`
+still import-approved dated evidence. It defaults to `{}`
 and may contain `name`, `provider_kind`, `location_name`, `address`, `district`,
 `quarter`, `suburb`, `neighbourhood`, `settlement`, `longitude` and `latitude`. Each entry contains the same source metadata as above
-plus `active_snapshot: true|false`. False means the last-known value came from an
-older snapshot; its original fetch/reference dates are preserved. Active location
-attestation in `sources` does not assert every attribute was supplied by that
-snapshot. Missing field provenance remains absent, rather than assigning it to a
+plus the compatibility flag `active_snapshot`, which is true for current-state
+imports. Each source retains one current set of records; missing values supplied
+by that source become unknown while evidence from other sources is preserved.
+Missing field provenance remains absent, rather than assigning it to a
 current source. Provenance must resolve to an accepted record of the same owner;
 facility-specific fields additionally require the same location. If recorded
 coordinate provenance is rejected, disabled, missing or points to another

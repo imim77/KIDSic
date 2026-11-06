@@ -74,8 +74,9 @@ class AsyncpgSourceRepository(SourceRepository):
         ''', source_id)}
         owners = {r['id']: {**dict(r), 'name_key': name_key(r['name']), 'areas': set()}
                   for r in await self._connection.fetch('''
-            SELECT k.id,k.name,k.provider_kind,k.oib,k.seat_settlement_key,m.key AS municipality
-            FROM kindergarten k LEFT JOIN municipality m ON m.id=k.seat_municipality_id
+            SELECT k.id,k.name,k.provider_kind,k.oib,ks.settlement_key AS seat_settlement_key,m.key AS municipality
+            FROM kindergarten k LEFT JOIN kindergarten_seat ks ON ks.kindergarten_id=k.id
+            LEFT JOIN municipality m ON m.id=ks.municipality_id
         ''')}
         for item in owners.values():
             if item['seat_settlement_key']:
@@ -151,32 +152,39 @@ class AsyncpgSourceRepository(SourceRepository):
                         **evidence, 'source_url': row.provider_kind_source_url}
             existing = await self._connection.fetchrow('SELECT * FROM kindergarten WHERE id=$1', owner)
             proof = existing['provenance'].get('provider_kind', {})
+            # A stable ID cannot preserve a classification after its source
+            # stops attesting it; only another active source can do that.
             if (row.provider_kind == 'unknown' and existing['provider_kind'] != 'unknown'
-                    and proof.get('dataset_key') == source.definition.key):
+                    and not await self._active_proof(proof, owner, source_id)):
                 raise SourceImportError(f'Review provider_kind before replacing evidence: {existing["name"]}.')
             values = {key: getattr(row, key) for key in ('email', 'phone', 'website_url', 'oib')}
             if row.provider_kind != 'unknown':
                 values['provider_kind'] = row.provider_kind
-            if existing['provenance'].get('name', {}).get('dataset_key') == source.definition.key:
+            name_proof = existing['provenance'].get('name', {})
+            replace_name = not await self._active_proof(name_proof, owner, source_id)
+            if replace_name:
                 values['name'] = row.name
                 owner_provenance['name'] = evidence
-            await self._write_fields('kindergarten', owner, values, owner_provenance, source.definition.key)
+            await self._write_fields('kindergarten', owner, values, owner_provenance,
+                                     source.definition.key, replace_fields=('name',) if replace_name else ())
             owner_values = await self._connection.fetchrow(
                 'SELECT name,provider_kind,oib FROM kindergarten WHERE id=$1', owner)
             owners[owner].update(owner_values, name_key=name_key(owner_values['name']))
             municipality_id = await self._municipality_id(row.municipality)
             data = asdict(row)
             if institution:
-                seat_values = {f'seat_{key}': data[key] for key in
-                               ('address', 'postal_code', 'settlement', 'county')}
-                seat_values.update(seat_settlement_key=settlement_key, seat_municipality_id=municipality_id)
-                await self._write_fields('kindergarten', owner, seat_values,
-                    {key: evidence for key, value in seat_values.items() if value is not None}, source.definition.key)
+                await self._connection.execute('''INSERT INTO kindergarten_seat(kindergarten_id)
+                    VALUES ($1) ON CONFLICT(kindergarten_id) DO NOTHING''', owner)
+                seat_values = {key: data[key] for key in ('address', 'postal_code', 'settlement')}
+                seat_values.update(settlement_key=settlement_key, municipality_id=municipality_id)
+                await self._write_fields('kindergarten_seat', owner, seat_values,
+                    {f'seat_{key}': evidence for key, value in seat_values.items() if value is not None},
+                    source.definition.key)
                 owners[owner]['areas'].add(area)
                 claimed.add(owner)
             else:
                 location_provenance = {key: evidence for key in ('location_name', 'settlement',
-                    'address', 'postal_code', 'county', 'district', 'longitude', 'latitude')
+                    'address', 'postal_code', 'district', 'longitude', 'latitude')
                     if data[key] is not None}
                 if row.kind != 'unknown':
                     location_provenance['kind'] = evidence
@@ -197,7 +205,7 @@ class AsyncpgSourceRepository(SourceRepository):
                       AND raw_data->>'reviewed_address' IS DISTINCT FROM $2
                 ''', location, row.address)
                 location_values = {key: data[key] for key in
-                                   ('settlement', 'address', 'postal_code', 'county', 'district', 'longitude', 'latitude')}
+                                   ('settlement', 'address', 'postal_code', 'district', 'longitude', 'latitude')}
                 location_values.update(name=row.location_name, settlement_key=settlement_key,
                                        municipality_id=municipality_id, kind=row.kind)
                 await self._write_fields('location', location, location_values,
@@ -235,17 +243,30 @@ class AsyncpgSourceRepository(SourceRepository):
             location=location, status='accepted' if owner else 'candidate', method=method,
             note=note, record_id=record_id)
 
-    async def _write_fields(self, table, identity, values, evidence, dataset):
-        stored = await self._connection.fetchrow(f'SELECT * FROM {table} WHERE id=$1', identity)
+    async def _active_proof(self, proof, owner, excluding_source):
+        return await self._connection.fetchval('''SELECT EXISTS (
+            SELECT 1 FROM source_record r JOIN data_source s ON s.id=r.source_id
+            WHERE r.id::text=$1 AND r.kindergarten_id=$2 AND r.source_id<>$3
+              AND r.match_status='accepted' AND s.import_allowed AND s.active_batch_id=r.batch_id)
+        ''', proof.get('source_record_id'), owner, excluding_source)
+
+    async def _write_fields(self, table, identity, values, evidence, dataset, *, replace_fields=()):
+        seat = table == 'kindergarten_seat'
+        identity_column = 'kindergarten_id' if seat else 'id'
+        stored = await self._connection.fetchrow(
+            'SELECT ks.*,k.provenance FROM kindergarten_seat ks JOIN kindergarten k ON k.id=ks.kindergarten_id WHERE k.id=$1'
+            if seat else f'SELECT * FROM {table} WHERE id=$1', identity)
         provenance = dict(stored['provenance'])
         updates = {}
         for field, value in values.items():
-            proof_key = 'location_name' if table == 'location' and field == 'name' else field
+            proof_key = (f'seat_{field}' if seat else
+                         'location_name' if table == 'location' and field == 'name' else field)
             old = provenance.get(proof_key, {})
             owned = old.get('dataset_key') == dataset or await self._connection.fetchval(
                 'SELECT EXISTS(SELECT 1 FROM source_record r JOIN data_source s ON s.id=r.source_id '
                 'WHERE r.id::text=$1 AND s.dataset_key=$2)', old.get('source_record_id'), dataset)
-            if old and not owned and not (field == 'provider_kind' and stored[field] == 'unknown'):
+            if (old and not owned and field not in replace_fields
+                    and not (field == 'provider_kind' and stored[field] == 'unknown')):
                 continue
             if value is not None:
                 updates[field] = value
@@ -254,6 +275,11 @@ class AsyncpgSourceRepository(SourceRepository):
             elif owned:
                 updates[field] = None
                 provenance.pop(proof_key, None)
-        updates['provenance'] = provenance
+        if seat:
+            await self._connection.execute('UPDATE kindergarten SET provenance=$2 WHERE id=$1', identity, provenance)
+        else:
+            updates['provenance'] = provenance
+        if not updates:
+            return
         columns = ','.join(f'{field}=${index}' for index, field in enumerate(updates, 2))
-        await self._connection.execute(f'UPDATE {table} SET {columns} WHERE id=$1', identity, *updates.values())
+        await self._connection.execute(f'UPDATE {table} SET {columns} WHERE {identity_column}=$1', identity, *updates.values())

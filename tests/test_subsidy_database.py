@@ -81,8 +81,9 @@ class SubsidyDatabaseTests(unittest.IsolatedAsyncioTestCase):
             VALUES ('subsidy-test','Test','Test','https://example.invalid',true,$1) RETURNING id""", batch)
         for kind in ('private', 'unknown'):
             owner = await self.c.fetchval("""INSERT INTO kindergarten
-                (name,provider_kind,seat_municipality_id) VALUES ('Test',$1,$2) RETURNING id""",
-                kind, cities['zagreb'])
+                (name,provider_kind) VALUES ('Test',$1) RETURNING id""",
+                kind)
+            await self.c.execute('INSERT INTO kindergarten_seat(kindergarten_id,municipality_id) VALUES ($1,$2)', owner,cities['zagreb'])
             location = await self.c.fetchval("""INSERT INTO location
                 (kindergarten_id,name,settlement,settlement_key,municipality_id)
                 VALUES ($1,'Rijeka branch','Rijeka','rijeka',$2) RETURNING id""", owner, cities['rijeka'])

@@ -1,8 +1,5 @@
 """Infrastructure and service wiring checks independent of external sources."""
-from contextlib import asynccontextmanager
-from types import SimpleNamespace
 import unittest
-from unittest.mock import AsyncMock
 
 from KIDSic.config.settings import Settings
 

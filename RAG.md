@@ -80,8 +80,8 @@ repozitorija lokacija. Tek zatim nastaje ograničeni korpus za odabranu ustanovu
   iste ustanove/objekta. Kontakt jedne podružnice nije dokaz za drugu. Bez datuma
   stvarnog stanja kontakt ostaje `undated`; datum preuzimanja nije datum provjere.
 - Postojeći `knowledge_chunk` odlomci prolaze provjeru aktivnog izvora i istog
-  vlasnika/objekta. Programski odlomci ograničeni su na aktualne primjenjive
-  programe, a rezultat samo sjedišta ne nasljeđuje odlomke fizičkih objekata.
+  vlasnika/objekta ili zajedničkog document_scope pravila. Rezultat samo
+  sjedišta ne nasljeđuje odlomke fizičkih objekata.
 - Upisni dokumenti dolaze iz pregledane snimke (`kidsic-sync-enrolment`, opis u
   [seeds/README.md](src/KIDSic/db/seeds/README.md#upisni-dokumenti)). Za gradske
   vrtiće Zagreba to su gradske obavijesti o upisu i predškoli 2026./2027.
@@ -135,3 +135,8 @@ citate i opseg nad sintetičkim izvorima. Zasebne provjere pokrivaju višeznačn
 objekte drugih ustanova, revokaciju izvora, deduplikaciju, nepoznate vrijednosti,
 ograničenje odgovora i MCP komunikaciju. To su regresijske provjere dohvaćenog
 konteksta; ne ocjenjuju koliko točno model klijenta bira teme iz pitanja.
+
+Nakon rekonstrukcije 6. 11. 2026. cijela lokalna baza ima 106 odlomaka
+(23 iz upisnih dokumenata) i 2 upisna kruga. Tekst općeg dokumenta postoji
+jednom; document_applicability primjenjuje pravilo grada i vrste pružatelja
+i na kasnije dodane ustanove. Imenovane iznimke ostaju po ustanovi i godini.

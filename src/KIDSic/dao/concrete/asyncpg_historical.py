@@ -42,7 +42,8 @@ class AsyncpgHistoricalRepository(HistoricalRepository):
           FROM kindergarten k LEFT JOIN location l ON l.kindergarten_id=k.id
             AND EXISTS(SELECT 1 FROM active a WHERE a.location_id=l.id AND a.kindergarten_id=k.id)
           LEFT JOIN municipality lm ON lm.id=l.municipality_id
-          LEFT JOIN municipality km ON km.id=k.seat_municipality_id
+          LEFT JOIN kindergarten_seat ks ON ks.kindergarten_id=k.id
+          LEFT JOIN municipality km ON km.id=ks.municipality_id
           WHERE EXISTS(SELECT 1 FROM active a WHERE a.kindergarten_id=k.id)
             AND (lm.key='zagreb' OR (l.id IS NULL AND km.key='zagreb'))
         ''')

@@ -73,19 +73,21 @@ Dokument je `current` dok traje to razdoblje, ali rokovi unutar njega mogu
 biti istekli. Za PDF-ove je zabilježen `sha256` preuzete datoteke.
 
 Uvoz (`kidsic-sync-enrolment`) za svaki izvor upisuje `data_source`, novu aktivnu
-seriju i po jedan `accepted` `source_record` za ustanovu i opseg, a odlomke u
+seriju te stabilan `accepted` `source_record` za pojedini obuhvat, a odlomke u
 `knowledge_chunk` bez `location_id`. Odlomak bez `institutions` vrijedi za sve
-aktivne ustanove navedenih vrsta u gradu (opseg `municipality`). Imenovane
+aktivne ustanove navedenih vrsta u gradu prema `document_scope` pravilu
+(opseg `municipality`), uključujući kasnije dodane ustanove. Tekst se ne kopira
+po ustanovi. Imenovane
 ustanove moraju se jednoznačno podudarati prema normaliziranom nazivu, inače
 se prekida cijeli uvoz. Upisni zapisi ne dokazuju da je ustanova aktivna;
 to određuju samo zapisi imenika. Opozvani izvor (`import_allowed=false`) ostaje
 opozvan i pri ponovnom uvozu.
 
 Uz odlomke, dokument može imati `calls`: strukturirane krugove upisa koji se
-upisuju u tablicu `enrolment` za svaku ustanovu iz opsega. Obavijest daje glavni
+upisuju jednom u tablicu `enrolment`, s obuhvatom izvornog dokumenta. Obavijest daje glavni
 rok 13. 5. 2026. 9:00 – 22. 5. 2026. 16:00 na eupisi.zgvrtici.hr, a DV Remetinec
 i DV Ivane Brlić Mažuranić bilježi kao ustanove koje 2026./2027. ne provode
-upise (`accepting=false`). Stranica daje upis tijekom godine do 31. 8. 2027.
+upise (`enrolment_refusal`; API iz toga izvodi `accepting=false`). Stranica daje upis tijekom godine do 31. 8. 2027.
 (kraj pedagoške godine) bez objavljenog početka. Koraci i dokumenti ostaju samo
 u odlomcima, da se isti tekst ne održava dvaput.
 

@@ -1,8 +1,8 @@
 """reviewed_snapshot holds the steps every reviewed-snapshot import repeats.
 
 Each import reads one local, manually reviewed file (never the network) and
-writes a new batch of its sources inside a single transaction, so a failed
-import leaves the previous batch visible.
+replaces the current records of its sources inside a single transaction, so a
+failed import leaves the previous state visible.
 """
 import argparse
 import asyncio
@@ -69,7 +69,7 @@ class Batch:
         return cls(connection, fetched_at)
 
     async def source(self, key, title, publisher, url, license, metadata):
-        """source activates this batch for a data source; a revoked source stops the import."""
+        """source registers a data source; finish activates it after all records are written."""
         stored = await self._connection.fetchrow('''
             INSERT INTO data_source(dataset_key,title,publisher,url,license,import_allowed,
                                     active_batch_id,fetched_at,metadata)

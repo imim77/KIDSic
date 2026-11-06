@@ -12,7 +12,6 @@ from urllib.parse import urlparse
 
 from KIDSic.dao.concrete.asyncpg_source import AsyncpgSourceRepository
 from KIDSic.dao.concrete.asyncpg_location import AsyncpgLocationRepository
-from KIDSic.dao.concrete.asyncpg_kindergarten import AsyncpgKindergartenRepository
 from KIDSic.db.database import database_pool
 from KIDSic.dto.location import LocationQuery
 from KIDSic.dto.source import SourceSnapshot
@@ -94,9 +93,8 @@ class RijekaGeographyDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(mapped), 1)
         self.assertEqual(mapped[0]['longitude'], 14.4)
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM knowledge_chunk'), 1)
-        self.assertEqual({r['name'] for r in
-            await AsyncpgKindergartenRepository(self.c).list_areas(city='Rijeka')},
-            {'Reviewed correction', 'Test area'})
+        self.assertEqual({area for row in api for area in row['areas']},
+                         {'Reviewed correction', 'Test area'})
 
     async def test_address_change_demotes_old_geography_and_requires_new_review(self):
         await self.importer.apply(self.data)
@@ -104,7 +102,7 @@ class RijekaGeographyDatabaseTests(unittest.IsolatedAsyncioTestCase):
         await self.repo.import_snapshot(self.snapshot())
         api = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Rijeka'))
         self.assertTrue(all(row['longitude'] is None for row in api))
-        self.assertEqual(await AsyncpgKindergartenRepository(self.c).list_areas(city='Rijeka'), [])
+        self.assertTrue(all(not row['areas'] for row in api))
         self.assertEqual(await self.c.fetchval("SELECT match_status FROM source_record WHERE raw_data ? 'reviewed_address'"),
                          'candidate')
         before = await self.c.fetchval("SELECT active_batch_id FROM data_source WHERE dataset_key='rijeka-reviewed-geography'")
