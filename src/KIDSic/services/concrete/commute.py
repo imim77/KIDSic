@@ -24,7 +24,7 @@ class CommuteService:
             else:
                 points[role] = DayPoint(**candidates[0]['point'])
                 resolved[role] = candidates[0]
-        facility_ids, names = await self._kindergartens(query.kindergartens)
+        facility_ids, names = await self._kindergartens(query.kindergartens, query.city)
         if names:
             unresolved['kindergartens'] = names
         if unresolved:
@@ -32,17 +32,19 @@ class CommuteService:
                     'notice': 'Potvrdi točnu adresu i grad ili odaberi ponuđenu lokaciju. '
                               'Ako nema podudaranja, navedi koordinate; nemoj ih nagađati. '
                               'Za višeznačan vrtić neka korisnik odabere jedan od ponuđenih objekata.'}
-        request = DayJourneyRequest(home=points['home'], work=points['work'],
+        request = DayJourneyRequest(city=query.city, home=points['home'], work=points['work'],
             departure=query.departure, mode=query.mode, dropoff_minutes=query.dropoff_minutes, top_k=query.top_k)
         result = await self._routes.recommend(request, facility_ids)
         scope = '' if facility_ids is None else 'Uspoređeni su samo vrtići koje je korisnik naveo. '
+        if query.city == 'Šibenik':
+            scope += 'Usporedba ne obuhvaća sve šibenske objekte vrtića. '
         result.update(status='ok' if result['results'] else 'no_route', resolved_addresses=resolved,
                       notice=scope + 'Najbolje prema dolasku na posao; nije potvrda radnog vremena, '
                              'dobne prikladnosti ni slobodnog mjesta. '
                              f'Za predaju djeteta uračunato je {query.dropoff_minutes} minuta.')
         return result
 
-    async def _kindergartens(self, names: list[str] | None):
+    async def _kindergartens(self, names: list[str] | None, city: str):
         """_kindergartens maps each named kindergarten to one facility. A name
         that matches several facilities, or none, is returned for the user to
         settle rather than guessed, as with addresses."""
@@ -50,7 +52,7 @@ class CommuteService:
             return None, []
         facility_ids, unresolved = [], []
         for name in names:
-            matches = await self._routes.find(name)
+            matches = await self._routes.find(name, city)
             if len(matches) == 1:
                 facility_ids.append(str(matches[0].id))
             else:

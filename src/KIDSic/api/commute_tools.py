@@ -9,32 +9,34 @@ from pydantic import ValidationError
 
 from KIDSic.api.apps.map_resource import UI_URI
 from KIDSic.dto.commute import CommuteQuery
-from KIDSic.dto.day_route import SERVICE_START, SERVICE_END
+from KIDSic.config.routing import ROUTING_CITIES
 from KIDSic.services.concrete.commute import CommuteService
 
 logger = logging.getLogger(__name__)
 
 COMMUTE_URI = UI_URI
 COMMUTE_META = {'ui': {'resourceUri': COMMUTE_URI}, 'openai/outputTemplate': COMMUTE_URI,
-    'openai/toolInvocation/invoking': 'Uspoređujem putove kroz riječke vrtiće…',
+    'openai/toolInvocation/invoking': 'Uspoređujem putove kroz vrtiće…',
     'openai/toolInvocation/invoked': 'Najbolje opcije puta su spremne.'}
 
 
 class CommuteTools:
     name = 'preporuci_vrtice_usput'
 
-    def __init__(self, service: Callable[[], CommuteService]):
+    def __init__(self, service: Callable[[str], CommuteService]):
         self._service = service
 
     async def list_tools(self):
         schema = CommuteQuery.model_json_schema()
+        timetables = '; '.join(f'{c.name}: {c.service_start}–{c.service_end}'
+                               for c in ROUTING_CITIES.values())
         for key, description in {
-            'city': 'Izričito naveden ili u razgovoru potvrđen grad: samo Rijeka.',
-            'home': 'Adresa doma (ulica i broj, Rijeka) ili {lat,lon} koje je dao korisnik, '
+            'city': 'Izričito naveden ili u razgovoru potvrđen grad: Rijeka, Zagreb ili Šibenik.',
+            'home': 'Adresa doma (ulica i broj u odabranom gradu) ili {lat,lon} koje je dao korisnik, '
                     'odabrao na karti ili potvrdio iz candidates ovog alata. Ne nagađati koordinate.',
             'work': 'Adresa posla ili {lat,lon}, pod istim pravilima kao home.',
             'departure': f'Izričit datum i vrijeme POLASKA OD DOMA, ISO 8601. '
-                         f'Bez offseta znači Europe/Zagreb. Učitani vozni red: {SERVICE_START} do {SERVICE_END}. '
+                         f'Bez offseta znači Europe/Zagreb. Učitani vozni red: {timetables}. '
                          'Ako korisnik navede samo 07:00, pitaj datum. Nije rok dolaska na posao.',
             'mode': 'TRANSIT za javni prijevoz s hodanjem; WALK za pješice. Pitaj ako nije navedeno.',
             'top_k': 'Ukupan broj najbolje rangiranih vrtića za kartu, pozitivan cijeli broj; zadano 4. '
@@ -50,7 +52,7 @@ class CommuteTools:
             description='Use when a parent asks which kindergartens fit a home → kindergarten → work commute, '
                 'rather than a general city list or straight-line radius. ChatGPT extracts the explicit '
                 'addresses, city, departure DATE and TIME, and WALK/TRANSIT mode; ask for missing details. '
-                'Searches a local OSM address index, then compares EVERY mapped eligible Rijeka facility '
+                'Searches a local OSM address index, then compares EVERY mapped eligible facility in the selected city (Rijeka, Zagreb or Šibenik) '
                 'using local OTP, or only the kindergartens the user listed when kindergartens is given '
                 '(scope=selected). Returns the top_k earliest arrivals (default 4), search/coverage '
                 'counts and the same map/cards resource as prikazi_vrtice, with the selected route drawn. Best means earliest work arrival among returned '
@@ -92,12 +94,14 @@ class CommuteTools:
         try:
             query = CommuteQuery.model_validate(arguments)
         except ValidationError:
-            return self.error('invalid_commute', 'Navedi city=Rijeka, home i work (adrese ili potvrđene '
-                f'koordinate), departure s datumom {SERVICE_START}–{SERVICE_END} i vremenom, te mode=TRANSIT '
+            return self.error('invalid_commute', 'Navedi city=Rijeka, Zagreb ili Šibenik, home i work (adrese ili potvrđene '
+                'koordinate unutar odabranog grada), departure s datumom i vremenom unutar voznog reda: '
+                + '; '.join(f'{c.name} {c.service_start}–{c.service_end}' for c in ROUTING_CITIES.values())
+                + ', te mode=TRANSIT '
                 'ili WALK i top_k>=1 (ukupan broj, zadano 4). kindergartens je izborni popis 1–20 naziva vrtića. Pitaj za nedostajuće podatke; nemoj nagađati. dropoff_minutes je 0–60, zadano 10.')
         try:
             async with asyncio.timeout(90):
-                result = await self._service().recommend(query)
+                result = await self._service(query.city).recommend(query)
         except Exception as error:
             # Address text and home coordinates must not leak through diagnostics.
             logger.error('Commute recommendation failed: %s', self.failure_cause(error))

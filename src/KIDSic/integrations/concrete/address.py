@@ -8,21 +8,25 @@ import unicodedata
 from KIDSic.integrations.interfaces.address import AddressLookup
 
 
-def normalized_address(text):
+def normalized_address(text, city='Rijeka'):
     text = unicodedata.normalize('NFKD', text.casefold().replace('đ', 'd'))
     text = ''.join(c for c in text if not unicodedata.combining(c))
     words = re.sub(r'[^a-z0-9]+', ' ', text).split()
-    return ' '.join(w for w in words if w not in {'rijeka', 'ulica', 'ul', '51000'})
+    city_words = {'Rijeka': {'rijeka', '51000'}, 'Zagreb': {'zagreb', '10000'},
+                  'Šibenik': {'sibenik', '22000'}}
+    ignored = {'ulica', 'ul'} | city_words[city]
+    return ' '.join(w for w in words if w not in ignored)
 
 
 class LocalAddressLookup(AddressLookup):
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, city: str = 'Rijeka'):
+        self._city = city
         self._path = path
 
     def find(self, query: str):
         if not self._path.is_file():
             raise OSError('Local OSM address index is missing.')
-        key = normalized_address(query)
+        key = normalized_address(query, self._city)
         if not key:
             return []
         with closing(sqlite3.connect(self._path.as_uri() + '?mode=ro', uri=True)) as db:

@@ -7,7 +7,7 @@ from KIDSic.dto.day_route import DayJourneyRequest, DayPoint
 
 
 class CommuteQuery(DayJourneyRequest):
-    city: Literal['Rijeka']
+    city: Literal['Rijeka', 'Zagreb', 'Šibenik']
     home: DayPoint | str
     work: DayPoint | str
     mode: Literal['WALK', 'TRANSIT']  # Ask instead of silently choosing transport.

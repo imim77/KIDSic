@@ -17,6 +17,7 @@ from KIDSic.api.location_tools import LocationTools
 from KIDSic.api.rag_tools import RagTools
 from KIDSic.api.tool_registry import ToolRegistry
 from KIDSic.config.settings import Settings
+from KIDSic.config.routing import ROUTING_CITIES
 from KIDSic.services.dependency import DependencyService
 from KIDSic.services.interfaces.location import LocationServiceInterface
 from KIDSic.services.interfaces.rag import RagServiceInterface
@@ -78,17 +79,20 @@ class McpServer:
     @asynccontextmanager
     async def _commute_lifetime(self):
         async with httpx.AsyncClient(timeout=20, trust_env=False) as http:
-            self._commute = self._provided_commute or CommuteService(
-                DayRouteService(self._locations, OtpJourneyPlanner(http,
-                    os.getenv('OTP_URL', 'http://127.0.0.1:18080/otp/gtfs/v1'))),
-                LocalAddressLookup(Path(os.getenv('KIDSIC_ADDRESS_INDEX',
-                                                 'routing/data/addresses.sqlite')).resolve()))
+            self._commute = {}
+            for city in ROUTING_CITIES.values():
+                suffix = '' if city.key == 'rijeka' else '_' + city.key.upper()
+                self._commute[city.name] = self._provided_commute or CommuteService(
+                    DayRouteService(self._locations, OtpJourneyPlanner(http,
+                        os.getenv('OTP_URL' + suffix, f'http://127.0.0.1:{city.port}/otp/gtfs/v1'))),
+                    LocalAddressLookup(Path(os.getenv('KIDSIC_ADDRESS_INDEX' + suffix,
+                        str(city.directory / 'addresses.sqlite'))).resolve(), city.name))
             yield
 
-    def _commute_service(self):
+    def _commute_service(self, city: str):
         if self._commute is None:
             raise RuntimeError('Commute service is not open.')
-        return self._commute
+        return self._commute[city]
 
     def _rag_service(self) -> RagServiceInterface:
         if self._rag is None:

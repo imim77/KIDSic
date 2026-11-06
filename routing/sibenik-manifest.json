@@ -1,0 +1,49 @@
+{
+  "gtfs_sha256": "6fd33879adc8a57e66fab75dbdcebc9136b383be0e7a7274e0accb4561530128",
+  "gtfs_url": "https://www.gradski-parking.hr/upload/stranice/2022/08/2022-08-30/89/gtfs.zip",
+  "service_start": "2026-09-07",
+  "service_end": "2027-06-07",
+  "osm_source": "https://download.geofabrik.de/europe/croatia.html",
+  "osm_sha256": "53e042dab1e03985f5c7ca4a4ac49fab35fdb9302b9b1b2ce47b0cf417a44ed7",
+  "osm_license": "ODbL-1.0",
+  "gtfs_license": "Otvorena dozvola RH",
+  "gtfs_publisher": "Gradski parking d.o.o. Šibenik",
+  "city": "Šibenik",
+  "gtfs_license_verification": "https://www.gradski-parking.hr/stranice/datoteke-u-gtfs-formatu/105.html",
+  "retrieved_on": "2026-11-06",
+  "otp_version": "2.8.1",
+  "osm_bbox": [
+    15.7,
+    43.6,
+    16.05,
+    43.85
+  ],
+  "osm_snapshot": "2026-11-04T21:21:03Z",
+  "address_records": 4564,
+  "table_rows": {
+    "stops": 227,
+    "routes": 32,
+    "trips": 346,
+    "stop_times": 5319
+  },
+  "reviewed_facilities": 3,
+  "scope": "Three reviewed Šibenik OSM facilities; incomplete facility coverage and cropped street network.",
+  "geometry_note": "No shapes.txt; transit leg geometry connects stops and is not a surveyed road trace.",
+  "build_issues": {
+    "BarrierIntersectingHighway": 2,
+    "GraphConnectivity": 3,
+    "GraphIslandBICYCLE": 46,
+    "GraphIslandBICYCLENoThroughTraffic": 35,
+    "GraphIslandCAR": 100,
+    "GraphIslandCARNoThroughTraffic": 28,
+    "GraphIslandWALK": 47,
+    "GraphIslandWALKNoThroughTraffic": 18,
+    "Graphwide": 2,
+    "HopSpeedFast": 14,
+    "IsolatedStop": 33,
+    "PrunedStopIsland": 3,
+    "StopNotLinkedForTransfers": 46,
+    "TurnRestrictionBad": 20,
+    "VertexWithoutEdges": 33
+  }
+}

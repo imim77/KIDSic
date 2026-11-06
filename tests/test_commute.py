@@ -142,7 +142,7 @@ class RecommendationTests(unittest.IsolatedAsyncioTestCase):
         point={'lat':45.33,'lon':14.41}
         named={'Mala Vila':[facility('mv',name='Mala Vila')],
                'Potok':[facility('p1',name='Potok 1'),facility('p2',name='Potok 2')],'Nema':[]}
-        routes=SimpleNamespace(find=AsyncMock(side_effect=lambda name:named[name]),
+        routes=SimpleNamespace(find=AsyncMock(side_effect=lambda name,city:named[name]),
                                recommend=AsyncMock(return_value={'results':[]}))
         service=CommuteService(routes,SimpleNamespace(find=lambda q:[]))
         result=await service.recommend(CommuteQuery(**criteria(home=point,work=point,
@@ -207,7 +207,7 @@ class CommuteToolTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_invalid_missing_mode_and_failures_are_actionable(self):
         service=SimpleNamespace(recommend=AsyncMock())
-        tool=CommuteTools(lambda:service)
+        tool=CommuteTools(lambda city:service)
         for bad in ({},criteria(city='Zagreb'),criteria(departure='07:00'),
                     {k:v for k,v in criteria().items() if k!='mode'},criteria(facility_ids=['one']), criteria(top_k=0),
                     criteria(top_k=True), criteria(top_k='3'), criteria(kindergartens=[]),

@@ -1,19 +1,20 @@
-"""Download pins the approved public Rijeka GTFS; no account or key is required."""
+"""Download pins the approved public city GTFS; no account or key is required."""
+import argparse
 import hashlib
-from pathlib import Path
 
 import httpx
 
-from KIDSic.dto.day_route import GTFS_SHA256, GTFS_URL
+from KIDSic.config.routing import ROUTING_CITIES
 
 
-def download():
-    directory = Path(__file__).with_name('data')
-    directory.mkdir(exist_ok=True)
-    target = directory / 'autotrolej-gtfs.zip'
+def download(city_name='Rijeka'):
+    city = ROUTING_CITIES[city_name]
+    directory = city.directory
+    directory.mkdir(parents=True, exist_ok=True)
+    target = directory / city.gtfs_filename
     temporary = directory / 'download.part'
     try:
-        with httpx.stream('GET', GTFS_URL, timeout=60, follow_redirects=True) as response:
+        with httpx.stream('GET', city.gtfs_url, timeout=60, follow_redirects=True) as response:
             response.raise_for_status()
             size = 0
             with temporary.open('wb') as output:
@@ -24,7 +25,7 @@ def download():
                     output.write(chunk)
         with temporary.open('rb') as archive:
             digest = hashlib.file_digest(archive, 'sha256').hexdigest()
-        if digest != GTFS_SHA256:
+        if digest != city.gtfs_sha256:
             raise ValueError('The publisher changed the archive. Review the new version before updating the pinned SHA256.')
         temporary.replace(target)
         print(f'Downloaded and SHA256-verified: {target}')
@@ -33,4 +34,6 @@ def download():
 
 
 if __name__ == '__main__':
-    download()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--city', choices=ROUTING_CITIES, default='Rijeka')
+    download(parser.parse_args().city)

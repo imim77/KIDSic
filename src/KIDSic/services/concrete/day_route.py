@@ -3,8 +3,8 @@ import asyncio
 from collections.abc import Collection
 from datetime import timedelta
 
-from KIDSic.dto.day_route import (DayPoint, DayJourneyRequest,
-    GTFS_SHA256, GTFS_URL, SERVICE_START, SERVICE_END)
+from KIDSic.dto.day_route import DayPoint, DayJourneyRequest
+from KIDSic.config.routing import ROUTING_CITIES
 from KIDSic.dto.location import LocationQuery, LocationCollection
 from KIDSic.integrations.interfaces.journey import JourneyPlanner
 from KIDSic.services.interfaces.location import LocationServiceInterface
@@ -15,29 +15,30 @@ class DayRouteService:
         self._locations = locations
         self._planner = planner
 
-    async def _facilities(self, name: str = ''):
-        collection = await self._locations.list_locations(LocationQuery(city='Rijeka', q=name))
+    async def _facilities(self, name: str = '', city: str = 'Rijeka'):
+        coverage = ROUTING_CITIES[city]
+        collection = await self._locations.list_locations(LocationQuery(city=city, q=name))
         facilities = {str(f.id): f for f in collection.features
                       if f.geometry and f.properties.location_role == 'facility'
                       and f.properties.address
-                      and 14.20 <= f.geometry.coordinates[0] <= 14.65
-                      and 45.20 <= f.geometry.coordinates[1] <= 45.45}
+                      and f.properties.city == city
+                      and coverage.contains(f.geometry.coordinates[1], f.geometry.coordinates[0])}
         return collection, facilities
 
-    async def find(self, text: str):
+    async def find(self, text: str, city: str = 'Rijeka'):
         """find returns the routable facilities a user's kindergarten name
         means, using the same name search as the city map. A facility id, as
         returned with a clarification, names exactly one facility."""
-        _, facilities = await self._facilities()
+        _, facilities = await self._facilities(city=city)
         if text in facilities:
             return [facilities[text]]
-        _, matches = await self._facilities(text)
+        _, matches = await self._facilities(text, city)
         return list(matches.values())
 
     async def recommend(self, request: DayJourneyRequest, facility_ids: Collection[str] | None = None):
-        """recommend ranks every routable Rijeka facility, or only facility_ids
+        """recommend ranks every routable city facility, or only facility_ids
         when the user named the kindergartens to choose between."""
-        collection, eligible = await self._facilities()
+        collection, eligible = await self._facilities(city=request.city)
         facilities = eligible if facility_ids is None else {
             key: eligible[key] for key in facility_ids if key in eligible}
         result = await self._compare(request, list(facilities.values()))
@@ -51,7 +52,7 @@ class DayRouteService:
                       # Named kindergartens were resolved among routable ones.
                       excluded=collection.metadata.total - len(eligible) if facility_ids is None else 0,
                       scope='all' if facility_ids is None else 'selected',
-                      ranking='earliest_arrival_at_work', city='Rijeka',
+                      ranking='earliest_arrival_at_work', city=request.city,
                       home=request.home.model_dump(), work=request.work.model_dump(),
                       mode=request.mode)
         return result
@@ -94,10 +95,12 @@ class DayRouteService:
                     task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
         results.sort(key=lambda item: (item.get('elapsed_seconds', float('inf')), item['facility_id']))
+        city = ROUTING_CITIES[request.city]
         return {'results': results, 'baseline': baseline.model_dump(mode='json') if baseline else None,
                 'departure': request.departure.isoformat(), 'dropoff_minutes': request.dropoff_minutes,
-                'sources': {'router': 'OpenTripPlanner 2.8.1', 'gtfs_sha256': GTFS_SHA256,
-                            'gtfs_url': GTFS_URL, 'publisher': 'vekejsn', 'license': 'CC-BY-4.0',
-                            'service_start': str(SERVICE_START), 'service_end': str(SERVICE_END),
+                'sources': {'router': 'OpenTripPlanner 2.8.1', 'gtfs_sha256': city.gtfs_sha256,
+                            'gtfs_url': city.gtfs_url, 'publisher': city.publisher, 'license': city.license,
+                            'license_url': city.license_url, 'retrieved_on': str(city.retrieved_on),
+                            'service_start': str(city.service_start), 'service_end': str(city.service_end),
                             'timetable': 'scheduled', 'timezone': 'Europe/Zagreb',
                             'opening_hours': 'unverified'}}

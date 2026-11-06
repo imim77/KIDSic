@@ -1,26 +1,24 @@
-"""DayJourneyRequest bounds Rijeka commute inputs and interprets wall times in Zagreb."""
-from datetime import date, datetime, timezone
+"""DayJourneyRequest bounds city commute inputs and interprets wall times in Zagreb."""
+from datetime import datetime, timezone
 from typing import Literal
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from KIDSic.config.routing import ROUTING_CITIES
 
 ZAGREB = ZoneInfo('Europe/Zagreb')
-GTFS_SHA256 = 'e2d9357c5f020d6d4081ba114509d89f51a33dd224d09aae09ff6c1e4c0849bd'
-GTFS_URL = ('https://gitlab.com/api/v4/projects/vekejsn%2Fgtfs-generators/'
-            'packages/generic/rijeka-gtfs/latest/autotrolej_gtfs.zip')
-SERVICE_START = date(2026, 10, 9)
-SERVICE_END = date(2026, 11, 8)
 
 
 class DayPoint(BaseModel):
     model_config = ConfigDict(extra='forbid', allow_inf_nan=False)
-    lat: float = Field(ge=45.20, le=45.45)
-    lon: float = Field(ge=14.20, le=14.65)
+    lat: float = Field(ge=43.60, le=46.00)
+    lon: float = Field(ge=14.20, le=16.30)
 
 
 class DayJourneyRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    city: Literal['Rijeka', 'Zagreb', 'Šibenik'] = 'Rijeka'
     home: DayPoint
     work: DayPoint
     departure: datetime
@@ -38,9 +36,19 @@ class DayJourneyRequest(BaseModel):
                 raise ValueError('Use an explicit offset at a daylight-saving transition.')
             value = local
         value = value.astimezone(ZAGREB)
-        if not SERVICE_START <= value.date() <= SERVICE_END:
-            raise ValueError('Date is outside the pinned timetable range.')
         return value
+
+    @model_validator(mode='after')
+    def city_coverage(self):
+        city = ROUTING_CITIES[self.city]
+        for point in (self.home, self.work):
+            # CommuteQuery also accepts unresolved address strings.
+            if isinstance(point, DayPoint) and not city.contains(point.lat, point.lon):
+                raise ValueError(f'Coordinates are outside {city.name} routing coverage.')
+        if not city.service_start <= self.departure.date() <= city.service_end:
+            raise ValueError(f'{city.name} timetable covers {city.service_start}–{city.service_end}.')
+        return self
+
 
 class RouteLeg(BaseModel):
     mode: str

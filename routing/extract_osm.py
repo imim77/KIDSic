@@ -1,19 +1,22 @@
-"""RijekaExtract retains complete highway ways and their turn restrictions."""
+"""CityExtract retains complete highway ways and their turn restrictions."""
 import argparse
 from pathlib import Path
 
 import osmium
 
+from KIDSic.config.routing import ROUTING_CITIES
 
-class RijekaExtract(osmium.SimpleHandler):
-    def __init__(self, writer):
+
+class CityExtract(osmium.SimpleHandler):
+    def __init__(self, writer, city):
         super().__init__()
         self.writer = writer
+        self.city = city
         self.nodes = set()
         self.ways = set()
 
     def node(self, node):
-        if 14.20 <= node.location.lon <= 14.65 and 45.20 <= node.location.lat <= 45.45:
+        if self.city.contains(node.location.lat, node.location.lon):
             self.nodes.add(node.id)
 
     def way(self, way):
@@ -29,12 +32,13 @@ class RijekaExtract(osmium.SimpleHandler):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--city', choices=ROUTING_CITIES, default='Rijeka')
     parser.add_argument('source', type=Path)
     parser.add_argument('target', type=Path)
     args = parser.parse_args()
     # Back references retain nodes beyond the box when a road crosses its edge.
     with osmium.BackReferenceWriter(args.target, args.source, overwrite=True,
                                      remove_tags=False) as writer:
-        extract = RijekaExtract(writer)
+        extract = CityExtract(writer, ROUTING_CITIES[args.city])
         extract.apply_file(str(args.source))
-        print(f'Retained {len(extract.ways)} highway ways in Rijeka and surroundings.')
+        print(f'Retained {len(extract.ways)} highway ways in {args.city} and surroundings.')
