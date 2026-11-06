@@ -14,7 +14,7 @@ class LocationServiceTests(unittest.IsolatedAsyncioTestCase):
     async def test_geocoded_seat_keeps_seat_identity_and_maps_with_evidence(self):
         institution = uuid4()
         source = {'name':'Geo','url':'https://example.invalid','reference_date':None,
-                  'retrieved_at':datetime(2026,11,3,tzinfo=timezone.utc),'active_snapshot':True}
+                  'retrieved_at':datetime(2026,11,3,tzinfo=timezone.utc)}
         row = dict(kindergarten_id=institution,name='Seat',location_name='Seat',location_id=None,
                    address='Seat 1',city='Varaždin',provider_kind='childminder',district=None,
                    longitude=16.3,latitude=46.3,location_role='seat',sources=[source],
@@ -39,7 +39,7 @@ class LocationServiceTests(unittest.IsolatedAsyncioTestCase):
                    longitude=15.98, latitude=45.81, sources=[source])
         repository = SimpleNamespace(list_locations=AsyncMock(return_value=[
             dict(row, location_id=location, location_role='facility', field_sources={
-                'longitude': dict(source, active_snapshot=False),
+                'longitude': dict(source),
             }),
             dict(row, location_id=uuid4(), location_role='facility', longitude=None, latitude=None),
             dict(row, location_id=None, location_role='seat'),
@@ -63,7 +63,7 @@ class LocationServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload['features'][0]['properties']['sources'][0]['retrieved_at'],
                          '2026-11-02T00:00:00Z')
         evidence = payload['features'][0]['properties']['field_sources']['longitude']
-        self.assertFalse(evidence['active_snapshot'])
+        self.assertNotIn('active_snapshot', evidence)
         self.assertEqual(evidence['retrieved_at'], '2026-11-02T00:00:00Z')
         self.assertEqual(payload['features'][1]['properties']['field_sources'], {})
         self.assertIsNone(payload['features'][1]['geometry'])

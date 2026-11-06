@@ -68,7 +68,7 @@ RAG rezultat nema metapodatke karte i ne mijenja odabir u MCP sučelju.
 Prvo se izdvajaju samo aktivni objekti iz dopuštenih izvora putem postojećeg
 repozitorija lokacija. Tek zatim nastaje ograničeni korpus za odabranu ustanovu:
 
-- Prihvaćeni `historical_record` aktivne snimke daje programe iz XLSX-a objavljenog
+- Prihvaćeni `povijesni_zapisi` dopuštenog izvora daje programe iz XLSX-a objavljenog
   9. 10. 2019. i mjesta sa stanjem 1. 1. 2025. Oznaka `historical` ostaje uz svaki
   odlomak, čak i kada pitanje traži današnje stanje.
 - Tema `programs` čuva samo povijesno objavljene programe. Aktualni programi
@@ -79,8 +79,8 @@ repozitorija lokacija. Tek zatim nastaje ograničeni korpus za odabranu ustanovu
 - Kontakt ulazi samo s dokazom za konkretno polje i prihvaćenim aktivnim izvorom
   iste ustanove/objekta. Kontakt jedne podružnice nije dokaz za drugu. Bez datuma
   stvarnog stanja kontakt ostaje `undated`; datum preuzimanja nije datum provjere.
-- Postojeći `knowledge_chunk` odlomci prolaze provjeru aktivnog izvora i istog
-  vlasnika/objekta ili zajedničkog document_scope pravila. Rezultat samo
+- Postojeći `odlomci_znanja` odlomci prolaze provjeru aktivnog izvora i istog
+  vlasnika/objekta ili zajedničkog pravila obuhvati_dokumenata. Rezultat samo
   sjedišta ne nasljeđuje odlomke fizičkih objekata.
 - Upisni dokumenti dolaze iz pregledane snimke (`kidsic-sync-enrolment`, opis u
   [seeds/README.md](src/KIDSic/db/seeds/README.md#upisni-dokumenti)). Za gradske

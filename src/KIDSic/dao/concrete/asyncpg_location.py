@@ -11,15 +11,12 @@ class AsyncpgLocationRepository(LocationRepository):
 
     async def list_locations(self, query: LocationQuery):
         return await self._connection.fetch('''
-          WITH approved_record AS (
+          WITH active_record AS (
             SELECT r.id::text AS record_id,r.source_id,r.kindergarten_id,r.location_id,r.raw_data,r.fetched_at,
-              COALESCE(s.active_batch_id=r.batch_id,false) AS active_snapshot,
               jsonb_build_object('name',s.title,'url',s.url,'license',s.license,
                 'reference_date',r.observed_on,'retrieved_at',r.fetched_at) AS evidence
-            FROM source_record r JOIN data_source s ON s.id=r.source_id
+            FROM izvorni_zapisi r JOIN izvori_podataka s ON s.id=r.source_id
             WHERE r.match_status='accepted' AND s.import_allowed
-          ), active_record AS (
-            SELECT * FROM approved_record WHERE active_snapshot
           ), place AS (
             SELECT l.id AS location_id,l.kindergarten_id,l.name AS location_name,
               l.address,l.settlement,l.settlement_key,l.municipality_id,l.district,
@@ -30,7 +27,7 @@ class AsyncpgLocationRepository(LocationRepository):
                 'settlement',l.settlement) AS area_values,
               (SELECT jsonb_agg(DISTINCT r.evidence ORDER BY r.evidence)
                FROM active_record r WHERE r.location_id=l.id) AS sources
-            FROM location l
+            FROM objekti l
             WHERE EXISTS (SELECT 1 FROM active_record r WHERE r.location_id=l.id)
             UNION ALL
             SELECT NULL,k.id,k.name,ks.address,ks.settlement,
@@ -44,12 +41,12 @@ class AsyncpgLocationRepository(LocationRepository):
                 'neighbourhood',sg.neighbourhood,'settlement',sg.geo_settlement),
               (SELECT jsonb_agg(DISTINCT r.evidence ORDER BY r.evidence)
                FROM active_record r WHERE r.kindergarten_id=k.id)
-            FROM kindergarten k LEFT JOIN kindergarten_seat ks ON ks.kindergarten_id=k.id
+            FROM vrtici k LEFT JOIN sjedista_vrtica ks ON ks.kindergarten_id=k.id
             LEFT JOIN kindergarten_seat_geography sg ON sg.kindergarten_id=k.id
             WHERE ks.settlement_key IS NOT NULL
               AND EXISTS (SELECT 1 FROM active_record r WHERE r.kindergarten_id=k.id)
               -- A facility outside the requested bounds still rules out a seat.
-              AND NOT EXISTS (SELECT 1 FROM location l JOIN active_record r
+              AND NOT EXISTS (SELECT 1 FROM objekti l JOIN active_record r
                 ON r.location_id=l.id WHERE l.kindergarten_id=k.id)
           ), candidate AS (
           SELECT pl.location_id,pl.kindergarten_id,k.name,pl.location_name,
@@ -73,7 +70,7 @@ class AsyncpgLocationRepository(LocationRepository):
                 WHEN NULLIF(btrim(pl.facility_phone),'') IS NULL THEN owner_contacts.evidence->'phone' END
             ) AS contact_sources,
             COALESCE((SELECT jsonb_agg(to_jsonb(p) ORDER BY p.valid_from DESC,p.policy_key)
-              FROM municipality_subsidy_policy p
+              FROM pravila_sufinanciranja p
               WHERE p.municipality_id=pl.municipality_id
                 AND k.provider_kind=ANY(p.provider_kinds)
                 AND p.verified_on<=CURRENT_DATE
@@ -84,15 +81,14 @@ class AsyncpgLocationRepository(LocationRepository):
                   COALESCE(fields.field_sources ? 'longitude',false)) OR
                  (pl.field_provenance ? 'latitude' AND NOT
                   COALESCE(fields.field_sources ? 'latitude',false))) AS geometry_valid
-          FROM place pl JOIN kindergarten k ON k.id=pl.kindergarten_id
-          LEFT JOIN municipality m ON m.id=pl.municipality_id
+          FROM place pl JOIN vrtici k ON k.id=pl.kindergarten_id
+          LEFT JOIN jedinice_lokalne_samouprave m ON m.id=pl.municipality_id
           LEFT JOIN LATERAL (
             SELECT jsonb_agg(jsonb_build_object('reference_date',h.reference_date,
               'date_kind',h.date_kind,'scope',h.scope,'programs',h.programs,'vacancies',h.vacancies,
               'source_title',s.title,'source_url',COALESCE(s.metadata->>'resource_url',s.url),
               'license',s.license) ORDER BY h.reference_date DESC,s.dataset_key,h.source_key) AS records
-            FROM historical_record h JOIN data_source s ON s.id=h.source_id
-              AND s.active_batch_id=h.batch_id
+            FROM povijesni_zapisi h JOIN izvori_podataka s ON s.id=h.source_id
             WHERE s.import_allowed AND h.match_status='accepted'
               AND h.kindergarten_id=pl.kindergarten_id
               AND ((h.scope='institution' AND h.location_id IS NULL)
@@ -103,21 +99,23 @@ class AsyncpgLocationRepository(LocationRepository):
           LEFT JOIN LATERAL (
             SELECT jsonb_agg(jsonb_build_object('round',e.round,'academic_year',e.academic_year,
               'channel',e.channel,'application_url',e.application_url,'accepting',NOT EXISTS (
-                SELECT 1 FROM enrolment_refusal f JOIN active_record fr
+                SELECT 1 FROM neprihvacanja_upisa f JOIN active_record fr
                   ON fr.record_id=f.source_record_id::text
                 JOIN document_applicability fa ON fa.source_record_id=f.source_record_id
                   AND fa.kindergarten_id=pl.kindergarten_id
                 WHERE f.enrolment_id=e.id AND f.kindergarten_id=pl.kindergarten_id),
               'opens_at',e.opens_at,'closes_at',e.closes_at,
-              'source_title',s.title,'source_url',COALESCE(r.raw_data->>'document_url',s.url),'license',s.license,
-              'reference_date',COALESCE(r.evidence->>'reference_date',r.raw_data->>'reference_date'),
-              'date_kind',CASE WHEN r.evidence->>'reference_date' IS NOT NULL THEN 'observed'
-                ELSE COALESCE(r.raw_data->>'date_kind','unknown') END)
+              'source_title',s.title,'source_url',s.url,'license',s.license,
+              'reference_date',COALESCE(d.reference_date::text,r.evidence->>'reference_date'),
+              'date_kind',COALESCE(d.date_kind,CASE WHEN r.evidence->>'reference_date' IS NOT NULL
+                THEN 'observed' ELSE 'unknown' END))
               ORDER BY e.academic_year DESC,e.round,s.dataset_key) AS items
-            FROM enrolment e JOIN active_record r ON r.record_id=e.source_record_id::text
-            JOIN data_source s ON s.id=r.source_id
+            FROM upisni_krugovi e JOIN active_record r ON r.record_id=e.source_record_id::text
+            LEFT JOIN zapisi_dokumenata d ON d.source_record_id=e.source_record_id
+            JOIN izvori_podataka s ON s.id=r.source_id
             JOIN document_applicability a ON a.source_record_id=e.source_record_id
             WHERE a.kindergarten_id=pl.kindergarten_id
+              AND (s.kind<>'enrolment_document' OR d.source_record_id IS NOT NULL)
           ) rounds ON true
           -- Area filters use current attestation; historical labels stay in district only.
           LEFT JOIN LATERAL (
@@ -149,11 +147,10 @@ class AsyncpgLocationRepository(LocationRepository):
             WHERE field.key IN ('website_url','email','phone')
           ) owner_contacts ON true
           LEFT JOIN LATERAL (
-            SELECT jsonb_object_agg(field.key,r.evidence ||
-              jsonb_build_object('active_snapshot',r.active_snapshot)) AS field_sources
+            SELECT jsonb_object_agg(field.key,r.evidence) AS field_sources
             FROM jsonb_each(pl.field_provenance || jsonb_build_object(
               'name',k.provenance->'name','provider_kind',k.provenance->'provider_kind')) field
-            JOIN approved_record r ON r.record_id=field.value->>'source_record_id'
+            JOIN active_record r ON r.record_id=field.value->>'source_record_id'
               AND r.kindergarten_id=pl.kindergarten_id
               AND (field.key IN ('name','provider_kind')
                 OR (field.key='location_name' AND pl.location_role='seat')

@@ -55,7 +55,7 @@ class RijekaGeographyDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.importer = RijekaGeographyImporter(self.c)
         await self.repo.import_snapshot(self.snapshot())
         row = await self.c.fetchrow('''SELECT r.source_key,l.id,l.kindergarten_id,l.name,l.address
-            FROM source_record r JOIN location l ON l.id=r.location_id
+            FROM izvorni_zapisi r JOIN objekti l ON l.id=r.location_id
             WHERE r.raw_data->>'Vrtić'='Zamet' ''')
         self.item = {'location_id': str(row['id']), 'kindergarten_id': str(row['kindergarten_id']),
                      'source_key': row['source_key'], 'location_name': row['name'], 'address': row['address'],
@@ -76,15 +76,15 @@ class RijekaGeographyDatabaseTests(unittest.IsolatedAsyncioTestCase):
         await self.context.__aexit__(None, None, None)
 
     async def test_import_and_repeat_preserve_ids_manual_areas_and_csv_contacts(self):
-        identities = await self.c.fetch('SELECT id,kindergarten_id FROM location ORDER BY id')
-        await self.c.execute('''UPDATE location SET attributes=$2 WHERE id=$1''',
+        identities = await self.c.fetch('SELECT id,kindergarten_id FROM objekti ORDER BY id')
+        await self.c.execute('''UPDATE objekti SET attributes=$2 WHERE id=$1''',
             UUID(self.item['location_id']),
             {'manual_area': {'quarter': 'Reviewed correction'}, 'phone': '051/000001'})
         self.assertEqual((await self.importer.apply(self.data))['imported'], 1)
         await self.importer.apply(self.data)
         await self.repo.import_snapshot(self.snapshot())
-        self.assertEqual(await self.c.fetch('SELECT id,kindergarten_id FROM location ORDER BY id'), identities)
-        attributes = await self.c.fetchval('SELECT attributes FROM location WHERE id=$1',
+        self.assertEqual(await self.c.fetch('SELECT id,kindergarten_id FROM objekti ORDER BY id'), identities)
+        attributes = await self.c.fetchval('SELECT attributes FROM objekti WHERE id=$1',
                                          UUID(self.item['location_id']))
         self.assertEqual(attributes['quarter'], 'Reviewed correction')
         self.assertEqual(attributes['phone'], '051/000001')
@@ -92,7 +92,7 @@ class RijekaGeographyDatabaseTests(unittest.IsolatedAsyncioTestCase):
         mapped = [row for row in api if row['longitude'] is not None]
         self.assertEqual(len(mapped), 1)
         self.assertEqual(mapped[0]['longitude'], 14.4)
-        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM knowledge_chunk'), 1)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM odlomci_znanja'), 1)
         self.assertEqual({area for row in api for area in row['areas']},
                          {'Reviewed correction', 'Test area'})
 
@@ -103,10 +103,10 @@ class RijekaGeographyDatabaseTests(unittest.IsolatedAsyncioTestCase):
         api = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Rijeka'))
         self.assertTrue(all(row['longitude'] is None for row in api))
         self.assertTrue(all(not row['areas'] for row in api))
-        self.assertEqual(await self.c.fetchval("SELECT match_status FROM source_record WHERE raw_data ? 'reviewed_address'"),
+        self.assertEqual(await self.c.fetchval("SELECT match_status FROM izvorni_zapisi WHERE raw_data ? 'reviewed_address'"),
                          'candidate')
-        before = await self.c.fetchval("SELECT active_batch_id FROM data_source WHERE dataset_key='rijeka-reviewed-geography'")
+        before = await self.c.fetchval("SELECT fetched_at FROM izvori_podataka WHERE dataset_key='rijeka-reviewed-geography'")
         with self.assertRaises(ValueError):
             async with self.c.transaction():
                 await self.importer.apply(self.data)
-        self.assertEqual(await self.c.fetchval("SELECT active_batch_id FROM data_source WHERE dataset_key='rijeka-reviewed-geography'"), before)
+        self.assertEqual(await self.c.fetchval("SELECT fetched_at FROM izvori_podataka WHERE dataset_key='rijeka-reviewed-geography'"), before)

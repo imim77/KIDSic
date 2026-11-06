@@ -15,10 +15,10 @@ i čuva identitete. Nedostajući grad prekida cijeli upis. Ne mijenja objekte,
 kontakte, koordinate ni postojeće izvore imenika. Buduće promjene zahtijevaju
 novi ključ snimke i zatvaranje prethodnog razdoblja; ne prepisivati povijest.
 
-Tablica `municipality_subsidy_policy` povezuje grad s tipovima pružatelja.
-Za budući prikaz kod fizičkog objekta povezati `location.municipality_id` s
-`municipality_id` politike i `kindergarten.provider_kind` s `provider_kinds`.
-Kod prikaza samo sjedišta koristi se `kindergarten.seat_municipality_id`.
+Tablica `pravila_sufinanciranja` povezuje grad s tipovima pružatelja.
+Za budući prikaz kod fizičkog objekta povezati `objekti.municipality_id` s
+`municipality_id` politike i `vrtici.provider_kind` s `provider_kinds`.
+Kod prikaza samo sjedišta koristi se `sjedista_vrtica.municipality_id`.
 To daje moguće pravilo; ugovor ustanove i pravo pojedine obitelji moraju se
 provjeriti zasebno. `unknown` i `other` ne nasljeđuju subvencije javnih vrtića.
 
@@ -72,10 +72,9 @@ ima URL, licencu, `reference_date` i `date_kind` (`published` za obavijesti,
 Dokument je `current` dok traje to razdoblje, ali rokovi unutar njega mogu
 biti istekli. Za PDF-ove je zabilježen `sha256` preuzete datoteke.
 
-Uvoz (`kidsic-sync-enrolment`) za svaki izvor upisuje `data_source`, novu aktivnu
-seriju te stabilan `accepted` `source_record` za pojedini obuhvat, a odlomke u
-`knowledge_chunk` bez `location_id`. Odlomak bez `institutions` vrijedi za sve
-aktivne ustanove navedenih vrsta u gradu prema `document_scope` pravilu
+Uvoz (`kidsic-sync-enrolment`) za svaki izvor ažurira `izvori_podataka` te stabilan `accepted` `izvorni_zapisi` za pojedini obuhvat, a odlomke u
+`odlomci_znanja` bez `location_id`. Odlomak bez `institutions` vrijedi za sve
+aktivne ustanove navedenih vrsta u gradu prema `obuhvati_dokumenata` pravilu
 (opseg `municipality`), uključujući kasnije dodane ustanove. Tekst se ne kopira
 po ustanovi. Imenovane
 ustanove moraju se jednoznačno podudarati prema normaliziranom nazivu, inače
@@ -84,10 +83,10 @@ to određuju samo zapisi imenika. Opozvani izvor (`import_allowed=false`) ostaje
 opozvan i pri ponovnom uvozu.
 
 Uz odlomke, dokument može imati `calls`: strukturirane krugove upisa koji se
-upisuju jednom u tablicu `enrolment`, s obuhvatom izvornog dokumenta. Obavijest daje glavni
+upisuju jednom u tablicu `upisni_krugovi`, s obuhvatom izvornog dokumenta. Obavijest daje glavni
 rok 13. 5. 2026. 9:00 – 22. 5. 2026. 16:00 na eupisi.zgvrtici.hr, a DV Remetinec
 i DV Ivane Brlić Mažuranić bilježi kao ustanove koje 2026./2027. ne provode
-upise (`enrolment_refusal`; API iz toga izvodi `accepting=false`). Stranica daje upis tijekom godine do 31. 8. 2027.
+upise (`neprihvacanja_upisa`; API iz toga izvodi `accepting=false`). Stranica daje upis tijekom godine do 31. 8. 2027.
 (kraj pedagoške godine) bez objavljenog početka. Koraci i dokumenti ostaju samo
 u odlomcima, da se isti tekst ne održava dvaput.
 

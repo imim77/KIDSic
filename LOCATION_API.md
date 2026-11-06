@@ -60,9 +60,8 @@ field from the pinned 2019/2025 Zagreb resources; other cities return an empty l
 `properties.field_sources` separately attributes stored fields to their accepted,
 still import-approved dated evidence. It defaults to `{}`
 and may contain `name`, `provider_kind`, `location_name`, `address`, `district`,
-`quarter`, `suburb`, `neighbourhood`, `settlement`, `longitude` and `latitude`. Each entry contains the same source metadata as above
-plus the compatibility flag `active_snapshot`, which is true for current-state
-imports. Each source retains one current set of records; missing values supplied
+`quarter`, `suburb`, `neighbourhood`, `settlement`, `longitude` and `latitude`. Each entry contains the same source metadata as above.
+Each source retains one current set of records; missing values supplied
 by that source become unknown while evidence from other sources is preserved.
 Missing field provenance remains absent, rather than assigning it to a
 current source. Provenance must resolve to an accepted record of the same owner;

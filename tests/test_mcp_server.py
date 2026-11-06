@@ -338,7 +338,7 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
                     'address': f'Synthetic address {index}', 'city': 'Zagreb',
                     'provider_kind': 'municipal', 'district': None,
                     'location_role': 'facility', 'sources': [source],
-                    'field_sources': {key: {**source, 'active_snapshot': True}
+                    'field_sources': {key: dict(source)
                                       for key in ('name', 'address', 'longitude', 'latitude')},
                 },
             })

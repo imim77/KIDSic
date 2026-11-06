@@ -69,9 +69,10 @@ class SourceService(SourceServiceInterface):
              'settlements': len({r.settlement for r in s.rows}),
              'resource_url': str(s.source.resource.url)} for s in snapshots]}
 
-    async def import_data(self):
+    async def import_data(self, *, allow_removals: bool = False):
         self._require_database()
         snapshots = await self._snapshots()
         async with self._uow_factory() as work:
-            results = [await work.sources.import_snapshot(snapshot) for snapshot in snapshots]
+            results = [await work.sources.import_snapshot(snapshot, allow_removals=allow_removals)
+                       for snapshot in snapshots]
         return {'sources': results, 'records': sum(r['records'] for r in results)}

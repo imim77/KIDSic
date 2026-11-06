@@ -136,11 +136,11 @@ class SibenikImportTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_repeatable_import_preserves_seats_and_field_evidence(self):
         self.assertEqual(await self.importer.apply(DATA), {'imported': 3, 'excluded': 4})
-        first = await self.c.fetch('SELECT id,kindergarten_id FROM location ORDER BY id')
+        first = await self.c.fetch('SELECT id,kindergarten_id FROM objekti ORDER BY id')
         await self.importer.apply(DATA)
-        self.assertEqual(first, await self.c.fetch('SELECT id,kindergarten_id FROM location ORDER BY id'))
-        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM kindergarten'), 3)
-        self.assertEqual(await self.c.fetchval("SELECT ks.settlement FROM kindergarten k JOIN kindergarten_seat ks ON ks.kindergarten_id=k.id WHERE k.name LIKE '%Hozana%'"), 'Zagreb')
+        self.assertEqual(first, await self.c.fetch('SELECT id,kindergarten_id FROM objekti ORDER BY id'))
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM vrtici'), 3)
+        self.assertEqual(await self.c.fetchval("SELECT ks.settlement FROM vrtici k JOIN sjedista_vrtica ks ON ks.kindergarten_id=k.id WHERE k.name LIKE '%Hozana%'"), 'Zagreb')
         rows = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Šibenik'))
         self.assertEqual(len(rows), 3)
         for row in rows:
@@ -149,15 +149,15 @@ class SibenikImportTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_changed_parent_and_revocation_preserve_the_last_good_batch(self):
         await self.importer.apply(DATA)
-        before = await self.c.fetchval("SELECT active_batch_id FROM data_source WHERE dataset_key=$1", module.SOURCE_KEY)
+        before = await self.c.fetchval("SELECT fetched_at FROM izvori_podataka WHERE dataset_key=$1", module.SOURCE_KEY)
         changed = deepcopy(DATA)
         accepted = Importer.reviewed(changed)
         accepted[0]['properties']['parent_name'] = accepted[1]['properties']['parent_name']
         with self.assertRaises(ValueError):
             async with self.c.transaction():
                 await self.importer.apply(changed)
-        self.assertEqual(before, await self.c.fetchval("SELECT active_batch_id FROM data_source WHERE dataset_key=$1", module.SOURCE_KEY))
-        await self.c.execute('UPDATE data_source SET import_allowed=false WHERE dataset_key=$1', module.SOURCE_KEY)
+        self.assertEqual(before, await self.c.fetchval("SELECT fetched_at FROM izvori_podataka WHERE dataset_key=$1", module.SOURCE_KEY))
+        await self.c.execute('UPDATE izvori_podataka SET import_allowed=false WHERE dataset_key=$1', module.SOURCE_KEY)
         with self.assertRaises(ValueError):
             async with self.c.transaction():
                 await self.importer.apply(DATA)

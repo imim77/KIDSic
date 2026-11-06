@@ -56,17 +56,17 @@ class EnrolmentDatabaseTests(unittest.IsolatedAsyncioTestCase):
         return await self.enrolment.import_document(document, 'test-snapshot', datetime.now(timezone.utc))
 
     async def add_owner(self, name, provider='municipal'):
-        owner = await self.c.fetchval('INSERT INTO kindergarten(name,provider_kind) VALUES ($1,$2) RETURNING id', name, provider)
-        location = await self.c.fetchval("INSERT INTO location(kindergarten_id,name,settlement,settlement_key,municipality_id) VALUES ($1,$2,'Zagreb','zagreb',(SELECT id FROM municipality WHERE key='zagreb')) RETURNING id", owner, name)
-        await self.c.execute("INSERT INTO source_record(source_id,batch_id,source_key,raw_data,kindergarten_id,location_id,match_status,match_method) SELECT id,active_batch_id,$1,'{}',$2,$3,'accepted','manual' FROM data_source WHERE dataset_key='directory'", str(owner), owner, location)
+        owner = await self.c.fetchval('INSERT INTO vrtici(name,provider_kind) VALUES ($1,$2) RETURNING id', name, provider)
+        location = await self.c.fetchval("INSERT INTO objekti(kindergarten_id,name,settlement,settlement_key,municipality_id) VALUES ($1,$2,'Zagreb','zagreb',(SELECT id FROM jedinice_lokalne_samouprave WHERE key='zagreb')) RETURNING id", owner, name)
+        await self.c.execute("INSERT INTO izvorni_zapisi(source_id,source_key,raw_data,kindergarten_id,location_id,match_status,match_method) SELECT id,$1,'{}',$2,$3,'accepted','manual' FROM izvori_podataka WHERE dataset_key='directory'", str(owner), owner, location)
         return owner, location
 
     async def test_shared_rule_excludes_private_providers_and_includes_later_municipal_owners(self):
         await self.add_owner('Privatni primjer', 'private')
         await self.load(calls=[CALL])
-        source_records = await self.c.fetchval("SELECT count(*) FROM source_record r JOIN data_source s ON s.id=r.source_id WHERE s.dataset_key='example-enrolment'")
+        source_records = await self.c.fetchval("SELECT count(*) FROM izvorni_zapisi r JOIN izvori_podataka s ON s.id=r.source_id WHERE s.dataset_key='example-enrolment'")
         self.assertEqual(source_records, 1)
-        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM enrolment'), 1)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM upisni_krugovi'), 1)
         owner, location = await self.add_owner('Kasniji gradski vrtić')
         rows = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Zagreb'))
         private = next(r for r in rows if r['provider_kind'] == 'private')
@@ -90,7 +90,7 @@ class EnrolmentDatabaseTests(unittest.IsolatedAsyncioTestCase):
         import asyncpg
         with self.assertRaises(asyncpg.CheckViolationError):
             async with self.c.transaction():
-                await self.c.execute("INSERT INTO source_record(source_id,batch_id,source_key,raw_data,match_status,match_method) SELECT id,active_batch_id,'unscoped','{}','accepted','manual' FROM data_source WHERE dataset_key='directory'")
+                await self.c.execute("INSERT INTO izvorni_zapisi(source_id,source_key,raw_data,match_status,match_method) SELECT id,'unscoped','{}','accepted','manual' FROM izvori_podataka WHERE dataset_key='directory'")
                 await self.c.execute('SET CONSTRAINTS ALL IMMEDIATE')
 
     async def test_municipal_and_named_excerpts_reach_every_object_with_dates_and_licence(self):
@@ -109,7 +109,7 @@ class EnrolmentDatabaseTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(item.sources[0].url, 'https://example.invalid/upis.pdf')
             self.assertEqual(item.sources[0].license, 'Ponovna uporaba uz navođenje izvora')
         self.assertIsNone(await self.c.fetchval(
-            "SELECT observed_on FROM data_source WHERE dataset_key='example-enrolment'"))
+            "SELECT observed_on FROM izvori_podataka WHERE dataset_key='example-enrolment'"))
 
     async def test_rounds_reach_every_object_of_the_institution_with_source_dates(self):
         result = await self.load(calls=[CALL, {**CALL, 'round': 'rolling', 'opens_at': None,
@@ -124,7 +124,7 @@ class EnrolmentDatabaseTests(unittest.IsolatedAsyncioTestCase):
                              ('https://upis.example.invalid/', 'city_system', True))
             self.assertEqual((rounds['main']['reference_date'], rounds['main']['date_kind']), ('2026-05-11', 'published'))
             self.assertEqual(rounds['main']['source_url'], 'https://example.invalid/upis.pdf')
-        await self.c.execute("UPDATE data_source SET import_allowed=false WHERE dataset_key='example-enrolment'")
+        await self.c.execute("UPDATE izvori_podataka SET import_allowed=false WHERE dataset_key='example-enrolment'")
         rows = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Zagreb', q='Primjer'))
         self.assertEqual([r['enrolment'] for r in rows], [[], []])
 
@@ -142,19 +142,63 @@ class EnrolmentDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((item.reference_date, item.date_kind, item.temporal_status),
                          (date(2020, 5, 11), 'observed', 'historical'))
         self.assertEqual(await self.c.fetchval(
-            "SELECT observed_on FROM data_source WHERE dataset_key='example-enrolment'"), date(2020, 5, 11))
+            "SELECT observed_on FROM izvori_podataka WHERE dataset_key='example-enrolment'"), date(2020, 5, 11))
 
     async def test_reimport_replaces_the_batch_and_revocation_hides_documents(self):
         await self.load()
-        record = await self.c.fetchval("SELECT r.id FROM source_record r JOIN data_source s ON s.id=r.source_id WHERE s.dataset_key='example-enrolment'")
+        record = await self.c.fetchval("SELECT r.id FROM izvorni_zapisi r JOIN izvori_podataka s ON s.id=r.source_id WHERE s.dataset_key='example-enrolment'")
         await self.load(excerpts=[{'content': 'Nova verzija obavijesti.'}])
-        self.assertEqual(await self.c.fetchval("SELECT r.id FROM source_record r JOIN data_source s ON s.id=r.source_id WHERE s.dataset_key='example-enrolment'"), record)
+        self.assertEqual(await self.c.fetchval("SELECT r.id FROM izvorni_zapisi r JOIN izvori_podataka s ON s.id=r.source_id WHERE s.dataset_key='example-enrolment'"), record)
         [item] = (await self.rag.retrieve(self.query)).evidence
         self.assertEqual(item.content, 'Nova verzija obavijesti.')
-        await self.c.execute("UPDATE data_source SET import_allowed=false WHERE dataset_key='example-enrolment'")
+        await self.c.execute("UPDATE izvori_podataka SET import_allowed=false WHERE dataset_key='example-enrolment'")
         self.assertEqual((await self.rag.retrieve(self.query)).status, 'no_evidence')
         with self.assertRaisesRegex(SourceImportError, 'disabled'):
             await self.load()
+
+    async def test_typed_dates_update_in_place_and_json_cannot_override_them(self):
+        await self.load(calls=[CALL], reference_date='2020-05-11', date_kind='observed',
+                        valid_until='2021-08-31')
+        record = await self.c.fetchval('SELECT source_record_id FROM zapisi_dokumenata')
+        source = await self.c.fetchrow("SELECT kind,metadata FROM izvori_podataka WHERE dataset_key='example-enrolment'")
+        self.assertEqual(source['kind'], 'enrolment_document')
+        self.assertNotIn('kind', source['metadata'])
+        self.assertEqual(source['metadata']['snapshot_key'], 'test-snapshot')
+        self.assertEqual(await self.c.fetchval('SELECT raw_data FROM izvorni_zapisi WHERE id=$1', record), {})
+        await self.load(calls=[CALL], valid_until=None)
+        [dates] = await self.c.fetch('SELECT * FROM zapisi_dokumenata')
+        self.assertEqual(dict(dates), dict(source_record_id=record,
+            reference_date=date(2026, 5, 11), date_kind='published', valid_until=None))
+        before = (await self.rag.retrieve(self.query)).model_dump()
+        # Legacy JSON must neither change scope/dates nor override the source URL.
+        await self.c.execute('UPDATE izvorni_zapisi SET raw_data=$2 WHERE id=$1', record,
+            {'kind': 'other', 'scope': 'institution', 'reference_date': 'invalid',
+             'date_kind': 'observed', 'valid_until': 'invalid',
+             'document_url': 'https://example.invalid/wrong'})
+        self.assertEqual((await self.rag.retrieve(self.query)).model_dump(), before)
+        rows = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Zagreb'))
+        for row in rows:
+            [call] = row['enrolment']
+            self.assertEqual((call['reference_date'], call['date_kind'], call['source_url']),
+                ('2026-05-11', 'published', 'https://example.invalid/upis.pdf'))
+
+    async def test_document_constraints_and_missing_dates_do_not_offer_evidence(self):
+        import asyncpg
+        await self.load(calls=[CALL])
+        for statement, error in (
+            ('UPDATE zapisi_dokumenata SET reference_date=NULL', asyncpg.NotNullViolationError),
+            ('UPDATE zapisi_dokumenata SET date_kind=NULL', asyncpg.NotNullViolationError),
+            ("UPDATE zapisi_dokumenata SET date_kind='unknown'", asyncpg.CheckViolationError),
+            ("UPDATE zapisi_dokumenata SET valid_until=reference_date-1", asyncpg.CheckViolationError),
+            ("UPDATE izvori_podataka SET kind='unsupported'", asyncpg.CheckViolationError),
+        ):
+            with self.subTest(statement=statement), self.assertRaises(error):
+                async with self.c.transaction():
+                    await self.c.execute(statement)
+        await self.c.execute('DELETE FROM zapisi_dokumenata')
+        self.assertEqual((await self.rag.retrieve(self.query)).status, 'no_evidence')
+        rows = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Zagreb'))
+        self.assertTrue(all(not row['enrolment'] for row in rows))
 
     async def test_unresolved_names_and_other_provider_kinds_are_rejected(self):
         with self.assertRaisesRegex(SourceImportError, '0 active institutions'):
@@ -164,11 +208,57 @@ class EnrolmentDatabaseTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(SourceImportError, 'No active institutions'):
             await self.load(municipality='rijeka')
 
+    async def test_deleting_document_cascades_and_rollback_restores_its_evidence(self):
+        await self.load(calls=[{**CALL, 'not_accepting': ['Dječji vrtić Primjer']}])
+        tables = ('izvorni_zapisi', 'zapisi_dokumenata', 'odlomci_znanja', 'upisni_krugovi', 'neprihvacanja_upisa',
+                  'obuhvati_dokumenata', 'vrtici', 'objekti')
+        before = {table: await self.c.fetch(f'SELECT * FROM {table} ORDER BY 1,2')
+                  for table in tables}
+        record = await self.c.fetchval('SELECT source_record_id FROM upisni_krugovi')
+        savepoint = self.c.transaction()
+        await savepoint.start()
+        try:
+            await self.c.execute('DELETE FROM izvorni_zapisi WHERE id=$1', record)
+            await self.c.execute('SET CONSTRAINTS ALL IMMEDIATE')
+            self.assertIsNone(await self.c.fetchval('SELECT id FROM izvorni_zapisi WHERE id=$1', record))
+            for table in ('zapisi_dokumenata', 'odlomci_znanja', 'upisni_krugovi', 'neprihvacanja_upisa', 'obuhvati_dokumenata'):
+                self.assertEqual(await self.c.fetchval(f'SELECT count(*) FROM {table}'), 0)
+            for table in ('vrtici', 'objekti'):
+                self.assertEqual(await self.c.fetch(f'SELECT * FROM {table} ORDER BY 1,2'), before[table])
+        finally:
+            await savepoint.rollback()
+        for table in tables:
+            self.assertEqual(await self.c.fetch(f'SELECT * FROM {table} ORDER BY 1,2'), before[table])
+
+    async def test_deleting_round_cascades_only_its_refusals_and_owner_is_protected(self):
+        import asyncpg
+        await self.load(calls=[{**CALL, 'not_accepting': ['Dječji vrtić Primjer']}])
+        owner = await self.c.fetchval('SELECT kindergarten_id FROM neprihvacanja_upisa')
+        with self.assertRaises(asyncpg.ForeignKeyViolationError):
+            async with self.c.transaction():
+                await self.c.execute('DELETE FROM vrtici WHERE id=$1', owner)
+        await self.c.execute('DELETE FROM upisni_krugovi')
+        await self.c.execute('SET CONSTRAINTS ALL IMMEDIATE')
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM neprihvacanja_upisa'), 0)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM obuhvati_dokumenata'), 1)
+        self.assertGreater(await self.c.fetchval('SELECT count(*) FROM odlomci_znanja'), 0)
+
+    async def test_reimport_removes_missing_document_groups_through_cascade(self):
+        await self.load(excerpts=[{'content': 'Opća obavijest.'},
+            {'content': 'Posebna obavijest.', 'institutions': ['Dječji vrtić Primjer']}])
+        await self.load(excerpts=[{'content': 'Nova opća obavijest.'}])
+        await self.c.execute('SET CONSTRAINTS ALL IMMEDIATE')
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM obuhvati_dokumenata'), 1)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM odlomci_znanja'), 1)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM zapisi_dokumenata'), 1)
+        [item] = (await self.rag.retrieve(self.query)).evidence
+        self.assertEqual((item.content, item.scope), ('Nova opća obavijest.', 'municipality'))
+
     async def test_enrolment_records_never_keep_a_dropped_kindergarten_active(self):
         # A Zagreb seat makes the owner eligible through any accepted active record.
-        await self.c.execute("INSERT INTO kindergarten_seat(kindergarten_id,municipality_id) SELECT id,(SELECT id FROM municipality WHERE key='zagreb') FROM kindergarten ON CONFLICT(kindergarten_id) DO UPDATE SET municipality_id=EXCLUDED.municipality_id")
+        await self.c.execute("INSERT INTO sjedista_vrtica(kindergarten_id,municipality_id) SELECT id,(SELECT id FROM jedinice_lokalne_samouprave WHERE key='zagreb') FROM vrtici ON CONFLICT(kindergarten_id) DO UPDATE SET municipality_id=EXCLUDED.municipality_id")
         await self.load()
-        await self.c.execute("UPDATE data_source SET import_allowed=false WHERE dataset_key='directory'")
+        await self.c.execute("UPDATE izvori_podataka SET import_allowed=false WHERE dataset_key='directory'")
         with self.assertRaisesRegex(SourceImportError, 'No active institutions'):
             await self.load()
         self.assertEqual((await self.rag.retrieve(self.query)).status, 'not_found')

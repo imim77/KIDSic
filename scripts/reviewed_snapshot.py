@@ -8,7 +8,6 @@ import argparse
 import asyncio
 from datetime import datetime
 import json
-import uuid
 
 from KIDSic.db.database import database_pool
 from KIDSic.dao.concrete.source_state import SourceStateWriter
@@ -58,7 +57,6 @@ class Batch:
 
     def __init__(self, connection, fetched_at):
         self._connection = connection
-        self.id = uuid.uuid4()
         self._states = {}
         self.fetched_at = datetime.fromisoformat(fetched_at)
 
@@ -70,17 +68,17 @@ class Batch:
     async def source(self, key, title, publisher, url, license, metadata):
         """source registers a data source; finish activates it after all records are written."""
         stored = await self._connection.fetchrow('''
-            INSERT INTO data_source(dataset_key,title,publisher,url,license,import_allowed,
-                                    active_batch_id,fetched_at,metadata)
-            VALUES ($1,$2,$3,$4,$5,true,$6,$7,$8)
+            INSERT INTO izvori_podataka(dataset_key,title,publisher,url,license,import_allowed,
+                                    fetched_at,metadata)
+            VALUES ($1,$2,$3,$4,$5,true,$6,$7)
             ON CONFLICT(dataset_key) DO UPDATE SET
-                metadata=data_source.metadata || EXCLUDED.metadata
+                metadata=izvori_podataka.metadata || EXCLUDED.metadata
             RETURNING id,import_allowed
-        ''', key, title, publisher, url, license, self.id, self.fetched_at, metadata)
+        ''', key, title, publisher, url, license, self.fetched_at, metadata)
         if not stored['import_allowed']:
             raise ValueError(f'Import is disabled for {key}.')
         self._states[stored['id']] = SourceStateWriter(
-            self._connection, stored['id'], self.fetched_at, batch=self.id)
+            self._connection, stored['id'], self.fetched_at)
         return stored['id']
 
     async def record(self, source, key, raw, owner, location=None, status='accepted', note=None):
@@ -95,23 +93,23 @@ class Batch:
 
     async def evidence(self, location, record, fields, manual=()):
         """evidence links location fields to a record; user-corrected fields keep their own."""
-        await self._connection.execute('UPDATE location SET provenance=provenance || $2 WHERE id=$1',
+        await self._connection.execute('UPDATE objekti SET provenance=provenance || $2 WHERE id=$1',
             location, {field: {'source_record_id': str(record)} for field in fields if field not in manual})
 
     async def chunk(self, owner, location, record, content, url):
         await self._connection.execute('''
-            INSERT INTO knowledge_chunk(kindergarten_id,location_id,source_record_id,ordinal,content,source_url)
+            INSERT INTO odlomci_znanja(kindergarten_id,location_id,source_record_id,ordinal,content,source_url)
             VALUES ($1,$2,$3,0,$4,$5)
         ''', owner, location, record, content, url)
 
     async def location(self, location, owner, name, address, settlement, municipality, lon, lat, attributes):
         """location upserts a reviewed facility under a stable ID, merging attributes."""
         await self._connection.execute('''
-            INSERT INTO location(id,kindergarten_id,name,address,settlement,settlement_key,
+            INSERT INTO objekti(id,kindergarten_id,name,address,settlement,settlement_key,
                                  municipality_id,longitude,latitude,attributes)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
             ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,address=EXCLUDED.address,
                 settlement=EXCLUDED.settlement,settlement_key=EXCLUDED.settlement_key,
                 municipality_id=EXCLUDED.municipality_id,longitude=EXCLUDED.longitude,
-                latitude=EXCLUDED.latitude,attributes=location.attributes || EXCLUDED.attributes
+                latitude=EXCLUDED.latitude,attributes=objekti.attributes || EXCLUDED.attributes
         ''', location, owner, name, address, settlement, normalize(settlement), municipality, lon, lat, attributes)

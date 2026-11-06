@@ -719,12 +719,12 @@ WITH policies AS (
 ]
 $subsidy_snapshot$::jsonb)
 )
-INSERT INTO municipality_subsidy_policy (
+INSERT INTO pravila_sufinanciranja (
  policy_key,municipality_id,provider_kinds,title,summary,verification_status,
  verified_on,valid_from,valid_until,rules,sources
 )
 SELECT p->>'policy_key',
- (SELECT id FROM municipality WHERE key=p->>'municipality_key'),
+ (SELECT id FROM jedinice_lokalne_samouprave WHERE key=p->>'municipality_key'),
  ARRAY(SELECT jsonb_array_elements_text(p->'provider_kinds')),
  p->>'title',p->>'summary',p->>'verification_status',
  (p->>'verified_on')::date,(p->>'valid_from')::date,(p->>'valid_until')::date,

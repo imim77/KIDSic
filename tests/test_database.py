@@ -23,8 +23,7 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         self.tx = self.c.transaction()
         await self.tx.start()
         self.repo = AsyncpgKindergartenRepository(self.c)
-        self.batch = uuid4()
-        self.source = await self.c.fetchval("INSERT INTO data_source(dataset_key,title,publisher,url,import_allowed,active_batch_id) VALUES ('directory','Directory','Test','https://example.invalid',true,$1) RETURNING id", self.batch)
+        self.source = await self.c.fetchval("INSERT INTO izvori_podataka(dataset_key,title,publisher,url,import_allowed) VALUES ('directory','Directory','Test','https://example.invalid',true) RETURNING id")
 
     async def asyncTearDown(self):
         await self.tx.rollback()
@@ -32,16 +31,31 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         await self.ctx.__aexit__(None,None,None)
 
     async def record(self, owner, location=None):
-        return await self.c.fetchval("INSERT INTO source_record(source_id,batch_id,source_key,raw_data,kindergarten_id,location_id,match_status,match_method) VALUES ($1,$2,$3,'{}',$4,$5,'accepted','manual') RETURNING id",self.source,self.batch,str(uuid4()),owner,location)
+        return await self.c.fetchval("INSERT INTO izvorni_zapisi(source_id,source_key,raw_data,kindergarten_id,location_id,match_status,match_method) VALUES ($1,$2,'{}',$3,$4,'accepted','manual') RETURNING id",self.source,str(uuid4()),owner,location)
 
     async def chunk(self, owner, location, record, content='Sourced document'):
-        await self.c.execute("INSERT INTO knowledge_chunk(kindergarten_id,location_id,source_record_id,ordinal,content,source_url) VALUES ($1,$2,$3,0,$4,'https://example.invalid/evidence')",owner,location,record,content)
+        await self.c.execute("INSERT INTO odlomci_znanja(kindergarten_id,location_id,source_record_id,ordinal,content,source_url) VALUES ($1,$2,$3,0,$4,'https://example.invalid/evidence')",owner,location,record,content)
+
+    async def test_application_tables_use_croatian_plural_names(self):
+        tables = {row['tablename'] for row in await self.c.fetch(
+            "SELECT tablename FROM pg_tables WHERE schemaname='public'")}
+        self.assertEqual(tables, {
+            'izvori_podataka', 'izvorni_zapisi', 'vrtici', 'sjedista_vrtica', 'objekti',
+            'jedinice_lokalne_samouprave', 'pravila_sufinanciranja', 'upisni_krugovi',
+            'neprihvacanja_upisa', 'obuhvati_dokumenata', 'zapisi_dokumenata',
+            'odlomci_znanja', 'povijesni_zapisi', 'alembic_version', 'spatial_ref_sys',
+        })
+        columns = {row['column_name'] for row in await self.c.fetch("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_schema='public' AND table_name='objekti'
+        """)}
+        self.assertTrue({'id', 'kindergarten_id', 'name', 'municipality_id'} <= columns)
 
     async def test_context_respects_owner_facility_and_institution_scope(self):
-        owner = await self.c.fetchval("INSERT INTO kindergarten(name) VALUES ('Selected') RETURNING id")
-        other = await self.c.fetchval("INSERT INTO kindergarten(name) VALUES ('Other') RETURNING id")
+        owner = await self.c.fetchval("INSERT INTO vrtici(name) VALUES ('Selected') RETURNING id")
+        other = await self.c.fetchval("INSERT INTO vrtici(name) VALUES ('Other') RETURNING id")
         async def location(k):
-            return await self.c.fetchval("INSERT INTO location(kindergarten_id,name,settlement,settlement_key) VALUES ($1,'Branch','Zagreb','zagreb') RETURNING id", k)
+            return await self.c.fetchval("INSERT INTO objekti(kindergarten_id,name,settlement,settlement_key) VALUES ($1,'Branch','Zagreb','zagreb') RETURNING id", k)
         selected, sibling, elsewhere = await location(owner), await location(owner), await location(other)
         for k,l in ((owner,selected),(owner,sibling),(other,elsewhere),(owner,None)):
             await self.chunk(k,l,await self.record(k,l))
@@ -51,12 +65,12 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(r['source_url'] for r in rows))
         rows = await self.repo.retrieve_context(location_ids=[],kindergarten_ids=[owner])
         self.assertEqual([r['location_id'] for r in rows],[None])
-        await self.c.execute('UPDATE data_source SET import_allowed=false WHERE id=$1',self.source)
+        await self.c.execute('UPDATE izvori_podataka SET import_allowed=false WHERE id=$1',self.source)
         self.assertEqual(await self.repo.retrieve_context(location_ids=[selected]),[])
 
     async def test_context_rejects_cross_owner_chunks_and_invalid_limits(self):
-        owner = await self.c.fetchval("INSERT INTO kindergarten(name) VALUES ('Owner') RETURNING id")
-        other = await self.c.fetchval("INSERT INTO kindergarten(name) VALUES ('Other') RETURNING id")
+        owner = await self.c.fetchval("INSERT INTO vrtici(name) VALUES ('Owner') RETURNING id")
+        other = await self.c.fetchval("INSERT INTO vrtici(name) VALUES ('Other') RETURNING id")
         record = await self.record(owner)
         await self.chunk(other,None,record)
         self.assertEqual(await self.repo.retrieve_context(location_ids=[],kindergarten_ids=[other]),[])
@@ -71,6 +85,24 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
                 await work.search.retrieve_context(location_ids=['not-a-uuid'])
         self.assertIsInstance(error.exception.__cause__, asyncpg.PostgresError)
         self.assertEqual(self.pool.get_size() - self.pool.get_idle_size(), before)
+
+    async def test_context_excludes_rejected_candidate_and_mismatched_facility_evidence(self):
+        owner = await self.c.fetchval("INSERT INTO vrtici(name) VALUES ('Owner') RETURNING id")
+        locations = [await self.c.fetchval("""INSERT INTO objekti
+            (kindergarten_id,name,settlement,settlement_key)
+            VALUES ($1,$2,'Zagreb','zagreb') RETURNING id""", owner, name)
+            for name in ('Selected', 'Sibling')]
+        selected, sibling = locations
+        await self.chunk(owner, selected, await self.record(owner, selected), 'Valid')
+        inactive = await self.record(owner, selected)
+        await self.chunk(owner, selected, inactive, 'Inactive')
+        await self.c.execute("UPDATE izvorni_zapisi SET match_status='rejected' WHERE id=$1", inactive)
+        candidate = await self.record(owner, selected)
+        await self.chunk(owner, selected, candidate, 'Candidate')
+        await self.c.execute("UPDATE izvorni_zapisi SET match_status='candidate' WHERE id=$1", candidate)
+        await self.chunk(owner, selected, await self.record(owner, sibling), 'Wrong facility')
+        rows = await self.repo.retrieve_context(location_ids=[selected])
+        self.assertEqual([row['content'] for row in rows], ['Valid'])
 
     async def test_unit_of_work_releases_connection_after_error(self):
         before=self.pool.get_size()-self.pool.get_idle_size()

@@ -24,7 +24,7 @@ class AsyncpgSourceRepository(SourceRepository):
 
     async def register(self, source: PlannedSource) -> str:
         collision = await self._connection.fetchval('''
-            SELECT dataset_key FROM data_source WHERE dataset_key<>$1 AND (
+            SELECT dataset_key FROM izvori_podataka WHERE dataset_key<>$1 AND (
                 metadata->>'resource_url'=$3 OR
                 (metadata->>'ckan_base_url'=$2 AND metadata->>'ckan_resource_id'=$4)) LIMIT 1
         ''', source.definition.key, source.definition.base_url.rstrip('/'),
@@ -32,12 +32,12 @@ class AsyncpgSourceRepository(SourceRepository):
         if collision is not None:
             raise SourceImportError(f'This CKAN resource is already registered as {collision}.')
         old = await self._connection.fetchrow(
-            'SELECT * FROM data_source WHERE dataset_key=$1 FOR UPDATE', source.definition.key)
+            'SELECT * FROM izvori_podataka WHERE dataset_key=$1 FOR UPDATE', source.definition.key)
         values = (source.package.title, source.publisher, source.catalogue_url,
                   source.package.license_title or source.package.license_id)
         if old is None:
             await self._connection.execute('''
-                INSERT INTO data_source(dataset_key,title,publisher,url,license,import_allowed,metadata)
+                INSERT INTO izvori_podataka(dataset_key,title,publisher,url,license,import_allowed,metadata)
                 VALUES ($1,$2,$3,$4,$5,true,$6)
             ''', source.definition.key, *values, source.metadata)
             return 'added'
@@ -46,15 +46,30 @@ class AsyncpgSourceRepository(SourceRepository):
         if unchanged:
             return 'unchanged'
         await self._connection.execute('''
-            UPDATE data_source SET title=$2,publisher=$3,url=$4,license=$5,metadata=metadata || $6
+            UPDATE izvori_podataka SET title=$2,publisher=$3,url=$4,license=$5,metadata=metadata || $6
             WHERE dataset_key=$1
         ''', source.definition.key, *values, source.metadata)
         return 'updated'
 
-    async def import_snapshot(self, snapshot: SourceSnapshot) -> dict:
+    async def import_snapshot(self, snapshot: SourceSnapshot, *, allow_removals: bool = False) -> dict:
         SourceStateWriter.validate(row.source_key for row in snapshot.rows)
         async with self._connection.transaction():
             await self._connection.execute('SELECT pg_advisory_xact_lock(194733, 1)')
+            if not allow_removals:
+                # A valid file can still be partial; compare identities rather
+                # than counts, before touching metadata or canonical fields.
+                missing = await self._connection.fetch('''
+                    SELECT r.source_key FROM izvorni_zapisi r
+                    JOIN izvori_podataka s ON s.id=r.source_id
+                    WHERE s.dataset_key=$1 AND NOT(r.source_key=ANY($2::text[]))
+                    ORDER BY r.source_key
+                ''', snapshot.source.definition.key, [row.source_key for row in snapshot.rows])
+                if missing:
+                    sample = ', '.join(repr(row['source_key']) for row in missing[:10])
+                    raise SourceImportError(
+                        f'{snapshot.source.definition.key}: {len(missing)} previous source keys are missing '
+                        f'({sample}). Verify the complete resource before retrying with '
+                        '--allow-removals (allow_removals=True).')
             return await self._import_snapshot(snapshot)
 
     async def _import_snapshot(self, snapshot):
@@ -63,27 +78,27 @@ class AsyncpgSourceRepository(SourceRepository):
         source = snapshot.source
         registered = await self.register(source)
         stored = await self._connection.fetchrow(
-            'SELECT id,import_allowed FROM data_source WHERE dataset_key=$1', source.definition.key)
+            'SELECT id,import_allowed FROM izvori_podataka WHERE dataset_key=$1', source.definition.key)
         if not stored['import_allowed']:
             raise SourceImportError(f'Import is disabled for {source.definition.key}.')
-        source_id, batch = stored['id'], uuid4()
-        self._state = SourceStateWriter(self._connection, source_id, snapshot.fetched_at, batch=batch)
+        source_id = stored['id']
+        self._state = SourceStateWriter(self._connection, source_id, snapshot.fetched_at)
         self._municipalities = {}
         previous = {r['source_key']: r for r in await self._connection.fetch('''
-            SELECT * FROM source_record WHERE source_id=$1
+            SELECT * FROM izvorni_zapisi WHERE source_id=$1
         ''', source_id)}
         owners = {r['id']: {**dict(r), 'name_key': name_key(r['name']), 'areas': set()}
                   for r in await self._connection.fetch('''
             SELECT k.id,k.name,k.provider_kind,k.oib,ks.settlement_key AS seat_settlement_key,m.key AS municipality
-            FROM kindergarten k LEFT JOIN kindergarten_seat ks ON ks.kindergarten_id=k.id
-            LEFT JOIN municipality m ON m.id=ks.municipality_id
+            FROM vrtici k LEFT JOIN sjedista_vrtica ks ON ks.kindergarten_id=k.id
+            LEFT JOIN jedinice_lokalne_samouprave m ON m.id=ks.municipality_id
         ''')}
         for item in owners.values():
             if item['seat_settlement_key']:
                 item['areas'].add((item['seat_settlement_key'], item['municipality']))
         locations = [dict(r) for r in await self._connection.fetch('''
             SELECT l.id,l.kindergarten_id,l.settlement_key,l.address,m.key AS municipality
-            FROM location l LEFT JOIN municipality m ON m.id=l.municipality_id
+            FROM objekti l LEFT JOIN jedinice_lokalne_samouprave m ON m.id=l.municipality_id
             WHERE l.kindergarten_id IS NOT NULL
         ''')]
         for item in locations:
@@ -113,7 +128,7 @@ class AsyncpgSourceRepository(SourceRepository):
             prior = previous.get(row.source_key)
             location = None
             if prior is not None and prior['match_status'] == 'rejected':
-                await self._record(source_id, batch, row, snapshot.fetched_at)
+                await self._record(row)
                 counts['needs_review'] += 1
                 continue
             if prior is not None and prior['match_status'] == 'accepted':
@@ -127,7 +142,7 @@ class AsyncpgSourceRepository(SourceRepository):
                 owner, location, method = exact[0]['kindergarten_id'], exact[0]['id'], 'name_address'
             elif ((not institution and len(exact) > 1) or len(compatible) > 1
                   or (institution and set(compatible) & claimed)):
-                await self._record(source_id, batch, row, snapshot.fetched_at,
+                await self._record(row,
                                    note='Ambiguous normalized name/address; manual review required.')
                 counts['needs_review'] += 1
                 continue
@@ -138,7 +153,7 @@ class AsyncpgSourceRepository(SourceRepository):
             evidence = {'dataset_key': source.definition.key, 'source_record_id': str(record_id)}
             if owner is None:
                 owner = await self._connection.fetchval('''
-                    INSERT INTO kindergarten(name,provider_kind,provenance)
+                    INSERT INTO vrtici(name,provider_kind,provenance)
                     VALUES ($1,$2,$3) RETURNING id
                 ''', row.name, row.provider_kind, {'name': evidence, 'provider_kind': evidence})
                 owners[owner] = {'id': owner, 'oib': None, 'areas': set()}
@@ -150,7 +165,7 @@ class AsyncpgSourceRepository(SourceRepository):
                 if row.provider_kind_source_url:
                     owner_provenance['provider_kind'] = {
                         **evidence, 'source_url': row.provider_kind_source_url}
-            existing = await self._connection.fetchrow('SELECT * FROM kindergarten WHERE id=$1', owner)
+            existing = await self._connection.fetchrow('SELECT * FROM vrtici WHERE id=$1', owner)
             proof = existing['provenance'].get('provider_kind', {})
             # A stable ID cannot preserve a classification after its source
             # stops attesting it; only another active source can do that.
@@ -165,19 +180,19 @@ class AsyncpgSourceRepository(SourceRepository):
             if replace_name:
                 values['name'] = row.name
                 owner_provenance['name'] = evidence
-            await self._write_fields('kindergarten', owner, values, owner_provenance,
+            await self._write_fields('vrtici', owner, values, owner_provenance,
                                      source.definition.key, replace_fields=('name',) if replace_name else ())
             owner_values = await self._connection.fetchrow(
-                'SELECT name,provider_kind,oib FROM kindergarten WHERE id=$1', owner)
+                'SELECT name,provider_kind,oib FROM vrtici WHERE id=$1', owner)
             owners[owner].update(owner_values, name_key=name_key(owner_values['name']))
             municipality_id = await self._municipality_id(row.municipality)
             data = asdict(row)
             if institution:
-                await self._connection.execute('''INSERT INTO kindergarten_seat(kindergarten_id)
+                await self._connection.execute('''INSERT INTO sjedista_vrtica(kindergarten_id)
                     VALUES ($1) ON CONFLICT(kindergarten_id) DO NOTHING''', owner)
                 seat_values = {key: data[key] for key in ('address', 'postal_code', 'settlement')}
                 seat_values.update(settlement_key=settlement_key, municipality_id=municipality_id)
-                await self._write_fields('kindergarten_seat', owner, seat_values,
+                await self._write_fields('sjedista_vrtica', owner, seat_values,
                     {f'seat_{key}': evidence for key, value in seat_values.items() if value is not None},
                     source.definition.key)
                 owners[owner]['areas'].add(area)
@@ -190,7 +205,7 @@ class AsyncpgSourceRepository(SourceRepository):
                     location_provenance['kind'] = evidence
                 if location is None:
                     location = await self._connection.fetchval('''
-                        INSERT INTO location(kindergarten_id,name,settlement,settlement_key,address)
+                        INSERT INTO objekti(kindergarten_id,name,settlement,settlement_key,address)
                         VALUES ($1,$2,$3,$4,$5) RETURNING id
                     ''', owner, row.location_name, row.settlement, settlement_key, row.address)
                     counts['locations_added'] += 1
@@ -198,7 +213,7 @@ class AsyncpgSourceRepository(SourceRepository):
                 # Reviewed address geography cannot follow a moved facility.
                 # Demotion also removes its area/RAG evidence from active reads.
                 await self._connection.execute('''
-                    UPDATE source_record SET match_status='candidate',
+                    UPDATE izvorni_zapisi SET match_status='candidate',
                         match_note='Address changed; geography requires another review.'
                     WHERE location_id=$1 AND match_status='accepted'
                       AND raw_data ? 'reviewed_address'
@@ -208,22 +223,21 @@ class AsyncpgSourceRepository(SourceRepository):
                                    ('settlement', 'address', 'postal_code', 'district', 'longitude', 'latitude')}
                 location_values.update(name=row.location_name, settlement_key=settlement_key,
                                        municipality_id=municipality_id, kind=row.kind)
-                await self._write_fields('location', location, location_values,
+                await self._write_fields('objekti', location, location_values,
                     {**location_provenance, 'name': evidence}, source.definition.key)
-                # Keep the in-memory index current for subsequent rows in this batch.
+                # Keep the in-memory index current for subsequent rows in this import.
                 for item in locations:
                     if item['id'] == location:
                         item.update(area=area, address_key=row_address)
                 owners[owner]['areas'].add(area)
-            await self._record(source_id, batch, row, snapshot.fetched_at, owner=owner,
+            await self._record(row, owner=owner,
                                location=location, record_id=record_id, method=method)
             counts['accepted'] += 1
         if not counts['accepted']:
             raise SourceImportError('No accepted records; refusing to activate the snapshot.')
         await self._state.finish()
         # Fetch time and resource modification are not the observed date of the data.
-        return {'source': source.definition.key, 'registration': registered,
-                'batch_id': str(batch), **counts}
+        return {'source': source.definition.key, 'registration': registered, **counts}
 
     async def _municipality_id(self, key):
         if key is None:
@@ -231,13 +245,13 @@ class AsyncpgSourceRepository(SourceRepository):
         if key not in self._municipalities:
             item = MUNICIPALITIES[key]
             self._municipalities[key] = await self._connection.fetchval('''
-                INSERT INTO municipality(key,name,county,aliases) VALUES ($1,$2,$3,$4)
+                INSERT INTO jedinice_lokalne_samouprave(key,name,county,aliases) VALUES ($1,$2,$3,$4)
                 ON CONFLICT (key) DO UPDATE SET name=EXCLUDED.name,county=EXCLUDED.county,
                     aliases=EXCLUDED.aliases RETURNING id
             ''', item.key, item.name, item.county, list(item.aliases))
         return self._municipalities[key]
 
-    async def _record(self, source_id, batch, row, fetched_at, *, owner=None, location=None,
+    async def _record(self, row, *, owner=None, location=None,
                       record_id=None, method=None, note=None):
         return await self._state.record(row.source_key, row.raw_data, owner=owner,
             location=location, status='accepted' if owner else 'candidate', method=method,
@@ -245,25 +259,25 @@ class AsyncpgSourceRepository(SourceRepository):
 
     async def _active_proof(self, proof, owner, excluding_source):
         return await self._connection.fetchval('''SELECT EXISTS (
-            SELECT 1 FROM source_record r JOIN data_source s ON s.id=r.source_id
+            SELECT 1 FROM izvorni_zapisi r JOIN izvori_podataka s ON s.id=r.source_id
             WHERE r.id::text=$1 AND r.kindergarten_id=$2 AND r.source_id<>$3
-              AND r.match_status='accepted' AND s.import_allowed AND s.active_batch_id=r.batch_id)
+              AND r.match_status='accepted' AND s.import_allowed)
         ''', proof.get('source_record_id'), owner, excluding_source)
 
     async def _write_fields(self, table, identity, values, evidence, dataset, *, replace_fields=()):
-        seat = table == 'kindergarten_seat'
+        seat = table == 'sjedista_vrtica'
         identity_column = 'kindergarten_id' if seat else 'id'
         stored = await self._connection.fetchrow(
-            'SELECT ks.*,k.provenance FROM kindergarten_seat ks JOIN kindergarten k ON k.id=ks.kindergarten_id WHERE k.id=$1'
+            'SELECT ks.*,k.provenance FROM sjedista_vrtica ks JOIN vrtici k ON k.id=ks.kindergarten_id WHERE k.id=$1'
             if seat else f'SELECT * FROM {table} WHERE id=$1', identity)
         provenance = dict(stored['provenance'])
         updates = {}
         for field, value in values.items():
             proof_key = (f'seat_{field}' if seat else
-                         'location_name' if table == 'location' and field == 'name' else field)
+                         'location_name' if table == 'objekti' and field == 'name' else field)
             old = provenance.get(proof_key, {})
             owned = old.get('dataset_key') == dataset or await self._connection.fetchval(
-                'SELECT EXISTS(SELECT 1 FROM source_record r JOIN data_source s ON s.id=r.source_id '
+                'SELECT EXISTS(SELECT 1 FROM izvorni_zapisi r JOIN izvori_podataka s ON s.id=r.source_id '
                 'WHERE r.id::text=$1 AND s.dataset_key=$2)', old.get('source_record_id'), dataset)
             if (old and not owned and field not in replace_fields
                     and not (field == 'provider_kind' and stored[field] == 'unknown')):
@@ -276,7 +290,7 @@ class AsyncpgSourceRepository(SourceRepository):
                 updates[field] = None
                 provenance.pop(proof_key, None)
         if seat:
-            await self._connection.execute('UPDATE kindergarten SET provenance=$2 WHERE id=$1', identity, provenance)
+            await self._connection.execute('UPDATE vrtici SET provenance=$2 WHERE id=$1', identity, provenance)
         else:
             updates['provenance'] = provenance
         if not updates:

@@ -9,5 +9,5 @@ class SourceRepository(ABC):
         """Upsert metadata; return added/updated/unchanged, preserving approval/history."""
 
     @abstractmethod
-    async def import_snapshot(self, snapshot: SourceSnapshot) -> dict:
-        """Store rows and activate their batch together in the caller's transaction."""
+    async def import_snapshot(self, snapshot: SourceSnapshot, *, allow_removals: bool = False) -> dict:
+        """Replace state atomically; missing keys require explicit removal permission."""

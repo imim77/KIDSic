@@ -15,5 +15,5 @@ class SourceServiceInterface(ABC):
         """Download and normalize the resources without database writes."""
 
     @abstractmethod
-    async def import_data(self) -> dict:
-        """Download first, then atomically store and activate all selected snapshots."""
+    async def import_data(self, *, allow_removals: bool = False) -> dict:
+        """Replace all selected sources atomically; reject missing keys by default."""

@@ -1,4 +1,15 @@
-# Plan: pojednostavniti shemu baze bez gubitka dokaza
+# Plan: pojednostavniti shemu baze uz dokaze trenutačnog stanja
+
+**Status:** cjeline 1–5 provedene su i zabilježene u odjeljku 7. Odjeljci
+1–6 čuvaju istraživanje i izvorni prijedlog; donesene odluke imaju prednost
+pred ondje navedenim otvorenim pitanjima. Aktualna shema je na reviziji
+`0019_croatian_tables`. Korak 2c proveden je u odjeljku 11; cjelina 6
+ostaje odgođena.
+
+Model čuva dokaze trenutačnog stanja, ali ne arhivu njihovih promjena.
+Stabilan `source_record_id` nakon uvoza može sadržavati drukčiji izvorni tekst.
+Dump prije migracije omogućuje obnovu tog trenutka; ne čuva svaku kasniju
+verziju izvora niti sam omogućuje reprodukciju svih prijašnjih odgovora.
 
 Cilj je ukloniti dijelove sheme koje nitko ne puni ni ne čita, čuvati samo
 trenutačno stanje svakog izvora umjesto svih snimki i prestati kopirati isti
@@ -213,7 +224,8 @@ View `kindergarten_seat_geography` (0003) radi dvije stvari:
   povezivanju, uključujući ručne, ostaje na istom retku.
   Cijena: nema povijesti promjena, a zapis koji nestane pa se vrati ponovno
   prolazi povezivanje. To se lokalno još nije dogodilo. Za povijest izvora
-  dovoljni su `pg_dump` i snimke u `seeds/`.
+  postoje samo eksplicitno spremljeni `pg_dump` i seedovi; oni nisu potpuna
+  povijest promjena izvora.
 
 ### Obuhvat upisnih dokumenata
 
@@ -440,7 +452,7 @@ pitanje 2. Ishodi su:
   `kidsic-search` s leksičkom granom. Povijesni programi iz
   `historical_record` ostaju.
 
-### Cjelina 5: sjedište i županija (`0012_kindergarten_seat`)
+### Cjelina 5: sjedište i županija (`0013_kindergarten_seat`)
 
 - `kindergarten_seat(kindergarten_id PK FK, address, postal_code, settlement,
   settlement_key, municipality_id, longitude, latitude, attributes,
@@ -498,8 +510,9 @@ KIDSIC_TEST_DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/kidsic_test \
 
 Zatim:
 - provjeriti `downgrade -1` i ponovni `upgrade head` na kopiji baze;
-- provjeriti instalaciju od nule (`docker compose down -v`, `up`,
-  `upgrade head`). Time se potvrđuje da 0001 i dalje radi.
+- provjeriti instalaciju od nule na zasebnoj praznoj testnoj bazi ili novom
+  spremniku s vlastitim volumenom (`upgrade head`), bez brisanja radnog
+  volumena. Time se potvrđuje da 0001 i dalje radi.
 
 Za cjeline 2 i 3: usporediti izlaz `dohvati_kontekst_vrtica` za DV Duga
 (`topics=["document"]`) i karticu jednog zagrebačkog gradskog vrtića prije i
@@ -559,3 +572,401 @@ Ponovni uvoz upisnih seedova nakon 0013 zadržava završne brojeve:
 771 source_record, 106 knowledge_chunk, 2 enrolment i 423 historical_record.
 Početni dump kopiran je i na host: /private/tmp/kidsic_before_reconstruction_20261106.dump.
 Korak 2c i cjelina 6 ostaju odgođeni; nema preostalih odluka za cjeline 1–5.
+
+## 8. Dorada nakon pregleda
+
+### Istraživanje i opseg
+
+`CkanClient.download_records` preuzima cijeli JSON ili CSV; nema DataStore
+paginacije ni očekivanog ukupnog broja redaka. `SourceService._snapshots`
+normalizira sve izvore prije transakcije. `AsyncpgSourceRepository` zatim
+zamjenjuje stanje pod zajedničkim advisory lockom. Valjana, ali nepotpuna
+datoteka danas može ukloniti ranije ključeve kroz `SourceStateWriter.finish`.
+Pregledani lokalni dokumenti i geografske skripte imaju zasebne, namjerno
+zadane obuhvate; ova zaštita odnosi se na CKAN uvoz imenika.
+
+`database/README.md`, `ERA.md` i izvoznik modela još opisuju staru reviziju
+0006. Migracija 0014 već uklanja nečitani trigram indeks/proširenje,
+generirani `location.position`, `knowledge_chunk.content_sha256` i prazna
+sjedišta. Te postojeće migracije ne treba ponovno provoditi nad radnom bazom.
+
+### Pristupi i odluka
+
+- Prag dopuštenog pada broja redaka: jednostavan, ali propušta manje gubitke
+  i zamjenu starih ključeva novima uz jednak broj redaka.
+- Odabrano: odbiti svaki gubitak prethodnih ključeva prije promjene podataka,
+  osim uz izričit `allow_removals=True` odnosno `--allow-removals`. Poruka
+  navodi izvor, broj i uzorak nestalih ključeva za pregled. Provjera se radi
+  pod istim zaključavanjem kao zamjena; neuspjeh vraća cijelu transakciju.
+
+Ova provjera štiti postojeće zapise; ne dokazuje potpunost prvog uvoza ni
+potpunost sadržaja unutar retka. Bez izvornog manifesta takav dokaz nemamo.
+Promjena izvornog ključa također traži pregled. Prazni i duplicirani skupovi
+ostaju zabranjeni i uz dopušteno uklanjanje.
+
+### Provedba i provjera
+
+Provesti opciju kroz naredbu, servis i DAO sučelje. Usporediti ključeve prije
+registracije/projekcija u `asyncpg_source.py`. Testirati odbijanje nepotpunog
+skupa, zamjenu uz isti broj redaka, rollback svih odabranih izvora i izričito
+dopušteno uklanjanje s čišćenjem izvedenih podataka. Ažurirati dokumentaciju
+i generirati rječnik, manifest i dijagram iz zasebne baze na reviziji 0014.
+Nema novih migracija ni promjena podataka radne baze.
+
+### Rezultat dorade
+
+Provedeno: CKAN uvoz zadano odbija nestale ključeve, a `--allow-removals`
+odnosno servisni/DAO argument dopušta pregledano uklanjanje. Poruka daje
+izvor, broj i do deset ključeva. Provjera štiti i zamjenu ključeva uz jednak
+broj redaka. Testovi potvrđuju rollback metapodataka, kanonskih polja,
+izvedenih redaka i prethodno obrađenih izvora.
+
+Integracijski test uklanjanja objekta otkrio je postojeću grešku u
+`SourceStateWriter._forget_fields`: obvezni `location.kind` postavljao se na
+NULL. Gubitkom njegova dokaza sada prelazi u `unknown`.
+
+Nova baza `kidsic_test_import_guard_20261106` instalirana je od 0001 do 0014.
+Cijeli poslužiteljski skup: 188 testova, OK, 3 vanjske simulacije preskočene.
+Izvoznik generira 12 tablica i 2 pogleda na reviziji 0014; obnovljeni su
+manifest, rječnik i Graphviz dijagram. Ažurirani su oba README-a i ERA.md.
+`database/` i `scripts/export_database_model.py` i dalje su lokalno ignorirani
+prema postojećoj politici repozitorija. Radna baza nije mijenjana.
+
+## 9. Preostala poboljšanja (pregled na reviziji 0014)
+
+Brojevi migracija u ovom odjeljku izvorni su prijedlog. Revizija 0015 sada
+je `valid_knowledge_chunk`, a kaskadno brisanje provedeno je u 0016 (odjeljak
+10). Preostale migracije treba prenumerirati prije provedbe.
+
+Na reviziji 0014 nema nekorištenih tablica ni stupaca: svih 12 tablica se
+čita (`spatial_ref_sys` pripada PostGIS-u). Ovaj odjeljak bilježi ono što bi
+se moglo izvesti jednostavnije. Reference su imena funkcija jer se kod
+paralelno mijenja; brojeve redaka treba ponovno provjeriti prije provedbe.
+
+### Istraživanje
+
+**Brisanje izvedenih redaka je ručno.** Svih 25 stranih ključeva u shemi ima
+pravilo `NO ACTION`. `SourceStateWriter.clear_derived` i `finish`
+(`dao/concrete/source_state.py`) zato brišu redom `enrolment_refusal`,
+`knowledge_chunk`, `enrolment`, `document_scope` i tek onda `source_record`.
+Nova tablica izvedena iz zapisa mora se ručno dodati u taj popis, inače
+brisanje pada na stranom ključu. Odgođeni okidači iz 0011
+(`check_document_scope`) okidaju se i na `DELETE` iz `document_scope`.
+
+**Snimke više ništa ne razlikuju.** Nijedan od 771 `source_record` ni 423
+`historical_record` retka nije izvan aktivne snimke (upit iz odjeljka 1).
+Filtar `s.active_batch_id=r.batch_id` i dalje stoji na 11 mjesta u 9
+datoteka (`asyncpg_location.py` ×2, `source_state.py` ×2, te po jedno u
+`asyncpg_enrolment.py`, `asyncpg_historical.py`, `asyncpg_kindergarten.py`,
+`asyncpg_source.py`, `scripts/reviewed_snapshot.py`,
+`scripts/import_rijeka_geography.py`, `scripts/import_sibenik.py`).
+`asyncpg_historical.py` i dalje stvara novu snimku pri svakom uvozu
+(`batch = uuid4()`, zatim `INSERT INTO historical_record`), pa je to jedini
+pisac kojem `batch_id` još nešto znači.
+
+**Podaci aplikacije stoje u `raw_data` i `metadata`.** Upisni uvoz u
+`source_record.raw_data` 12 zapisa upisuje `kind`, `scope`,
+`reference_date`, `date_kind`, `valid_until`, `document_url` i
+`snapshot_key`. To nisu izvorni podaci nego odluke aplikacije, a SQL ih čita
+kao stupce: `AsyncpgKindergartenRepository.retrieve_context` (`kind`, `scope`,
+`reference_date`, `valid_until`) i `rounds` u `AsyncpgLocationRepository`
+(`document_url`, `reference_date`, `date_kind`). `scope` postoji dvaput, u
+`raw_data` i u tablici `document_scope`, koja je od 0011 izvor istine.
+`data_source.metadata->>'kind'='enrolment_document'` služi kao vrsta izvora u
+viewu `document_applicability` i u upitu vlasnika u `asyncpg_enrolment.py`.
+`historical_record` već ima `reference_date` i `date_kind` kao prave stupce.
+
+**Provenance je JSON bez stranog ključa.** `kindergarten.provenance` i
+`location.provenance` čuvaju `polje → {source_record_id}` kao tekst.
+`SourceStateWriter._forget_fields` ima 49 redaka koji ručno oponašaju
+`ON DELETE`: traže tekstualne reference na obrisane zapise, brišu ključeve iz
+JSON-a i vraćaju vrijednosti polja. U tom je kodu odjeljak 8 našao grešku
+(`location.kind` je postajao NULL). `provenance` se spominje na 36 mjesta u
+kodu, a čitatelji spajaju preko `r.id::text`.
+
+### Pristupi
+
+**Brisanje izvedenih redaka**
+- A. Zadržati ručni redoslijed. Radi, ali svaka nova izvedena tablica traži
+  izmjenu `clear_derived`.
+- B. `ON DELETE CASCADE` na stranim ključevima izvedenih redaka (odabrano).
+  Brisanje zapisa postaje jedan `DELETE FROM source_record`. Rizik je da
+  cascade obriše više nego što treba, pa se smije staviti samo na retke koji
+  bez zapisa nemaju smisla, nikad na `kindergarten` ni `location`.
+
+**Snimke**
+- A. Zadržati `batch_id` dok ga koristi `historical_record`.
+- B. Prebaciti povijesni uvoz na zamjenu na mjestu, pa ukloniti snimke
+  posvuda (odabrano; to je korak 2c iz cjeline 2).
+
+**Podaci aplikacije u `raw_data`**
+- A. Stupci na `source_record` (`date_kind`, `valid_until`, uz postojeći
+  `observed_on`) i `data_source.kind`. Bez spajanja, ali s NULL vrijednostima
+  za oko 760 zapisa imenika.
+- B. Zasebna tablica `document_record(source_record_id PK, reference_date,
+  date_kind, valid_until)`. `source_record` ostaje općenit, ali svaki
+  čitatelj dobiva jedan JOIN više.
+
+Oba pristupa uklanjaju čitanje `raw_data` kao stupaca. Odluka je otvoreno
+pitanje 2; za `scope` u oba slučaja vrijedi `document_scope`.
+
+**Provenance**
+- A. Zadržati JSON (odabrano za sada).
+- B. Tablica `field_evidence(entity, entity_id, field, source_record_id FK)`.
+  Uklanja viseće reference i spajanje preko teksta, ali ne uklanja brisanje
+  vrijednosti polja kad dokaz nestane; to i dalje radi kod. Dotiče sve
+  čitatelje i pisce provenancea, pa je opravdano tek ako taj kod nastavi rasti.
+
+### Odabrani pristup
+
+Redoslijed je od najmanjeg zahvata prema najvećem. Svaka cjelina ima svoju
+migraciju i commit, a prije svake treba napraviti `pg_dump` radne baze.
+
+**Cjelina 7: `ON DELETE CASCADE` za izvedene retke (`0015`).** Promijeniti
+strane ključeve `knowledge_chunk.source_record_id`, `enrolment.source_record_id`,
+`enrolment_refusal.source_record_id`, `enrolment_refusal.enrolment_id` i
+`document_scope.source_record_id` u `ON DELETE CASCADE`. Zatim iz
+`clear_derived` i `finish` ukloniti ručna brisanja tih tablica.
+`kindergarten_seat.geography_source_record_id` treba posebnu odluku jer uz
+referencu treba obrisati i koordinate (otvoreno pitanje 1). Provjeriti da
+odgođeni okidači iz 0011 i dalje propuštaju cascade brisanje cijelog
+dokumenta. Testovi: brisanje nestalog zapisa uklanja sve izvedene retke;
+brisanje ustanove i dalje pada dok postoje njezini zapisi.
+
+**Korak 2c: ukloniti snimke (`0016`).** Preduvjet: `AsyncpgHistoricalRepository`
+zamjenjuje retke na mjestu prema `(source_id, source_key)`, kao
+`SourceStateWriter`, i briše nestale. Zatim ukloniti
+`data_source.active_batch_id`, `source_record.batch_id`,
+`historical_record.batch_id`, indekse `ix_record_batch` i
+`ix_historical_record_batch` te svih 11 filtara. Provjera aktivnog izvora
+svodi se na `s.import_allowed`, a `SourceStateWriter.activate` samo bilježi
+`fetched_at` i `observed_on`. Na kopiji baze usporediti `list_locations` za
+sva četiri grada i RAG kontekst za svaku ustanovu prije i poslije.
+
+**Cjelina 8: podaci aplikacije izvan `raw_data` (`0017`).** Prema odluci iz
+otvorenog pitanja 2 dodati stupce ili tablicu, prenijeti vrijednosti iz
+`raw_data` 12 upisnih zapisa i `data_source.metadata->>'kind'` u pravi
+stupac s CHECK ograničenjem. `scope` čitati iz `document_scope`. Upisni uvoz
+(`asyncpg_enrolment.py`) piše nove stupce, a `raw_data` čuva samo izvorni
+sadržaj. Provjera: RAG odgovor za DV Duga (`topics=["document"]`) i upisni
+krugovi zagrebačkog gradskog vrtića identični su prije i poslije.
+
+**Cjelina 9: `field_evidence` (opcionalno).** Pokrenuti samo ako se
+`_forget_fields` ili čitatelji provenancea nastave širiti; vidi pristup B gore.
+
+### Izvan opsega
+
+- Jedan `DOMAIN` za vrste pružatelja. Popis se ponavlja u tri CHECK
+  ograničenja, ali nije isti: `municipality_subsidy_policy` (0006) namjerno
+  isključuje `other` i `unknown`, pa domena ne bi zamijenila sva tri.
+- `enrolment_refusal.source_record_id` je u oba retka isti kao izvor upisnog
+  kruga, ali `rounds` u `asyncpg_location.py` preko njega provjerava aktivnost
+  i primjenjivost odbijanja. Ostaje.
+- Indeksi na stranim ključevima poput `knowledge_chunk.location_id`. Najveća
+  tablica ima 771 redak, pa indeks ne bi ništa ubrzao.
+
+### Otvorena pitanja
+
+1. **Koordinate sjedišta kad nestane geografski dokaz.** `ON DELETE SET NULL`
+   briše samo referencu; `_forget_fields` danas briše i koordinate. View
+   `kindergarten_seat_geography` ih bez reference ionako ne prikazuje. Smiju li
+   koordinate ostati u tablici, ili se brisanje zadržava u kodu?
+2. **Stupci ili tablica za podatke upisnih dokumenata** (pristup A ili B)?
+   `document_url` ne treba ni u jednom: u svih 12 zapisa jednak je
+   `data_source.url` (provjereno 6. 11. 2026.), pa ga čitatelj uzima iz izvora.
+3. **Ostaje li cjelina 6 (`historical_record` uz `source_record`) i dalje
+   odgođena** nakon što korak 2c ujednači način zamjene?
+
+## 10. Provedba kaskadnog brisanja
+
+Migracija `0016_cascade_derived` dodaje `ON DELETE CASCADE` na pet veza:
+`knowledge_chunk.source_record_id`, `enrolment.source_record_id`,
+`document_scope.source_record_id`, `enrolment_refusal.source_record_id` i
+`enrolment_refusal.enrolment_id`. Ne mijenja stupce ni podatke.
+
+`SourceStateWriter.finish` nakon čišćenja provenancea briše samo nestale
+izvorne zapise; baza briše njihove izvedene retke. `clear_derived` ostaje za
+ponovni uvoz jer on zadržava izvorni zapis i njegov ID. Brisanje odbijanja
+preko obrisanog upisnog kruga sada obavlja baza. Geografski dokaz sjedišta
+ostaje `NO ACTION`, uz postojeće čišćenje reference, koordinata i atributa
+u `_forget_fields`. Veze prema ustanovama i objektima nisu promijenjene.
+
+Provjera: 192 poslužiteljska testa, OK, uz 3 preskočene vanjske simulacije.
+Novi testovi pokrivaju izravno kaskadno brisanje dokumenta i upisnog kruga,
+rollback, zaštitu ustanove i uklanjanje nestalih skupina pri ponovnom uvozu.
+Instalacija od nule te upgrade/downgrade/upgrade kopije popunjene baze prolaze;
+brojevi i kontrolni sažeci svih podatkovnih tablica ostaju identični.
+
+Lokalna radna baza nadograđena je na 0016, uključujući prethodno dodani
+pogled `valid_knowledge_chunk` iz 0015. Kontrolni sažeci podataka i nakon
+primjene identični su početnima. Sigurnosne kopije na hostu:
+`/private/tmp/kidsic_before_cascade_20261106.dump` (0014) i
+`/private/tmp/kidsic_before_0016_cascade_20261106.dump` (0015).
+
+## 11. Uklanjanje snimki: plan provedbe
+
+Istraživanje: `SourceStateWriter` već ažurira `source_record` po jedinstvenom
+paru `(source_id, source_key)`. Povijesni DAO još radi INSERT novih snimki,
+uz UNIQUE koji uključuje batch. Dva pogleda iz 0013 i pogled iz 0015 ovise
+o batch stupcima. `approved_record` u lokacijama služi starijem provenanceu;
+DTO, frontend tip i ugovor lokacija još izlažu `active_snapshot`.
+
+Pristupi: zadržati batch samo za povijest znači ostaviti dva životna ciklusa.
+Odabrano je ukloniti ga posvuda i povijesne retke ažurirati prema izvoru i
+ključu. Povijesni DAO zadržava postojeće ponovno povezivanje prema aktualnom
+imeniku, transakciju, zaključavanje i odbijanje uvoza bez prihvaćenih redaka.
+
+Migracija 0017 uklanja stare povijesne snimke, uvodi UNIQUE(source_id,
+source_key) na historical_record te uklanja tri batch stupca i indekse.
+Neaktivne source_record retke odbija s porukom za pregled, jer njihove JSON
+reference nije sigurno tiho brisati. Rekreira sva tri ovisna pogleda.
+Downgrade vraća jednu tehničku snimku po izvoru, bez obnove obrisane povijesti.
+
+Pisci zadržavaju stabilne ID-jeve, brišu nestale ključeve i bilježe vremena
+uvoza. Uklanjaju se batch filtri, CLI rezultat batch_id, zastavica
+active_snapshot i njezin poseban DTO/tip. Testovi zamjenjuju neaktivne snimke
+odbijenim zapisima/opozvanim izvorima; dodaju provjere stabilnih povijesnih
+ID-jeva, brisanja nestalih redaka i rollbacka. Nepoznanica je postoje li stare
+povijesne snimke u drugim bazama; migracija obrađuje taj slučaj izričito.
+
+Provjera: cijeli poslužiteljski skup na praznoj bazi; frontend testovi i
+TypeScript build; upgrade/downgrade/upgrade na kopiji popunjene baze.
+Usporediti kartice za sva četiri grada i RAG svake ustanove prije/poslije,
+uz izuzimanje namjerno uklonjene zastavice active_snapshot. Prije primjene na
+lokalnu radnu bazu napraviti pg_dump. Ostale promjene sheme nisu u opsegu.
+
+### Rezultat uklanjanja snimki
+
+Provedeno u 0017: uklonjena su sva tri batch stupca, oba batch indeksa i
+filtri iz čitatelja/pisaca, uključujući sva tri ovisna pogleda. Povijesni uvoz
+čuva ID-jeve, ažurira sadržaj i uklanja nestale ključeve uz postojeća pravila
+povezivanja. DTO, frontend tip i dokumentacija više nemaju active_snapshot;
+CKAN rezultat nema batch_id. Ulazne pregledane datoteke i transakcijske
+read-only snimke ostaju zasebni koncepti.
+
+Provjereno: 193 poslužiteljska testa, OK (3 vanjske simulacije preskočene),
+97 frontend testova i produkcijski TypeScript/Vite build. Svih pet pregledanih
+geografskih skripti prolazi dry-run na kopiji popunjene baze. Posebna provjera
+potvrđuje odbijanje neaktivnog source_record uz rollback, uklanjanje starih
+historical_record verzija i jedinstvenost novih ključeva. Prazna instalacija
+te upgrade/downgrade/upgrade popunjene kopije prolaze.
+
+Lokalna radna baza nadograđena je na 0017. Kartice sva četiri grada i dohvat
+RAG dokaza za svih 310 ustanova jednaki su prije/poslije, uz izuzimanje
+namjerno uklonjene zastavice active_snapshot. Brojevi i kontrolni sažeci svih
+tablica, bez uklonjenih batch stupaca, ostaju identični: 771 source_record,
+423 historical_record, 106 knowledge_chunk i 2 enrolment. Sigurnosna kopija:
+`/private/tmp/kidsic_before_0017_20261106.dump`. Objedinjavanje historical_record
+sa source_record i tipizirani podaci upisnih dokumenata nisu dio ovog zahvata.
+
+## 12. Tipizirani podaci dokumenata: plan
+
+Istraživanje: upisni DAO upisuje aplikacijske datume, obuhvat, URL i oznaku
+snimke u raw_data. `valid_knowledge_chunk` iz 0017 čita JSON datume i obuhvat;
+upisni krugovi u lokacijskom DAO-u čitaju JSON datum i URL. Vrsta izvora čita
+se iz metadata u upisnom DAO-u i document_applicability. Lokalno postoje tri
+upisna izvora i 12 zapisa; URL-ovi odgovaraju data_source.url, a observed_on
+odgovara objavljenoj vrsti datuma. Drugi izvori nemaju metadata.kind.
+
+Pristupi: stupci na source_record dodali bi neprimjenjive vrijednosti svim
+ostalim zapisima; odabrana tablica document_record odvaja dokumente i dopušta
+obvezne datume. Migracija 0018 dodaje data_source.kind ('general' ili
+'enrolment_document') i document_record(source_record_id PK FK ON DELETE
+CASCADE, reference_date NOT NULL, date_kind NOT NULL, valid_until). Ograničenja
+provjeravaju published/observed i valid_until >= reference_date.
+
+Migracija prenosi datume i vrstu izvora, rekreira dva ovisna pogleda te uklanja
+premještene JSON ključeve samo s upisnih zapisa. URL dolazi iz data_source,
+obuhvat iz document_scope, snapshot_key ostaje u metadata izvora. Migracija
+odbija neusuglašen URL, oznaku snimke, datum ili obuhvat umjesto gubitka
+različite vrijednosti. raw_data čuva preostali izvorni sadržaj; trenutačni
+upisni zapisi nemaju dodatan izvorni JSON, a tekst je u knowledge_chunk.
+
+DAO piše dokumentne datume UPSERT-om uz isti source_record ID. Zamjena sadržaja
+ne briše document_record; nestali izvorni zapis briše ga kaskadno. SQL više ne
+čita premještene JSON ključeve. Pogled ne nudi upisne dokaze bez dokumentnih
+datuma. Downgrade rekonstruira stari JSON ugovor iz tablice i metapodataka.
+
+Provjeriti granice datuma, nepoznatu vrstu, kaskadno brisanje, reimport i
+rollback. Pokrenuti cijeli poslužiteljski skup na praznoj bazi te
+upgrade/downgrade/upgrade popunjene kopije. Usporediti kartice svih gradova i
+RAG dokaze svih ustanova prije/poslije. Prije primjene spremiti pg_dump.
+Nema preostalih otvorenih odluka; 'general' je zadana vrsta ostalih izvora,
+ne tvrdnja da su svi izvori imenici.
+
+### Rezultat tipiziranih podataka dokumenata
+
+Migracija 0018 provedena je na lokalnoj radnoj bazi: 12 document_record redaka,
+3 izvora vrste enrolment_document i 29 general izvora. Premješteni ključevi
+više nisu u upisnom raw_data ni metadata.kind. Očuvani su ostali podaci izvora,
+izvorni JSON, odlomci, obuhvati i podaci svih drugih tablica.
+
+195 poslužiteljskih testova prolazi (3 vanjske simulacije preskočene).
+Prazna instalacija te upgrade/downgrade/upgrade popunjene kopije prolaze.
+Posebna provjera potvrđuje rollback za sedam neispravnih/proturječnih ulaza,
+očuvanje dodatnog izvornog JSON polja te rekonstrukciju datuma i metapodataka
+pri downgradeu. Dvostruki probni uvoz pregledanih seedova čuva svih 12 ID-jeva
+i datume, 106 odlomaka i 2 upisna kruga; probna transakcija je poništena.
+
+Kartice sva četiri grada, RAG dokazi svih 310 ustanova i datumi svih 12
+dokumenata identični su prije/poslije na kopiji i na lokalnoj radnoj bazi.
+Kontrolni sažeci ostalih podataka također se podudaraju nakon normalizacije
+namjerno premještenih polja. Sigurnosna kopija:
+`/private/tmp/kidsic_before_0018_20261106.dump`.
+
+## 13. Hrvatski nazivi tablica: plan
+
+Zahtjev: preimenovati svih 13 aplikacijskih tablica na hrvatski, u množini i
+snake_case bez dijakritika. Stupci, pogledi, Python ugovori, indeksi i nazivi
+ograničenja ostaju isti. Sistemske tablice ostaju alembic_version i spatial_ref_sys.
+
+Istraživanje: API i servisi koriste DAO ugovore; stvarni nazivi tablica nalaze
+se u konkretnim DAO klasama, pet pregledanih geografskih skripti i pomoćnoj
+skripti, SQL seedu sufinanciranja i integracijskim testovima. Dinamički SQL
+koristi i popise/usporedbe imena u SourceStateWriter i AsyncpgSourceRepository.
+Tri pogleda i strani ključevi prate preimenovane PostgreSQL objekte, ali funkcija
+check_document_scope iz 0011 sadrži tekstualne SQL reference i TG_TABLE_NAME;
+nju nova migracija mora zamijeniti. Testovi starih migracija izravno izvršavaju
+njihov SQL, pa njihove testne kopije SQL-a prevode reference na aktualne nazive
+tablica, uz očuvanje SQL vrijednosti i stupaca. Stare migracije ne mijenjaju se.
+
+Pristupi: dodatni pogledi sa starim imenima zadržali bi dvostruko imenovanje i
+komplicirali upise. Odabrano je ALTER TABLE RENAME i prilagodba svih aktivnih
+SQL mjesta. Migracija 0019 čuva podatke i identitete, mijenja funkciju okidača,
+a downgrade vraća nazive i staru funkciju.
+
+Dogovorena imena: data_source → izvori_podataka; source_record → izvorni_zapisi;
+kindergarten → vrtici; kindergarten_seat → sjedista_vrtica; location → objekti;
+municipality → jedinice_lokalne_samouprave; municipality_subsidy_policy →
+pravila_sufinanciranja; enrolment → upisni_krugovi; enrolment_refusal →
+neprihvacanja_upisa; document_scope → obuhvati_dokumenata; document_record →
+zapisi_dokumenata; knowledge_chunk → odlomci_znanja; historical_record →
+povijesni_zapisi.
+
+Provjera: instalacija od nule i cijeli poslužiteljski skup, povrat/nadogradnja
+popunjene kopije, usporedba svih redaka po kontrolnim sažecima te kartica i
+dokaza za sva četiri grada. Provjeriti pet geografskih uvoza i ponovni uvoz
+upisnih seedova. Prije lokalne primjene napraviti pg_dump. Otvorenih pitanja
+nema; nazivi su potvrđeni prethodnim odgovorom korisnika.
+
+### Rezultat hrvatskih naziva tablica
+
+Migracija 0019 provedena je na lokalnoj radnoj bazi. Svih 13 aplikacijskih
+tablica ima dogovorene hrvatske nazive u množini. Sistemske tablice, stupci,
+pogledi, nazivi indeksa/ograničenja i javni API nisu promijenjeni. Okidač
+check_document_scope koristi nove reference i TG_TABLE_NAME. Aktivni DAO-i,
+pet geografskih skripti, SQL seed sufinanciranja, integracijski testovi,
+dokumentacija i inventar lokalnog izvoznika modela koriste nove nazive.
+Stare migracije ostaju nepromijenjene.
+
+Provjereno: 196 poslužiteljskih testova, OK (3 vanjske simulacije preskočene),
+instalacija od nule te upgrade/downgrade/upgrade popunjene kopije. Svih pet
+geografskih skripti prolazi dry-run; dvostruki probni uvoz upisnih dokumenata
+čuva svih 12 ID-jeva i datume, 106 odlomaka i 2 upisna kruga. Kartice sva četiri
+grada, dokazi svih 310 ustanova te točni kontrolni sažeci svih podatkovnih
+tablica ostaju identični na kopiji i na radnoj bazi. Radna baza i dalje ima
+310 vrtića, 447 objekata i 771 izvorni zapis.
+
+Sigurnosna kopija prije preimenovanja:
+`/private/tmp/kidsic_before_0019_20261106.dump`. Prikaz u PyCharmu treba
+osvježiti nad shemom public kako bi se učitali novi nazivi.

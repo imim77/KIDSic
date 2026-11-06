@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import AsyncMock, patch
 
 from KIDSic.commands.register_sources import SourceRegistrationCommand
+from KIDSic.commands.sync_kindergartens import KindergartenSyncCommand, main as sync_main
 from KIDSic.config.settings import Settings
 from KIDSic.dto.ckan import CkanPackage
 from KIDSic.dto.source import SourceDefinition, name_key
@@ -175,3 +176,33 @@ class SourceServiceTests(unittest.IsolatedAsyncioTestCase):
         ):
             result = await SourceRegistrationCommand(Settings.from_env(require_database=False)).run(True)
         self.assertTrue(result['dry_run'])
+
+    async def test_sync_command_only_passes_removal_permission_to_writes(self):
+        service = SimpleNamespace(preview_import=AsyncMock(return_value={'dry_run': True}),
+                                  import_data=AsyncMock(return_value={'sources': []}))
+
+        @asynccontextmanager
+        async def source_service(*args, **kwargs):
+            yield service
+
+        with patch('KIDSic.commands.sync_kindergartens.DependencyService.source_service', source_service):
+            command = KindergartenSyncCommand(Settings.from_env(require_database=False))
+            await command.run()
+            service.import_data.assert_awaited_once_with(allow_removals=False)
+            await command.run(allow_removals=True)
+            service.import_data.assert_awaited_with(allow_removals=True)
+            service.import_data.reset_mock()
+            await command.run(dry_run=True, allow_removals=True)
+            service.preview_import.assert_awaited_once_with()
+            service.import_data.assert_not_awaited()
+
+
+class SyncCliTests(unittest.TestCase):
+    def test_removal_flag_reaches_sync_command(self):
+        for flags, expected in (([], False), (['--allow-removals'], True)):
+            with self.subTest(flags=flags), patch(
+                    'KIDSic.commands.sync_kindergartens.KindergartenSyncCommand.run',
+                    new_callable=AsyncMock, return_value={}) as run, patch(
+                    'KIDSic.commands.register_sources.Settings.from_env'), patch('builtins.print'):
+                sync_main(['--source', 'national', *flags])
+                run.assert_awaited_once_with(False, ['national'], allow_removals=expected)

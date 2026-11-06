@@ -79,11 +79,11 @@ izbrisani podaci mogu se vratiti iz sigurnosne kopije, a downgrade ih ne obnavlj
 
 ## CKAN registracija i uvoz
 
-Vrsta pružatelja obavezno je pohranjena u `kindergarten.provider_kind`:
+Vrsta pružatelja obavezno je pohranjena u `vrtici.provider_kind`:
 `municipal` (gradski), `private` (privatni), `childminder` (dadilje),
 `religious` (vjerski) i `other` (ostali programi/ustanove). `unknown` ostaje
 za nove ustanove čiji tip još nije potvrđen. Objekti preuzimaju tip povezane
-ustanove; `location.kind` zasebno razlikuje matični i područni objekt.
+ustanove; `objekti.kind` zasebno razlikuje matični i područni objekt.
 API lokacija i razgovorna pretraga vraćaju `provider_kind` uz svaki rezultat.
 Nacionalni uvoz dopunjava pregledane vrtiće u Varaždinu i Zagrebu prema
 potvrđenom gradu i točnom normaliziranom nazivu, uz poveznicu na izvor
@@ -112,11 +112,28 @@ uv run kidsic-sync-kindergartens --source varazdin-childminders --dry-run
 uv run kidsic-sync-kindergartens --source varazdin-childminders
 uv run kidsic-sync-kindergartens --source rijeka-kindergartens --dry-run
 uv run kidsic-sync-kindergartens --source rijeka-kindergartens
+
+# Tek nakon pregleda potpunosti izvora i opravdanosti nestalih ključeva:
+uv run kidsic-sync-kindergartens --source national --allow-removals
 ```
 
-Registracija poziva `package_show`, traži aktivan resurs zadanog formata (JSON ili CSV) i provjerava očekivanu licencu po izvoru: `open-license` (Otvorena dozvola), odnosno `cc-by` za Rijeku. Metapodatke sprema u `data_source`; ponovljena registracija čuva `import_allowed` i trenutačno stanje. Ne uvozi sadržaj. Sync registrira izvore po potrebi i zasebno preuzima njihove JSON/CSV datoteke; ne pretpostavlja uključen DataStore. Nazivi portala, ID-jevi skupova, timeout i ograničenje veličine odgovora konfiguriraju se `CKAN_*` varijablama iz `.env.example`. Mapiranja su namijenjena ovim pet shemama. Za varaždinske dadilje i riječke objekte dodatno se provjerava točan ID CSV resursa; drugi CSV nije automatska zamjena.
+Registracija poziva `package_show`, traži aktivan resurs zadanog formata (JSON ili CSV) i provjerava očekivanu licencu po izvoru: `open-license` (Otvorena dozvola), odnosno `cc-by` za Rijeku. Metapodatke sprema u `izvori_podataka`; ponovljena registracija čuva `import_allowed` i trenutačno stanje. Ne uvozi sadržaj. Sync registrira izvore po potrebi i zasebno preuzima njihove JSON/CSV datoteke; ne pretpostavlja uključen DataStore. Nazivi portala, ID-jevi skupova, timeout i ograničenje veličine odgovora konfiguriraju se `CKAN_*` varijablama iz `.env.example`. Mapiranja su namijenjena ovim pet shemama. Za varaždinske dadilje i riječke objekte dodatno se provjerava točan ID CSV resursa; drugi CSV nije automatska zamjena.
 
-Sync provjerava sve odabrane resurse prije transakcije. Sprema izvorne retke u `source_record`, normalizirane ustanove i objekte te podrijetlo polja. MZOM-ov redak opisuje pravnu osobu: njegova adresa sprema se kao sjedište ustanove, a ne kao objekt. Objekte daju zagrebački i riječki skupovi; ustanova bez poznatog objekta u pretrazi se prikazuje sa sjedištem (`location_role=seat`). Spajanje koristi prethodni identitet izvora, OIB kada postoji te normalizirane nazive, grad/mjesto i adresu; ne koristi neprovjerene približne podudarnosti. Način odluke sprema se u `source_record.match_method`. Višeznačni zapisi ostaju `candidate` za pregled. Sve odabrane snimke aktiviraju se atomarno, a neuspjeh čuva prethodnu aktivnu snimku. Nestali izvorni zapisi i izvedeni retci uklanjaju se, a povijest promjena čuva dump. Ponovljeni uvoz istih identiteta čuva ID-jeve izvornih zapisa, ustanova i lokacija; pisci se serijaliziraju transakcijskim advisory lockom.
+Sync provjerava sve odabrane resurse prije transakcije. Sprema izvorne retke u `izvorni_zapisi`, normalizirane ustanove i objekte te podrijetlo polja. MZOM-ov redak opisuje pravnu osobu: njegova adresa sprema se kao sjedište ustanove, a ne kao objekt. Objekte daju zagrebački i riječki skupovi; ustanova bez poznatog objekta u pretrazi se prikazuje sa sjedištem (`location_role=seat`). Spajanje koristi prethodni identitet izvora, OIB kada postoji te normalizirane nazive, grad/mjesto i adresu; ne koristi neprovjerene približne podudarnosti. Način odluke sprema se u `izvorni_zapisi.match_method`. Višeznačni zapisi ostaju `candidate` za pregled. Trenutačno stanje svih odabranih izvora zamjenjuje se atomarno, a neuspjeh čuva prethodne podatke. Ponovljeni uvoz istih identiteta čuva ID-jeve izvornih zapisa, ustanova i lokacija; pisci se serijaliziraju transakcijskim advisory lockom.
+
+Ako nedostaje ijedan prethodni `source_key`, sync odbija cijeli uvoz uz naziv
+izvora, broj i uzorak nestalih ključeva. Provjerite potpunost datoteke i razlog
+uklanjanja prije ponavljanja s `--allow-removals`, po mogućnosti za jedan
+`--source`. Ta opcija dopušta brisanje nestalih zapisa i izvedenih redaka;
+prazni i duplicirani skupovi i dalje su zabranjeni. Promjena ključa također
+traži pregled, čak i uz jednak broj redaka. `--dry-run` ne pristupa bazi pa
+ne uspoređuje ključeve s prethodnim stanjem. Provjera ne dokazuje potpunost
+prvog uvoza ni sadržaja pojedinog retka.
+
+Baza čuva samo trenutačni sadržaj tih izvornih zapisa. Stabilan ID nije
+nepromjenjiva verzija dokaza. Dump omogućuje obnovu eksplicitno spremljenog
+trenutka; potpuna povijest izvora i reprodukcija svih ranijih odgovora nisu
+implementirane.
 
 Ovi skupovi nemaju potvrđene dobne uvjete, slobodna mjesta ni upisne upute. Uvoz ih ne izmišlja i ne stvara programe ni RAG dokumente iz kontaktnih podataka. Datum preuzimanja i izmjene resursa spremaju se odvojeno; ne proglašavaju se datumom stvarnog stanja podataka.
 
@@ -138,10 +155,10 @@ uv run kidsic-sync-historical --source zagreb-programs-2019
 ```
 
 Prvo uvezite postojeći imenik (`national`, `zagreb-municipal`, `zagreb-other`).
-Povijesni uvoz ne stvara nove ustanove, objekte ni koordinate. `historical_record`
+Povijesni uvoz ne stvara nove ustanove, objekte ni koordinate. `povijesni_zapisi`
 čuva izvorni redak, datum, programe i mjesta; jednoznačno povezuje nazive unutar
 Zagreba, a za programe i adresu objekta. Nepovezani i višeznačni retci ostaju
-`candidate` za pregled. `accepted` zapisi aktivne, dopuštene snimke pojavljuju se
+`candidate` za pregled. `accepted` zapisi dopuštenog izvora pojavljuju se
 u detaljima odgovarajućih vrtića kroz `historical_data`. Broj mjesta odnosi se
 na cijelu ustanovu/obrt, ne pojedini objekt; ne zbraja se po podružnicama.
 Zbrojni stupci CSV-a nisu dodatne skupine. Nula ostaje nula, prazno ostaje nepoznato,
@@ -150,7 +167,8 @@ a `/` u programima nije naziv programa ni dokaz da program ne postoji.
 Datumi podataka odvojeni su od datuma preuzimanja i izmjene kataloga. Promjena
 licence, datuma snimke ili zaglavlja zaustavlja uvoz za pregled. Sve datoteke
 provjeravaju se prije transakcije; pogreška zadržava prethodnu snimku. Ponovljeni
-uvoz čuva povijest, ali API prikazuje samo aktivnu snimku. Ovi povijesni zapisi
+uvoz ažurira zapise uz stabilne ID-jeve i uklanja nestale ključeve; stare verzije
+uvoza ne čuvaju se. Povijesni datumi, programi i mjesta ostaju u sadržaju. Ti zapisi
 ne potvrđuju aktualnu dobnu prikladnost, današnja slobodna mjesta ni pravo upisa.
 Iz ovog skupa nema podataka o slobodnim mjestima privatnih i vjerskih vrtića.
 
@@ -179,7 +197,7 @@ nagađanja ili promjene UTF-8 pravila varaždinskog izvora. Konfiguracija je u
 Stupci `Vrtić` i `Adresa` opisuju objekt, a `Centar` njegovu ustanovu.
 `Osnivač` određuje pregledani tip pružatelja: gradski, privatni ili vjerski;
 novi nepoznati osnivač ostaje `unknown`. Cijeli redak, uključujući adresu
-centra, ostaje u `source_record.raw_data`; uvoz objekta ne mijenja sjedište
+centra, ostaje u `izvorni_zapisi.raw_data`; uvoz objekta ne mijenja sjedište
 iz MZOM-a. Lokalni naziv Mala vila povezuje se s punim MZOM nazivom
 `Dječji vrtić "Mala Vila", waldorfski`. KBC Rijeka povezuje se s Dječjim
 vrtićem Rijeka prema [službenom opisu Grada](https://www.rijeka.hr/gradska-uprava/ustanove/ustanove-odgoju-skolstvu/djecji-vrtici/),
@@ -203,11 +221,11 @@ primjenjivost starog geografskog dokaza do novog pregleda.
 
 Skup iz CKAN API-ja (`package_show`) vodi do CSV datoteke: DataStore nije uključen. CSV se čita kao UTF-8 s mogućim BOM-om, razdjelnikom `;` i navodnicima. Prazni retci se preskaču, a neispravan broj stupaca, kodiranje ili obvezna polja prekidaju uvoz prije upisa. Vrijede isto ograničenje veličine odgovora i obrada HTTP pogrešaka kao za JSON izvore.
 
-Spremaju se naziv, adresa sjedišta, mjesto i poštanski broj, vrsta `childminder`, kontaktni telefon, e-mail, web/Facebook poveznica i jednoznačan OIB. `Matični broj` obrta je stabilan `source_record.source_key`, pa promjena adrese ili kontakta ne stvara novi obrt. Cijeli izvorni redak ostaje u `source_record.raw_data`, zajedno s vezom na izvor, licencijom i datumom preuzimanja. Imena odgovornih osoba ne dodaju se kao zasebna polja ustanove. Ako redak navodi više OIB-a, svi ostaju u izvornom retku, a jedinstveni `kindergarten.oib` ostaje prazan.
+Spremaju se naziv, adresa sjedišta, mjesto i poštanski broj, vrsta `childminder`, kontaktni telefon, e-mail, web/Facebook poveznica i jednoznačan OIB. `Matični broj` obrta je stabilan `izvorni_zapisi.source_key`, pa promjena adrese ili kontakta ne stvara novi obrt. Cijeli izvorni redak ostaje u `izvorni_zapisi.raw_data`, zajedno s vezom na izvor, licencijom i datumom preuzimanja. Imena odgovornih osoba ne dodaju se kao zasebna polja ustanove. Ako redak navodi više OIB-a, svi ostaju u izvornom retku, a jedinstveni `vrtici.oib` ostaje prazan.
 
 Stupci su označeni kao adrese sjedišta; ne proglašavaju se fizičkim objektima za čuvanje djece. Skup nema koordinate, kvartove, dobne uvjete ni podatke o slobodnim mjestima. Uvoz ne stvara takve podatke ni RAG dokumente iz kontakata. Obrti su dostupni u imeniku i pretrazi kao `childminder`, sa sjedištem i nepoznatom dobnom prikladnošću. API lokacija podržava `provider_kind=childminder`; bez koordinata nema oznake na karti.
 
-Dodatno geokodiranje sjedišta nalazi se u `scripts/varazdin-childminders-nominatim.json` i uvozi naredbom `uv run python scripts/import_childminder_geography.py --apply`. Geografija se od revizije `0013_kindergarten_seat` čuva uz sjedište u `kindergarten_seat`, s FK-om na izvorni zapis. Provjera izvora i podudaranja trenutačne adrese objedinjena je u pogledu `kindergarten_seat_geography`. Poznati kvartovi, predjeli, susjedstva i naselja koriste se za filtriranje pretrage prije RAG dohvaćanja; geografski dokumenti ne potvrđuju dobnu prikladnost.
+Dodatno geokodiranje sjedišta nalazi se u `scripts/varazdin-childminders-nominatim.json` i uvozi naredbom `uv run python scripts/import_childminder_geography.py --apply`. Geografija se od revizije `0013_kindergarten_seat` čuva uz sjedište u `sjedista_vrtica`, s FK-om na izvorni zapis. Provjera izvora i podudaranja trenutačne adrese objedinjena je u pogledu `kindergarten_seat_geography`. Poznati kvartovi, predjeli, susjedstva i naselja koriste se za filtriranje pretrage prije RAG dohvaćanja; geografski dokumenti ne potvrđuju dobnu prikladnost.
 
 ## Lokalni pregled MCP sučelja
 
@@ -283,3 +301,50 @@ Migracija 0012 uklanja aktualne programe i pripadajuće filtre. `prikazi_vrtice`
 i HTTP više ne prihvaćaju `age_months`, `program` ni `include_unknown`;
 `kidsic-search` je uklonjen. Tema `programs` u RAG-u i `historical_data.programs`
 čuvaju isključivo povijesne objave, bez potvrde današnje provedbe ili dobi.
+
+Migracija 0014 uklanja nečitani trigram indeks i `pg_trgm`, generirani
+`location.position`, hash odlomka `knowledge_chunk.content_sha256` i prazna
+sjedišta. Prostorni upiti i dalje koriste PostGIS nad koordinatama.
+
+Migracija 0017 uklanja `source_record.batch_id`, `historical_record.batch_id` i
+`data_source.active_batch_id`. Povijesni uvoz sada zamjenjuje trenutačno stanje
+prema `(source_id, source_key)`. Migracija briše neaktivne povijesne verzije,
+a neaktivne izvorne zapise odbija radi pregleda njihova provenancea. Prije
+primjene spremiti `pg_dump -Fc`; downgrade vraća jednu tehničku snimku po izvoru,
+a ranije verzije uvoza mogu se obnoviti samo iz dumpa. API više ne izlaže
+`field_sources.*.active_snapshot`, a rezultat CKAN uvoza nema `batch_id`.
+
+Migracija 0018 dodaje `document_record` za obvezni `reference_date`, vrstu datuma
+`date_kind` i opcionalni `valid_until`. Baza provjerava vrstu datuma i redoslijed
+razdoblja. Vrsta izvora je u `data_source.kind` (`general` ili
+`enrolment_document`), obuhvat u `document_scope`, a URL u `data_source.url`.
+Premješteni aplikacijski ključevi uklanjaju se iz `raw_data`; izvorni sadržaj
+ostaje očuvan, a tekst dokumenata ostaje u `knowledge_chunk`. `snapshot_key`
+ostaje u metapodacima izvora. Prije migracije spremiti `pg_dump -Fc`;
+proturječni URL-ovi, datumi, oznake snimki ili obuhvati zahtijevaju pregled.
+Downgrade vraća JSON ugovor iz tipiziranih podataka. Javni rezultati alata i
+kartice ostaju isti.
+
+Migracija 0019 preimenuje aplikacijske tablice na hrvatski, u množini.
+Nazivi stupaca, pogleda, indeksa i ograničenja ostaju isti, kao i javni API.
+Podaci i identiteti ostaju očuvani; downgrade vraća stare nazive.
+
+| Prijašnji naziv | Aktualni naziv |
+| --- | --- |
+| `data_source` | `izvori_podataka` |
+| `source_record` | `izvorni_zapisi` |
+| `kindergarten` | `vrtici` |
+| `kindergarten_seat` | `sjedista_vrtica` |
+| `location` | `objekti` |
+| `municipality` | `jedinice_lokalne_samouprave` |
+| `municipality_subsidy_policy` | `pravila_sufinanciranja` |
+| `enrolment` | `upisni_krugovi` |
+| `enrolment_refusal` | `neprihvacanja_upisa` |
+| `document_scope` | `obuhvati_dokumenata` |
+| `document_record` | `zapisi_dokumenata` |
+| `knowledge_chunk` | `odlomci_znanja` |
+| `historical_record` | `povijesni_zapisi` |
+
+`alembic_version` i PostGIS tablica `spatial_ref_sys` zadržavaju izvorne nazive.
+Prije nadogradnje napraviti `pg_dump -Fc`; u PyCharmu nakon nje osvježiti
+shemu `public` da prikaz učita nove nazive.

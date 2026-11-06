@@ -35,12 +35,12 @@ class RijekaGeographyImporter:
             location = uuid.UUID(item['location_id'])
             stored = await self._connection.fetchrow('''
                 SELECT l.kindergarten_id,l.name,l.address,l.attributes
-                FROM location l JOIN municipality m ON m.id=l.municipality_id
+                FROM objekti l JOIN jedinice_lokalne_samouprave m ON m.id=l.municipality_id
                 WHERE l.id=$1 AND m.key='rijeka' AND EXISTS (
-                    SELECT 1 FROM source_record r JOIN data_source s ON s.id=r.source_id
+                    SELECT 1 FROM izvorni_zapisi r JOIN izvori_podataka s ON s.id=r.source_id
                     WHERE r.location_id=l.id AND r.kindergarten_id=l.kindergarten_id
                       AND s.dataset_key='rijeka-kindergartens' AND r.source_key=$2
-                      AND s.import_allowed AND s.active_batch_id=r.batch_id
+                      AND s.import_allowed
                       AND r.match_status='accepted') FOR UPDATE OF l
             ''', location, item['source_key'])
             if (stored is None or str(stored['kindergarten_id']) != item['kindergarten_id']
@@ -52,7 +52,7 @@ class RijekaGeographyImporter:
             attributes, manual = area_attributes(geo, stored['attributes'])
             attributes.update(geocoding_review_status='matched', geocoding_match_basis=geo['match_basis'])
             await self._connection.execute(
-                'UPDATE location SET longitude=$2,latitude=$3,attributes=attributes || $4 WHERE id=$1',
+                'UPDATE objekti SET longitude=$2,latitude=$3,attributes=attributes || $4 WHERE id=$1',
                 location, geo['longitude'], geo['latitude'], attributes)
             await batch.evidence(location, record, [field for field in ('longitude', 'latitude', *AREAS)
                                                     if geo.get(field) is not None], manual)

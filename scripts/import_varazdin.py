@@ -10,9 +10,9 @@ DATA_FILE = Path(__file__).with_name('varazdin-municipal-nominatim.json')
 
 async def import_facilities(connection, data):
     """import_facilities preserves object identity and attaches evidence to each field."""
-    if not await connection.fetchval('SELECT id FROM kindergarten WHERE id=$1', INSTITUTION_ID):
+    if not await connection.fetchval('SELECT id FROM vrtici WHERE id=$1', INSTITUTION_ID):
         raise ValueError('The reviewed institution is missing; do not guess its identity.')
-    municipality = await connection.fetchval("SELECT id FROM municipality WHERE key='varazdin'")
+    municipality = await connection.fetchval("SELECT id FROM jedinice_lokalne_samouprave WHERE key='varazdin'")
     if municipality is None:
         raise ValueError('Register Grad Varaždin before importing its facilities.')
     batch = await Batch.start(connection, data['fetched_at'])
@@ -26,7 +26,7 @@ async def import_facilities(connection, data):
         matched = item['review_status'] == 'matched' and item.get('selected') is not None
         geo = item['selected'] if matched else {}  # Candidates stay in raw evidence, not on the map.
         attributes, manual = area_attributes(
-            geo, await connection.fetchval('SELECT attributes FROM location WHERE id=$1', location))
+            geo, await connection.fetchval('SELECT attributes FROM objekti WHERE id=$1', location))
         attributes['geocoding_review_status'] = item['review_status']
         for key, value in (('phone', item.get('official_phone')),
                            ('geocoding_address', item.get('geocoding_address'))):

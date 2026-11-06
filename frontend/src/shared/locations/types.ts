@@ -90,7 +90,7 @@ export interface LocationProperties {
   distance_m?: number | null
   location_role: 'facility' | 'seat'
   sources: LocationSource[]
-  field_sources?: Record<string, LocationSource & { active_snapshot: boolean }>
+  field_sources?: Record<string, LocationSource>
   subsidy_policies?: SubsidyPolicy[]
 }
 

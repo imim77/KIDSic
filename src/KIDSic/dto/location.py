@@ -78,10 +78,6 @@ class LocationSource(BaseModel):
     retrieved_at: datetime
 
 
-class LocationFieldSource(LocationSource):
-    active_snapshot: bool
-
-
 class LocationEnrolment(BaseModel):
     # LocationEnrolment is one published round with its official channel. The
     # status compares the round's own times with one clock reading; it never
@@ -116,7 +112,7 @@ class LocationProperties(BaseModel):
     areas: list[str] = Field(default_factory=list)
     location_role: Literal['facility', 'seat']
     sources: list[LocationSource]
-    field_sources: dict[str, LocationFieldSource] = Field(default_factory=dict)
+    field_sources: dict[str, LocationSource] = Field(default_factory=dict)
     subsidy_policies: list[SubsidyPolicy] = Field(default_factory=list)
     historical_data: list[HistoricalEvidence] = Field(default_factory=list)
     enrolment: list[LocationEnrolment] = Field(default_factory=list)

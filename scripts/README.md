@@ -1,7 +1,7 @@
 # Pregledane dopune
 
 Skripte ne dohvaćaju ništa s mreže. Svaka čita jednu lokalnu, ručno pregledanu
-snimku i upisuje je kao novu snimku izvora u jednoj transakciji. Zajedničke
+snimku i njome zamjenjuje trenutačno stanje izvora u jednoj transakciji. Zajedničke
 korake (izvor, zapis, dokaz polja, RAG odlomak, zaključavanje i naredbeni
 redak) dijele preko `reviewed_snapshot.py`.
 
@@ -30,9 +30,9 @@ uv run python scripts/import_varazdin.py --apply
 ```
 
 Uvoz povezuje devet objekata s postojećom ustanovom, koristi stabilne ID-eve
-objekata i novu aktivnu snimku izvora pri svakom pokretanju. Ne šalje nove
+objekata i izvornih zapisa pri svakom pokretanju. Ne šalje nove
 zahtjeve Nominatimu. `quarter`, `suburb` i `neighbourhood` čuvaju se u
-`location.attributes`; `district` se ne zamjenjuje drugim geografskim pojmom.
+`objekti.attributes`; `district` se ne zamjenjuje drugim geografskim pojmom.
 Svih devet objekata ima geokodirane koordinate. Hrašćica koristi točno
 podudaranje adresne točke Ruđera Boškovića 9A. Za Kućan službeni pročišćeni
 statut navodi Varaždinsku 131b; ta je zgrada korištena umjesto škole na broju
@@ -119,13 +119,13 @@ Brundo, bez pretpostavke da ta oznaka opisuje djelatnost obrta.
 Za Balon snova izvorni CSV nema kućni broj. CompanyWall i Fininfo navode
 Franje Račkog 17 za isti matični broj obrta. Za geokodiranje je korišten
 broj 17, dok izvorna adresa sjedišta ostaje sačuvana. Izvori su u
-`address_evidence_urls`, a puna adresa geokodiranja u `seat_attributes`.
+`address_evidence_urls`, a puna adresa geokodiranja u atributima sjedišta.
 
-Geografija se sprema u postojeću tablicu `kindergarten`: `seat_longitude`,
-`seat_latitude` i `seat_attributes`, s izvorom u `provenance.seat_geography`.
-Uvoz ne stvara retke u `location`, čuva postojeće ID-eve i zahtijeva
-nepromijenjenu pregledanu adresu. Ponavljanje ažurira geografiju uz povijest
-izvornih snimki. Redoviti CKAN uvoz čuva geografiju, a SQL pogled i RAG
+Geografija se sprema u `sjedista_vrtica`: `longitude`, `latitude` i
+`attributes`, uz FK `geography_source_record_id` prema izvornom zapisu.
+Uvoz ne stvara retke u `objekti`, čuva postojeće ID-eve i zahtijeva
+nepromijenjenu pregledanu adresu. Ponavljanje ažurira trenutačno stanje
+izvora. Redoviti CKAN uvoz čuva geografiju, a SQL pogled i RAG
 ignoriraju je ako se adresa promijeni ili geografski izvor postane neaktivan.
 
 MCP prikaz nakon ovoga vraća 33 lokacije s koordinatama: 19 objekata vrtića i
@@ -175,12 +175,12 @@ Nema automatskog preslikavanja susjednih brojeva niti središta ulica.
 
 Uvoz zahtijeva postojeću aktivnu CSV vezu, nepromijenjeni naziv/adresu i
 identitete objekta/ustanove. Ne stvara ustanove ni lokacije. Koristi isti
-advisory lock kao CKAN sinkronizacija, transakcijsku aktivaciju snimke,
+advisory lock kao CKAN sinkronizacija, transakcijsku zamjenu stanja izvora,
 izvorne odgovore i provenijenciju svakog geografskog polja. Ručne ispravke
 područja i postojeći kontakti ostaju očuvani. Geografski RAG dokumenti ne
 potvrđuju dobne uvjete, programe ili slobodna mjesta.
 
-Ako kasniji CSV promijeni adresu, prethodni geografski `source_record` s
+Ako kasniji CSV promijeni adresu, prethodni geografski `izvorni_zapisi` s
 `reviewed_address` postaje kandidat za novi pregled: API tada ne prikazuje
 staru točku, a područja i RAG ne koriste taj dokaz. Ponavljanje istog CSV-a
 čuva pregledanu geografiju i identitete.
@@ -214,7 +214,7 @@ potpunu potvrđenu adresu/identitet. Nisu uvezeni ni pretvoreni u sjedišta.
 
 Uvoz koristi stabilne OSM identitete, provjerava aktivni nacionalni izvor i
 nepromijenjenog vlasnika, poštuje `import_allowed`, čuva izvor svakog polja i
-aktivira snimku tek nakon uspješnog cijelog uvoza. Ponovljeni uvoz ne duplicira
+zamjenjuje stanje tek nakon uspješnog cijelog uvoza. Ponovljeni uvoz ne duplicira
 objekte. Promijenjeno povezivanje zahtijeva pregled; prazan ili nevaljan uvoz
 ne zamjenjuje posljednju dobru snimku. Povlačenje dopuštenja izvora skriva
 njegove objekte preko postojećeg mehanizma aktivnih izvora.

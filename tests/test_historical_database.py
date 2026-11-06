@@ -55,7 +55,7 @@ class HistoricalDatabaseTests(unittest.IsolatedAsyncioTestCase):
         return HistoricalSnapshot(source, rows, datetime.now(timezone.utc), definition.reference_date, definition.date_kind)
 
     async def test_facility_programs_and_institution_counts_keep_separate_scopes(self):
-        before = await self.c.fetch('SELECT id,kindergarten_id,address FROM location ORDER BY id')
+        before = await self.c.fetch('SELECT id,kindergarten_id,address FROM objekti ORDER BY id')
         await self.history.import_snapshot(await self.snapshot())
         await self.history.import_snapshot(await self.snapshot(1))
         rows = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery())
@@ -67,57 +67,76 @@ class HistoricalDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(main['historical_data'][1]['programs'], ['Montessori', 'engleski jezik'])
         self.assertEqual(main['historical_data'][0]['scope'], 'institution')
         self.assertEqual(main['historical_data'][0]['reference_date'], '2025-01-01')
-        self.assertEqual(str(await self.c.fetchval("SELECT observed_on FROM data_source WHERE dataset_key='zagreb-vacancies-2025'")), '2025-01-01')
-        self.assertIsNone(await self.c.fetchval("SELECT observed_on FROM data_source WHERE dataset_key='zagreb-programs-2019'"))
+        self.assertEqual(str(await self.c.fetchval("SELECT observed_on FROM izvori_podataka WHERE dataset_key='zagreb-vacancies-2025'")), '2025-01-01')
+        self.assertIsNone(await self.c.fetchval("SELECT observed_on FROM izvori_podataka WHERE dataset_key='zagreb-programs-2019'"))
         self.assertEqual(sum(v['free_places'] for v in main['historical_data'][0]['vacancies']), 5)
-        self.assertEqual(await self.c.fetch('SELECT id,kindergarten_id,address FROM location ORDER BY id'), before)
+        self.assertEqual(await self.c.fetch('SELECT id,kindergarten_id,address FROM objekti ORDER BY id'), before)
 
-    async def test_reimport_activates_one_batch_and_revocation_hides_history(self):
+    async def test_reimport_preserves_identity_and_revocation_hides_history(self):
         snapshot = await self.snapshot()
         await self.history.import_snapshot(snapshot)
+        identities = await self.c.fetch('SELECT source_key,id FROM povijesni_zapisi ORDER BY source_key')
         await self.history.import_snapshot(snapshot)
-        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM historical_record'), 4)
+        self.assertEqual(await self.c.fetch('SELECT source_key,id FROM povijesni_zapisi ORDER BY source_key'), identities)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM povijesni_zapisi'), 2)
         repo = AsyncpgLocationRepository(self.c)
         self.assertEqual(sum(len(r['historical_data']) for r in await repo.list_locations(LocationQuery())), 1)
-        await self.c.execute('UPDATE data_source SET import_allowed=false WHERE dataset_key=$1', snapshot.source.definition.key)
+        await self.c.execute('UPDATE izvori_podataka SET import_allowed=false WHERE dataset_key=$1', snapshot.source.definition.key)
         self.assertTrue(all(not r['historical_data'] for r in await repo.list_locations(LocationQuery())))
         with self.assertRaises(SourceImportError):
             await self.history.import_snapshot(snapshot)
+
+    async def test_reimport_updates_contents_and_removes_missing_historical_keys(self):
+        snapshot = await self.snapshot()
+        await self.history.import_snapshot(snapshot)
+        kept = snapshot.rows[0]
+        identity = await self.c.fetchval('SELECT id FROM povijesni_zapisi WHERE source_key=$1', kept.source_key)
+        changed = replace(kept, programs=('Updated program',), raw_data={'reviewed': 'new content'})
+        await self.history.import_snapshot(replace(snapshot, rows=(changed,)))
+        [row] = await self.c.fetch('SELECT * FROM povijesni_zapisi')
+        self.assertEqual(row['id'], identity)
+        self.assertEqual(row['programs'], ['Updated program'])
+        self.assertEqual(row['raw_data'], {'reviewed': 'new content'})
+        before = dict(row)
+        for rows in ((), (changed, changed), (replace(changed, name='No match'),)):
+            with self.subTest(rows=len(rows)), self.assertRaises(SourceImportError):
+                await self.history.import_snapshot(replace(snapshot, rows=rows))
+            self.assertEqual(dict(await self.c.fetchrow('SELECT * FROM povijesni_zapisi')), before)
 
     async def test_unmatched_rows_are_review_candidates_and_failed_batch_keeps_previous(self):
         table = PROGRAMS + [['DV Nepostojeći', 'Nepostojeća 99', 'Gradski vrtić', 'Montessori']]
         result = await self.history.import_snapshot(await self.snapshot(table=table))
         self.assertEqual((result['accepted'], result['needs_review']), (2, 1))
-        self.assertEqual(await self.c.fetchval("SELECT count(*) FROM historical_record WHERE match_status='candidate' AND kindergarten_id IS NULL"), 1)
-        before = await self.c.fetch('SELECT id,active_batch_id FROM data_source ORDER BY id')
+        self.assertEqual(await self.c.fetchval("SELECT count(*) FROM povijesni_zapisi WHERE match_status='candidate' AND kindergarten_id IS NULL"), 1)
+        before = await self.c.fetch('SELECT id,fetched_at FROM izvori_podataka ORDER BY id')
         snapshot = await self.snapshot()
         bad = replace(snapshot, rows=(replace(snapshot.rows[0], name='No match'),))
         with self.assertRaises(SourceImportError):
             async with self.c.transaction():
                 await self.history.import_snapshot(bad)
-        self.assertEqual(await self.c.fetch('SELECT id,active_batch_id FROM data_source ORDER BY id'), before)
+        self.assertEqual(await self.c.fetch('SELECT id,fetched_at FROM izvori_podataka ORDER BY id'), before)
 
     async def test_provider_conflicts_and_ambiguous_addresses_never_link_automatically(self):
         snapshot = await self.snapshot()
         bad = replace(snapshot.rows[0], source_key='mismatch', provider_kind='private')
         result = await self.history.import_snapshot(replace(snapshot, rows=(snapshot.rows[1], bad)))
         self.assertEqual((result['accepted'], result['needs_review']), (1, 1))
-        await self.c.execute('''INSERT INTO location(kindergarten_id,name,address,settlement,settlement_key,municipality_id)
-            SELECT kindergarten_id,name,address,settlement,settlement_key,municipality_id FROM location WHERE address='Primjer 1' ''')
+        await self.c.execute('''INSERT INTO objekti(kindergarten_id,name,address,settlement,settlement_key,municipality_id)
+            SELECT kindergarten_id,name,address,settlement,settlement_key,municipality_id FROM objekti WHERE address='Primjer 1' ''')
         # An unattested duplicate cannot anchor a match; active duplicates are ambiguous.
-        await self.c.execute('''INSERT INTO source_record(source_id,batch_id,raw_data,kindergarten_id,location_id,match_status,match_method)
-            SELECT s.id,s.active_batch_id,'{}',l.kindergarten_id,l.id,'accepted','manual' FROM location l,data_source s
-            WHERE s.dataset_key='directory' AND NOT EXISTS(SELECT 1 FROM source_record r WHERE r.location_id=l.id)''')
+        await self.c.execute('''INSERT INTO izvorni_zapisi(source_id,raw_data,kindergarten_id,location_id,match_status,match_method)
+            SELECT s.id,'{}',l.kindergarten_id,l.id,'accepted','manual' FROM objekti l CROSS JOIN izvori_podataka s
+            WHERE s.dataset_key='directory' AND NOT EXISTS(SELECT 1 FROM izvorni_zapisi r WHERE r.location_id=l.id)''')
         result = await self.history.import_snapshot(snapshot)
         self.assertEqual((result['accepted'], result['needs_review']), (1, 1))
 
     async def test_same_name_and_address_outside_zagreb_cannot_anchor_history(self):
-        municipality = await self.c.fetchval("INSERT INTO municipality(key,name) VALUES ('rijeka','Rijeka') RETURNING id")
-        owner = await self.c.fetchval("INSERT INTO kindergarten(name,provider_kind) VALUES ('DV Primjer','municipal') RETURNING id")
-        location = await self.c.fetchval('''INSERT INTO location(kindergarten_id,name,address,settlement,settlement_key,municipality_id)
+        municipality = await self.c.fetchval("INSERT INTO jedinice_lokalne_samouprave(key,name) VALUES ('rijeka','Rijeka') RETURNING id")
+        owner = await self.c.fetchval("INSERT INTO vrtici(name,provider_kind) VALUES ('DV Primjer','municipal') RETURNING id")
+        location = await self.c.fetchval('''INSERT INTO objekti(kindergarten_id,name,address,settlement,settlement_key,municipality_id)
             VALUES($1,'DV Primjer','Primjer 1','Rijeka','rijeka',$2) RETURNING id''', owner, municipality)
-        await self.c.execute('''INSERT INTO source_record(source_id,batch_id,raw_data,kindergarten_id,location_id,match_status,match_method)
-            SELECT id,active_batch_id,'{}',$1,$2,'accepted','manual' FROM data_source WHERE dataset_key='directory' ''', owner, location)
+        await self.c.execute('''INSERT INTO izvorni_zapisi(source_id,raw_data,kindergarten_id,location_id,match_status,match_method)
+            SELECT id,'{}',$1,$2,'accepted','manual' FROM izvori_podataka WHERE dataset_key='directory' ''', owner, location)
         result = await self.history.import_snapshot(await self.snapshot())
         self.assertEqual(result['accepted'], 2)
         rows = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Rijeka'))
@@ -126,8 +145,8 @@ class HistoricalDatabaseTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_failure_in_later_source_rolls_back_registration_and_previous_source(self):
         snapshot = await self.snapshot(1)
-        await self.c.execute('UPDATE data_source SET import_allowed=false WHERE dataset_key=$1', snapshot.source.definition.key)
-        before = await self.c.fetch('SELECT id,active_batch_id FROM data_source ORDER BY id')
+        await self.c.execute('UPDATE izvori_podataka SET import_allowed=false WHERE dataset_key=$1', snapshot.source.definition.key)
+        before = await self.c.fetch('SELECT id,fetched_at FROM izvori_podataka ORDER BY id')
         definitions = DEFINITIONS[:2]
         clients = {d.source.key: SimpleNamespace(get_package=AsyncMock(return_value=package(d)),
             download_table=AsyncMock(return_value=table)) for d, table in zip(definitions, (PROGRAMS, municipal_table()))}
@@ -137,8 +156,8 @@ class HistoricalDatabaseTests(unittest.IsolatedAsyncioTestCase):
                 yield SimpleNamespace(sources=self.directory, historical=self.history)
         with self.assertRaises(SourceImportError):
             await HistoricalService(clients, definitions, work).import_data()
-        self.assertEqual(await self.c.fetch('SELECT id,active_batch_id FROM data_source ORDER BY id'), before)
-        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM historical_record'), 0)
+        self.assertEqual(await self.c.fetch('SELECT id,fetched_at FROM izvori_podataka ORDER BY id'), before)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM povijesni_zapisi'), 0)
 
     async def test_rag_reads_history_and_document_chunks_only_for_selected_active_object(self):
         from KIDSic.factories.rag import RagServiceFactory
@@ -149,11 +168,11 @@ class HistoricalDatabaseTests(unittest.IsolatedAsyncioTestCase):
         async def work():
             yield SimpleNamespace(locations=AsyncpgLocationRepository(self.c),search=AsyncpgKindergartenRepository(self.c))
         service = RagServiceFactory().create(work)
-        locations = await self.c.fetch('SELECT id,kindergarten_id,address FROM location ORDER BY address')
+        locations = await self.c.fetch('SELECT id,kindergarten_id,address FROM objekti ORDER BY address')
         main = next(l for l in locations if l['address']=='Primjer 1')
         for location in locations:
-            record = await self.c.fetchval('SELECT id FROM source_record WHERE location_id=$1',location['id'])
-            await self.c.execute('''INSERT INTO knowledge_chunk(kindergarten_id,location_id,source_record_id,ordinal,content,source_url)
+            record = await self.c.fetchval('SELECT id FROM izvorni_zapisi WHERE location_id=$1',location['id'])
+            await self.c.execute('''INSERT INTO odlomci_znanja(kindergarten_id,location_id,source_record_id,ordinal,content,source_url)
                 VALUES($1,$2,$3,0,$4,'https://example.invalid/upis')''',location['kindergarten_id'],location['id'],record,
                 'Dokumenti za upis: ' + location['address'])
         query = RagQuery(city='Zagreb',name='Primjer',topics=['programs'],feature_id=str(main['id']))
@@ -164,7 +183,7 @@ class HistoricalDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(documents.evidence),1)
         self.assertIn('Primjer 1',documents.evidence[0].content)
         self.assertNotIn('Druga 2',documents.evidence[0].content)
-        await self.c.execute("UPDATE data_source SET import_allowed=false WHERE dataset_key='zagreb-programs-2019'")
+        await self.c.execute("UPDATE izvori_podataka SET import_allowed=false WHERE dataset_key='zagreb-programs-2019'")
         self.assertEqual((await service.retrieve(query)).status,'no_evidence')
-        await self.c.execute("UPDATE data_source SET import_allowed=false WHERE dataset_key='directory'")
+        await self.c.execute("UPDATE izvori_podataka SET import_allowed=false WHERE dataset_key='directory'")
         self.assertEqual((await service.retrieve(query)).status,'not_found')

@@ -46,12 +46,12 @@ class SibenikLocationImporter:
         db = self._connection
         batch = await Batch.start(db, data['retrieved_at'])
         parents = await db.fetch('''
-            SELECT k.id,k.name,ks.settlement_key AS seat_settlement_key FROM kindergarten k
-            LEFT JOIN kindergarten_seat ks ON ks.kindergarten_id=k.id
-            WHERE EXISTS (SELECT 1 FROM source_record r JOIN data_source s ON s.id=r.source_id
+            SELECT k.id,k.name,ks.settlement_key AS seat_settlement_key FROM vrtici k
+            LEFT JOIN sjedista_vrtica ks ON ks.kindergarten_id=k.id
+            WHERE EXISTS (SELECT 1 FROM izvorni_zapisi r JOIN izvori_podataka s ON s.id=r.source_id
               WHERE r.kindergarten_id=k.id AND r.location_id IS NULL
                 AND r.match_status='accepted' AND s.dataset_key='national'
-                AND s.import_allowed AND s.active_batch_id=r.batch_id)
+                AND s.import_allowed)
         ''')
         resolved = []
         for feature in rows:
@@ -65,28 +65,28 @@ class SibenikLocationImporter:
                                     'OpenStreetMap contributors', OSM_COPYRIGHT, 'ODbL-1.0',
                                     {k: data[k] for k in ('attribution', 'osm_snapshot', 'snapshot_sha256')})
         # The national import registers Šibenik before any parent above can exist.
-        municipality = await db.fetchval("SELECT id FROM municipality WHERE key='sibenik'")
+        municipality = await db.fetchval("SELECT id FROM jedinice_lokalne_samouprave WHERE key='sibenik'")
         for feature, owner in resolved:
             p, osm_id = feature['properties'], feature['id']
             tags, (lon, lat) = p['osm_tags'], feature['geometry']['coordinates']
             address = f"{tags['addr:street']} {tags['addr:housenumber']}"
             old = await db.fetchrow('''
-                SELECT r.location_id,l.kindergarten_id,l.municipality_id FROM source_record r
-                JOIN location l ON l.id=r.location_id
+                SELECT r.location_id,l.kindergarten_id,l.municipality_id FROM izvorni_zapisi r
+                JOIN objekti l ON l.id=r.location_id
                 WHERE r.source_id=$1 AND r.source_key=$2 AND r.match_status='accepted'
                 ORDER BY r.fetched_at DESC,r.id LIMIT 1
             ''', source, osm_id)
             if old and (old['kindergarten_id'] != owner or old['municipality_id'] != municipality):
                 raise ValueError('Review the changed OSM parent before moving a facility.')
             location = old['location_id'] if old else await db.fetchval('''
-                INSERT INTO location(kindergarten_id,name,settlement,settlement_key,address,municipality_id)
+                INSERT INTO objekti(kindergarten_id,name,settlement,settlement_key,address,municipality_id)
                 VALUES ($1,$2,'Šibenik','sibenik',$3,$4) RETURNING id
             ''', owner, tags['name'], address, municipality)
             record = await batch.record(source, osm_id, {**feature, 'reviewed_address': address},
                                         owner, location, note=p['review_note'])
             evidence = {'dataset_key': SOURCE_KEY, 'source_record_id': str(record)}
             await db.execute('''
-                UPDATE location SET name=$2,address=$3,longitude=$4,latitude=$5,
+                UPDATE objekti SET name=$2,address=$3,longitude=$4,latitude=$5,
                     provenance=provenance || $6 WHERE id=$1
             ''', location, tags['name'], address, lon, lat,
                 {key: evidence for key in ('location_name', 'address', 'longitude', 'latitude')})
