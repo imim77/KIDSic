@@ -81,6 +81,7 @@ it('uses the city explorer and ranked cards, with only the requested options and
   expect(route.querySelector('details')).toBeNull()
   expect(route).toHaveTextContent('Alternativa 2Vrtić 23 / 4')
   fireEvent.click(screen.getByRole('button',{name:'Zatvori detalje'}))
+  expect(select).toHaveBeenLastCalledWith(null)
   expect(screen.queryByRole('region',{name:'Vrtić na putu: Vrtić 2'})).not.toBeInTheDocument()
 })
 
@@ -104,7 +105,15 @@ it('receives both tools through one bridge and clears old routes on new input, e
   const call=(name:string,payload:unknown) => (bridge.current?.[name] as (p:unknown)=>void)(payload)
   await act(async()=>call('ontoolresult',{_meta:{commute:commuteResult()}}))
   fireEvent.click(screen.getByRole('button',{name:'Oznaka id1'}))
-  expect(bridge.updateModelContext).toHaveBeenCalled()
+  expect(bridge.updateModelContext).toHaveBeenLastCalledWith({content:[{type:'text',text:expect.stringContaining(
+    '"feature_id":"id1","kindergarten_id":"institution-id1","city":"Rijeka","name":"Synthetic institution id1","location_name":"Vrtić 1","address":"Test 1","location_role":"facility"'
+  )}]})
+  fireEvent.click(screen.getByRole('button',{name:/^Vrtić 1 Test 1/}))
+  await screen.findByRole('button',{name:'Zatvori detalje'})
+  fireEvent.click(screen.getByRole('button',{name:'Sljedeća opcija'}))
+  expect(bridge.updateModelContext).toHaveBeenLastCalledWith({content:[{type:'text',text:expect.stringContaining('"feature_id":"id2"')}]})
+  fireEvent.click(screen.getByRole('button',{name:'Zatvori detalje'}))
+  expect(bridge.updateModelContext).toHaveBeenLastCalledWith({content:[{type:'text',text:expect.stringContaining('Odabir vrtića je uklonjen')}]})
   await act(async()=>call('ontoolinput',{arguments:{city:'Rijeka',home:'Zametska 6',work:'Korzo 16',top_k:4}}))
   expect(screen.getByLabelText('Broj oznaka')).toHaveTextContent('0')
   expect(screen.getByText('Uspoređujem putove kroz riječke vrtiće…')).toBeInTheDocument()
@@ -117,7 +126,7 @@ it('receives both tools through one bridge and clears old routes on new input, e
   await act(async()=>call('ontoolinput',{arguments:{city:'Rijeka'}}))
   const locations=collection(facility('city'))
   await act(async()=>call('ontoolresult',{structuredContent:{city:'Rijeka',metadata:locations.metadata},_meta:{locations}}))
-  expect(screen.getByRole('button',{name:/^Synthetic facility city/})).toBeVisible()
+  expect(screen.getByRole('button',{name:/Synthetic facility city/})).toBeVisible()
   expect(screen.getByLabelText('Odabrana geometrija')).toBeEmptyDOMElement()
 })
 

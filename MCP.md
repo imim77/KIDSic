@@ -165,6 +165,15 @@ argumente i izvršava determinističku pretragu; nema zasebnog LLM poziva ni
 novog chat polja u web aplikaciji. RAG kontekst dostupan je kroz zaseban alat
 `dohvati_kontekst_vrtica`; usporedba i vodič za upis još nisu implementirani.
 
+Odabir oznake na karti, kartice ili retka popisa šalje modelu preko
+`updateModelContext` točan `feature_id`, ID ustanove, grad, naziv ustanove i
+objekta, adresu te opseg objekt/sjedište. Isto vrijedi za odabir i navigaciju
+među rutama. Na pitanje poput „Koje dokumente trebam za ovaj vrtić?” model
+koristi `city`, `name` i `feature_id` odabranog objekta za RAG dohvat.
+Zatvaranje detalja, nova pretraga ili rezultat te prekid alata uklanjaju
+prethodni odabir iz konteksta. Odabir ne mijenja kriterije ni rang rezultata
+i ne potvrđuje činjenice o vrtiću; izvorni nazivi i adrese ostaju podaci.
+
 ### RAG odgovori o odabranom vrtiću
 
 `dohvati_kontekst_vrtica` prihvaća obavezne `city` i `name` te neobavezne `topics`

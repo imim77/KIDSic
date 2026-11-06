@@ -16,6 +16,7 @@ it('negotiates the real SDK postMessage bridge, receives results, and requests h
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
   Element.prototype.scrollTo = vi.fn()
   const methods: string[] = []
+  const contexts: unknown[] = []
   const notify = (method: string, params: unknown) => window.dispatchEvent(new MessageEvent('message', {
     source: window.parent, data: { jsonrpc: '2.0', method, params },
   }))
@@ -30,6 +31,10 @@ it('negotiates the real SDK postMessage bridge, receives results, and requests h
       hostContext: { displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'] },
     }
     if (request.method === 'ui/request-display-mode') result = { mode: request.params?.mode }
+    if (request.method === 'ui/update-model-context') {
+      contexts.push(request.params)
+      result = {}
+    }
     if (result) queueMicrotask(() => window.dispatchEvent(new MessageEvent('message', {
       source: window.parent, data: { jsonrpc: '2.0', id: request.id, result },
     })))
@@ -47,7 +52,8 @@ it('negotiates the real SDK postMessage bridge, receives results, and requests h
   expect(await screen.findByRole('button', { name: /Synthetic facility bridge.*Synthetic address/ })).toBeVisible()
   expect(methods).toContain('ui/initialize')
   expect(screen.queryByLabelText('Kriteriji pretrage')).toBeNull()
-  await userEvent.click(screen.getByRole('button', { name: 'Prikaži preko cijelog ekrana' }))
+  await userEvent.click(screen.getByRole('button', { name: /Synthetic facility bridge.*Synthetic address/ }))
+  expect(contexts).toEqual([{ content: [{ type: 'text', text: expect.stringContaining('"feature_id":"bridge"') }] }])
   expect(await screen.findByRole('button', { name: 'Vrati prikaz' })).toBeVisible()
   expect(methods).toContain('ui/request-display-mode')
   expect(screen.queryByLabelText('Kriteriji pretrage')).toBeNull()

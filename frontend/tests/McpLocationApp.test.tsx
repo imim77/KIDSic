@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { McpLocationApp } from '../src/views/mcp/McpLocationApp'
 import { collection, deferred, facility, programEvidence } from './fixtures'
 import { LocationToolResult } from '../src/shared/mcp/LocationToolResult'
+import type { LocationCollection } from '../src/shared/locations/types'
 
 const host = vi.hoisted(() => ({
   instance: null as unknown as {
@@ -13,7 +14,8 @@ const host = vi.hoisted(() => ({
     onhostcontextchanged: () => void
     ontoolcancelled: () => void
   },
-  call: vi.fn(), close: vi.fn(), display: vi.fn(), link: vi.fn(), model: vi.fn(async () => ({})),
+  call: vi.fn(), close: vi.fn(), display: vi.fn(), link: vi.fn(),
+  model: vi.fn<(message: { content: { type: string; text: string }[] }) => Promise<object>>().mockResolvedValue({}),
   context: { availableDisplayModes: ['inline', 'fullscreen'], displayMode: 'inline' },
 }))
 vi.mock('@modelcontextprotocol/ext-apps', () => ({ App: class {
@@ -27,12 +29,16 @@ vi.mock('@modelcontextprotocol/ext-apps', () => ({ App: class {
   getHostContext = () => host.context
 } }))
 vi.mock('../src/shared/map/KindergartenMap', () => ({
-  KindergartenMap: ({ overlay, picking, onPick }: {
+  KindergartenMap: ({ overlay, picking, onPick, collection, onSelect }: {
     overlay?: (mapReady: boolean) => ReactNode
     picking?: boolean
     onPick?: (near: [number, number]) => void
+    collection?: LocationCollection | null
+    onSelect?: (id: string) => void
   }) => <div aria-label="Test map">
     {overlay?.(true)}
+    {collection?.features.filter(feature => feature.geometry).map(feature =>
+      <button key={feature.id} onClick={() => onSelect?.(feature.id)}>Oznaka {feature.id}</button>)}
     {picking && <button onClick={() => onPick?.([16, 45.8])}>Map pick</button>}
   </div>,
 }))
@@ -259,5 +265,57 @@ it('shows a radius the model chose and keeps it on retry', async () => {
   host.model.mockClear()
   await expectRetry({ city: 'Zagreb', provider_kind: 'municipal', near: [15.97, 45.81], radius_m: 1500 })
   expect(host.model).not.toHaveBeenCalled()
+})
+
+it('shares the exact object from map, card and list selections, and clears a closed selection', async () => {
+  const user = userEvent.setup()
+  render(<McpLocationApp />)
+  const locations = collection(facility('first'), facility('second'))
+  await act(async () => host.instance.ontoolresult({ structuredContent: { city: 'Zagreb', metadata: locations.metadata }, _meta: { locations } }))
+  expect(host.model).not.toHaveBeenCalled()
+  const expectSelected = (index: number) => {
+    const feature = locations.features[index]
+    const text = host.model.mock.calls.at(-1)?.[0].content[0].text
+    expect(text).toContain(JSON.stringify({ feature_id: feature.id,
+      kindergarten_id: feature.properties.kindergarten_id, city: 'Zagreb',
+      name: feature.properties.name, location_name: feature.properties.location_name,
+      address: feature.properties.address, location_role: 'facility' }))
+    expect(text).toContain('dohvati_kontekst_vrtica')
+  }
+  await user.click(screen.getByRole('button', { name: 'Oznaka first' }))
+  expectSelected(0)
+  await user.click(screen.getByRole('button', { name: /Synthetic facility second.*Synthetic address/ }))
+  expectSelected(1)
+  await user.click(screen.getByRole('button', { name: /Gradski vrtić\s*Synthetic facility first/ }))
+  expectSelected(0)
+  await user.click(screen.getByRole('button', { name: 'Zatvori detalje' }))
+  expect(host.model).toHaveBeenLastCalledWith({ content: [{ type: 'text', text: expect.stringContaining('Odabir vrtića je uklonjen') }] })
+  expect(host.call).not.toHaveBeenCalled()
+})
+
+it.each(['input', 'result', 'cancel'])('clears shared selection on new tool %s', async event => {
+  render(<McpLocationApp />)
+  await result('Zagreb', 'old')
+  await userEvent.click(screen.getByRole('button', { name: 'Oznaka old' }))
+  host.model.mockClear()
+  await act(async () => {
+    if (event === 'input') host.instance.ontoolinput({ arguments: { city: 'Rijeka' } })
+    else if (event === 'cancel') host.instance.ontoolcancelled()
+    else host.instance.ontoolresult({ isError: true })
+  })
+  expect(host.model).toHaveBeenCalledExactlyOnceWith({ content: [{ type: 'text', text: expect.stringContaining('Prethodni objekt više nije odabran') }] })
+})
+
+it('shares an unmapped seat without inventing an address and keeps selection when context delivery fails', async () => {
+  render(<McpLocationApp />)
+  const seat = facility('seat:synthetic', false)
+  Object.assign(seat.properties, { location_id: null, location_role: 'seat', address: null })
+  const locations = collection(seat)
+  await act(async () => host.instance.ontoolresult({ structuredContent: { city: 'Zagreb', metadata: locations.metadata }, _meta: { locations } }))
+  host.model.mockRejectedValueOnce(new Error('Host unavailable'))
+  await userEvent.click(screen.getByRole('button', { name: /^Synthetic facility seat:synthetic/ }))
+  expect(host.model).toHaveBeenLastCalledWith({ content: [{ type: 'text', text: expect.stringContaining('"feature_id":"seat:synthetic"') }] })
+  expect(host.model.mock.calls.at(-1)?.[0].content[0].text).toContain('"address":null,"location_role":"seat"')
+  expect(screen.getByRole('region', { name: 'Detalji: Synthetic facility seat:synthetic' })).toBeVisible()
 })
 

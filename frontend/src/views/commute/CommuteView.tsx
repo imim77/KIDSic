@@ -12,7 +12,7 @@ import '../welcome/welcome.css'
 // the details column tabs between the route and the kindergarten, and the
 // map card keeps a short route summary for the inline view.
 export function CommuteView({ result, onSelect, hostFullscreen, openLink }: {
-  result: CommuteResult; onSelect?: (id: string) => void; hostFullscreen?: HostFullscreen
+  result: CommuteResult; onSelect?: (id: string | null) => void; hostFullscreen?: HostFullscreen
   openLink?: (url: string) => void
 }) {
   // Each choice is a new object, so picking any option, even the shown one,
@@ -31,7 +31,7 @@ export function CommuteView({ result, onSelect, hostFullscreen, openLink }: {
   }, [result, pick])
   const select = (id: string | null) => {
     setPick({ id })
-    if (id) onSelect?.(id)
+    onSelect?.(id)
   }
   return <KindergartenExplorer data={result.locations} status="ready" selectedId={selection}
     onSelect={select} retry={() => {}} route={route} hostFullscreen={hostFullscreen} openLink={openLink}
