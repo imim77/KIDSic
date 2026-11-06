@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "snapshot_kind": "reviewed_facility_data",
+  "dataset_key": "sibenik-manual-mzom-dgu-20261106",
+  "source": {
+    "title": "MZOM i DGU — pregledane šibenske lokacije vrtića",
+    "publisher": "Ministarstvo znanosti, obrazovanja i mladih; Državna geodetska uprava",
+    "url": "https://geoportal.dgu.hr/services/atom/ad/xml",
+    "license": "Otvorena dozvola RH",
+    "observed_on": "2026-11-01",
+    "fetched_at": "2026-11-06 14:07:05.282628+00:00",
+    "metadata": {
+      "scope": "One-time reviewed data update requested by the user; no project functionality added.",
+      "attribution": "Sadrži informacije MZOM-a i Državne geodetske uprave u skladu s Otvorenom dozvolom. DGU adrese: 1. 11. 2026. Izmjena: ručno povezivanje s vrtićima i pretvorba EPSG:3035 u EPSG:4326.",
+      "archive_sha256": "dd551d3bb88514cf8ed68fa0e2344dc0b15de8f226733999e875d9588811a591",
+      "transformation": "EPSG:3035 GML axis order northing/easting to EPSG:4326 longitude/latitude using pyproj; address points, not surveyed kindergarten entrances.",
+      "snapshot_updated": "2026-11-01T06:25:30+01:00",
+      "national_registry": "https://data.gov.hr/ckan/dataset/djecji-vrtici",
+      "coordinates_source": "https://geoportal.dgu.hr/services/atom/INSPIRE_Addresses_(AD).zip",
+      "license_verification": "https://dgu.gov.hr/otvoreni-podaci/6596"
+    }
+  },
+  "scope": "Four reviewed physical facilities; retains existing institutions and their registered seats. No automatic importer included.",
+  "locations": [
+    {
+      "institution_match": {
+        "name": "Dječji vrtić \"Brat Sunce\"",
+        "seat_address": "Majke Klare Žižić 6",
+        "seat_settlement": "Šibenik"
+      },
+      "facility": {
+        "name": "Dječji vrtić \"Brat Sunce\"",
+        "address": "Majke Klare Žižić 6",
+        "settlement": "Šibenik",
+        "municipality": "sibenik",
+        "longitude": 15.894733863764259,
+        "latitude": 43.734627594710425
+      },
+      "coordinate_kind": "official_address_point",
+      "dgu_address": {
+        "gml_id": "Address.2118306092",
+        "address": "Ulica majke Klare Žižić 6 Šibenik 22000 Šibenik",
+        "raw_gml": "<ns0:Address xmlns:ns0=\"http://inspire.ec.europa.eu/schemas/ad/4.0\" xmlns:ns1=\"http://www.opengis.net/gml/3.2\" xmlns:ns2=\"http://inspire.ec.europa.eu/schemas/base/3.3\" xmlns:ns4=\"http://www.w3.org/1999/xlink\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ns1:id=\"Address.2118306092\"><ns0:inspireId><ns2:Identifier><ns2:localId>KB.0001117913</ns2:localId><ns2:namespace>HR.DGU.RPJ</ns2:namespace></ns2:Identifier></ns0:inspireId><ns0:alternativeIdentifier>Ulica majke Klare Žižić 6 Šibenik 22000 Šibenik</ns0:alternativeIdentifier><ns0:position><ns0:GeographicPosition><ns0:geometry><ns1:Point ns1:id=\"gad.2118306092\" srsDimension=\"2\" srsName=\"http://www.opengis.net/def/crs/EPSG/0/3035\"><ns1:pos>2310414.55249161 4796502.44408991</ns1:pos></ns1:Point></ns0:geometry><ns0:specification xsi:nil=\"true\" nilReason=\"other:unpopulated\" /><ns0:method xsi:nil=\"true\" nilReason=\"other:unpopulated\" /><ns0:default>true</ns0:default></ns0:GeographicPosition></ns0:position><ns0:locator><ns0:AddressLocator><ns0:designator><ns0:LocatorDesignator><ns0:designator>6</ns0:designator><ns0:type ns4:href=\"http://inspire.ec.europa.eu/codelist/LocatorDesignatorTypeValue/addressNumber\" ns4:title=\"address number\" /></ns0:LocatorDesignator></ns0:designator><ns0:level ns4:href=\"http://inspire.ec.europa.eu/codelist/LocatorLevelValue/siteLevel\" ns4:title=\"site level\" /></ns0:AddressLocator></ns0:locator><ns0:validFrom>2018-02-27T00:00:00Z</ns0:validFrom><ns0:beginLifespanVersion>2018-02-27T09:47:43.553Z</ns0:beginLifespanVersion><ns0:component ns4:href=\"#ThoroughfareName.2157262199\" /><ns0:component ns4:href=\"#PostalDescriptor.2187768357\" /><ns0:component ns4:href=\"#AdminUnitName.2150814732\" /><ns0:component ns4:href=\"#AdminUnitName.2197353084\" /></ns0:Address>",
+        "latitude": 43.734627594710425,
+        "longitude": 15.894733863764259
+      },
+      "national_registry_address": "Majke Klare Žižić 6",
+      "identity_verification_url": "https://www.dvbratsunce.hr/lokacije",
+      "reviewed_at": "2026-11-06T14:07:05.282628+00:00",
+      "review_note": "Public site checked for facility identity/address only; no page descriptions, programs, hours or prices copied. Exact street, house number and settlement matched to DGU. Osmijeh maps the Jelačića 13F facility, not the separate registered seat in Martina Kolunića 2A."
+    },
+    {
+      "institution_match": {
+        "name": "Dječji vrtić \"Osmijeh\"",
+        "seat_address": "Josipa Jelačića 13F  (sjedište: Ul. Martina Kolunića 2a)",
+        "seat_settlement": "Šibenik"
+      },
+      "facility": {
+        "name": "Dječji vrtić \"Osmijeh\"",
+        "address": "Bana Josipa Jelačića 13F",
+        "settlement": "Šibenik",
+        "municipality": "sibenik",
+        "longitude": 15.895049944673836,
+        "latitude": 43.74536624832597
+      },
+      "coordinate_kind": "official_address_point",
+      "dgu_address": {
+        "gml_id": "Address.2180338510",
+        "address": "Bana Josipa Jelačića 13F Šibenik 22000 Šibenik",
+        "raw_gml": "<ns0:Address xmlns:ns0=\"http://inspire.ec.europa.eu/schemas/ad/4.0\" xmlns:ns1=\"http://www.opengis.net/gml/3.2\" xmlns:ns2=\"http://inspire.ec.europa.eu/schemas/base/3.3\" xmlns:ns4=\"http://www.w3.org/1999/xlink\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ns1:id=\"Address.2180338510\"><ns0:inspireId><ns2:Identifier><ns2:localId>KB.0014002336</ns2:localId><ns2:namespace>HR.DGU.RPJ</ns2:namespace></ns2:Identifier></ns0:inspireId><ns0:alternativeIdentifier>Bana Josipa Jelačića 13F Šibenik 22000 Šibenik</ns0:alternativeIdentifier><ns0:position><ns0:GeographicPosition><ns0:geometry><ns1:Point ns1:id=\"gad.2180338510\" srsDimension=\"2\" srsName=\"http://www.opengis.net/def/crs/EPSG/0/3035\"><ns1:pos>2311604.03258387 4796439.72559628</ns1:pos></ns1:Point></ns0:geometry><ns0:specification xsi:nil=\"true\" nilReason=\"other:unpopulated\" /><ns0:method xsi:nil=\"true\" nilReason=\"other:unpopulated\" /><ns0:default>true</ns0:default></ns0:GeographicPosition></ns0:position><ns0:locator><ns0:AddressLocator><ns0:designator><ns0:LocatorDesignator><ns0:designator>13</ns0:designator><ns0:type ns4:href=\"http://inspire.ec.europa.eu/codelist/LocatorDesignatorTypeValue/addressNumber\" ns4:title=\"address number\" /></ns0:LocatorDesignator></ns0:designator><ns0:designator><ns0:LocatorDesignator><ns0:designator>F</ns0:designator><ns0:type ns4:href=\"http://inspire.ec.europa.eu/codelist/LocatorDesignatorTypeValue/addressNumberExtension\" ns4:title=\"addressNumberExtension\" /></ns0:LocatorDesignator></ns0:designator><ns0:level ns4:href=\"http://inspire.ec.europa.eu/codelist/LocatorLevelValue/siteLevel\" ns4:title=\"site level\" /></ns0:AddressLocator></ns0:locator><ns0:validFrom>2025-01-23T00:00:00Z</ns0:validFrom><ns0:beginLifespanVersion>2025-01-23T13:56:06.784Z</ns0:beginLifespanVersion><ns0:component ns4:href=\"#ThoroughfareName.2157262404\" /><ns0:component ns4:href=\"#PostalDescriptor.2187768357\" /><ns0:component ns4:href=\"#AdminUnitName.2150814732\" /><ns0:component ns4:href=\"#AdminUnitName.2197353084\" /></ns0:Address>",
+        "latitude": 43.74536624832597,
+        "longitude": 15.895049944673836
+      },
+      "national_registry_address": "Josipa Jelačića 13F  (sjedište: Ul. Martina Kolunića 2a)",
+      "identity_verification_url": "https://www.dvosmijeh.hr/kontakt.php",
+      "reviewed_at": "2026-11-06T14:07:05.282628+00:00",
+      "review_note": "Public site checked for facility identity/address only; no page descriptions, programs, hours or prices copied. Exact street, house number and settlement matched to DGU. Osmijeh maps the Jelačića 13F facility, not the separate registered seat in Martina Kolunića 2A."
+    },
+    {
+      "institution_match": {
+        "name": "Dječji vrtić Sunce",
+        "seat_address": "Gomljanik 41",
+        "seat_settlement": "Brodarica"
+      },
+      "facility": {
+        "name": "Dječji vrtić Sunce",
+        "address": "Gomljanik 41",
+        "settlement": "Brodarica",
+        "municipality": "sibenik",
+        "longitude": 15.916544491590209,
+        "latitude": 43.693054467238724
+      },
+      "coordinate_kind": "official_address_point",
+      "dgu_address": {
+        "gml_id": "Address.2187678166",
+        "address": "Gomljanik 41 Brodarica 22010 Šibenik-Brodarica",
+        "raw_gml": "<ns0:Address xmlns:ns0=\"http://inspire.ec.europa.eu/schemas/ad/4.0\" xmlns:ns1=\"http://www.opengis.net/gml/3.2\" xmlns:ns2=\"http://inspire.ec.europa.eu/schemas/base/3.3\" xmlns:ns4=\"http://www.w3.org/1999/xlink\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ns1:id=\"Address.2187678166\"><ns0:inspireId><ns2:Identifier><ns2:localId>KB.0014005340</ns2:localId><ns2:namespace>HR.DGU.RPJ</ns2:namespace></ns2:Identifier></ns0:inspireId><ns0:alternativeIdentifier>Gomljanik 41 Brodarica 22010 Šibenik-Brodarica</ns0:alternativeIdentifier><ns0:position><ns0:GeographicPosition><ns0:geometry><ns1:Point ns1:id=\"gad.2187678166\" srsDimension=\"2\" srsName=\"http://www.opengis.net/def/crs/EPSG/0/3035\"><ns1:pos>2305956.15320427 4798600.08447929</ns1:pos></ns1:Point></ns0:geometry><ns0:specification xsi:nil=\"true\" nilReason=\"other:unpopulated\" /><ns0:method xsi:nil=\"true\" nilReason=\"other:unpopulated\" /><ns0:default>true</ns0:default></ns0:GeographicPosition></ns0:position><ns0:locator><ns0:AddressLocator><ns0:designator><ns0:LocatorDesignator><ns0:designator>41</ns0:designator><ns0:type ns4:href=\"http://inspire.ec.europa.eu/codelist/LocatorDesignatorTypeValue/addressNumber\" ns4:title=\"address number\" /></ns0:LocatorDesignator></ns0:designator><ns0:level ns4:href=\"http://inspire.ec.europa.eu/codelist/LocatorLevelValue/siteLevel\" ns4:title=\"site level\" /></ns0:AddressLocator></ns0:locator><ns0:validFrom>2025-10-16T00:00:00Z</ns0:validFrom><ns0:beginLifespanVersion>2025-10-16T09:41:29.989Z</ns0:beginLifespanVersion><ns0:component ns4:href=\"#ThoroughfareName.2157261114\" /><ns0:component ns4:href=\"#PostalDescriptor.2187429611\" /><ns0:component ns4:href=\"#AdminUnitName.2150724418\" /><ns0:component ns4:href=\"#AdminUnitName.2197353084\" /></ns0:Address>",
+        "latitude": 43.693054467238724,
+        "longitude": 15.916544491590209
+      },
+      "national_registry_address": "Gomljanik 41",
+      "identity_verification_url": "https://www.vrtic-sunce.hr/stranice/lokacija/6.html",
+      "reviewed_at": "2026-11-06T14:07:05.282628+00:00",
+      "review_note": "Public site checked for facility identity/address only; no page descriptions, programs, hours or prices copied. Exact street, house number and settlement matched to DGU. Osmijeh maps the Jelačića 13F facility, not the separate registered seat in Martina Kolunića 2A."
+    },
+    {
+      "institution_match": {
+        "name": "Dječji vrtić \"Žižula\"",
+        "seat_address": "Žaborička 3/E",
+        "seat_settlement": "Šibenik"
+      },
+      "facility": {
+        "name": "Dječji vrtić \"Žižula\"",
+        "address": "Žaborićka 3E",
+        "settlement": "Šibenik",
+        "municipality": "sibenik",
+        "longitude": 15.920970170312884,
+        "latitude": 43.70411972194885
+      },
+      "coordinate_kind": "official_address_point",
+      "dgu_address": {
+        "gml_id": "Address.2118321517",
+        "address": "Žaborićka 3E Šibenik 22000 Šibenik",
+        "raw_gml": "<ns0:Address xmlns:ns0=\"http://inspire.ec.europa.eu/schemas/ad/4.0\" xmlns:ns1=\"http://www.opengis.net/gml/3.2\" xmlns:ns2=\"http://inspire.ec.europa.eu/schemas/base/3.3\" xmlns:ns4=\"http://www.w3.org/1999/xlink\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ns1:id=\"Address.2118321517\"><ns0:inspireId><ns2:Identifier><ns2:localId>KB.0014019675</ns2:localId><ns2:namespace>HR.DGU.RPJ</ns2:namespace></ns2:Identifier></ns0:inspireId><ns0:alternativeIdentifier>Žaborićka 3E Šibenik 22000 Šibenik</ns0:alternativeIdentifier><ns0:position><ns0:GeographicPosition><ns0:geometry><ns1:Point ns1:id=\"gad.2118321517\" srsDimension=\"2\" srsName=\"http://www.opengis.net/def/crs/EPSG/0/3035\"><ns1:pos>2307207.87876635 4798865.30407354</ns1:pos></ns1:Point></ns0:geometry><ns0:specification xsi:nil=\"true\" nilReason=\"other:unpopulated\" /><ns0:method xsi:nil=\"true\" nilReason=\"other:unpopulated\" /><ns0:default>true</ns0:default></ns0:GeographicPosition></ns0:position><ns0:locator><ns0:AddressLocator><ns0:designator><ns0:LocatorDesignator><ns0:designator>3</ns0:designator><ns0:type ns4:href=\"http://inspire.ec.europa.eu/codelist/LocatorDesignatorTypeValue/addressNumber\" ns4:title=\"address number\" /></ns0:LocatorDesignator></ns0:designator><ns0:designator><ns0:LocatorDesignator><ns0:designator>E</ns0:designator><ns0:type ns4:href=\"http://inspire.ec.europa.eu/codelist/LocatorDesignatorTypeValue/addressNumberExtension\" ns4:title=\"addressNumberExtension\" /></ns0:LocatorDesignator></ns0:designator><ns0:level ns4:href=\"http://inspire.ec.europa.eu/codelist/LocatorLevelValue/siteLevel\" ns4:title=\"site level\" /></ns0:AddressLocator></ns0:locator><ns0:validFrom>2018-02-27T00:00:00Z</ns0:validFrom><ns0:beginLifespanVersion>2018-02-27T09:47:43.553Z</ns0:beginLifespanVersion><ns0:component ns4:href=\"#ThoroughfareName.2157262994\" /><ns0:component ns4:href=\"#PostalDescriptor.2187768357\" /><ns0:component ns4:href=\"#AdminUnitName.2150814732\" /><ns0:component ns4:href=\"#AdminUnitName.2197353084\" /></ns0:Address>",
+        "latitude": 43.70411972194885,
+        "longitude": 15.920970170312884
+      },
+      "national_registry_address": "Žaborička 3/E",
+      "identity_verification_url": "https://www.zizula.hr/kontakt-1",
+      "reviewed_at": "2026-11-06T14:07:05.282628+00:00",
+      "review_note": "Public site checked for facility identity/address only; no page descriptions, programs, hours or prices copied. Exact street, house number and settlement matched to DGU. Osmijeh maps the Jelačića 13F facility, not the separate registered seat in Martina Kolunića 2A."
+    }
+  ]
+}
