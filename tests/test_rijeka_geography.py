@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import importlib.util
 import os
 from pathlib import Path
+import sys
 from types import SimpleNamespace
 import unittest
 from uuid import UUID
@@ -18,8 +19,9 @@ from KIDSic.dto.source import SourceSnapshot
 from KIDSic.services.concrete.kindergarten_normalizer import normalize_records
 from test_rijeka import rijeka_records, rijeka_source
 
-spec = importlib.util.spec_from_file_location('rijeka_geography',
-    Path(__file__).resolve().parents[1] / 'data-enrichment/import_rijeka_geography.py')
+ENRICHMENT = Path(__file__).resolve().parents[1] / 'data-enrichment'
+sys.path.insert(0, str(ENRICHMENT))  # Scripts import their shared reviewed_snapshot helper.
+spec = importlib.util.spec_from_file_location('rijeka_geography', ENRICHMENT / 'import_rijeka_geography.py')
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 RijekaGeographyImporter = module.RijekaGeographyImporter

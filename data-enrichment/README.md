@@ -1,3 +1,14 @@
+# Pregledane dopune
+
+Skripte ne dohvaćaju ništa s mreže. Svaka čita jednu lokalnu, ručno pregledanu
+snimku i upisuje je kao novu snimku izvora u jednoj transakciji. Zajedničke
+korake (izvor, zapis, dokaz polja, RAG odlomak, zaključavanje i naredbeni
+redak) dijele preko `reviewed_snapshot.py`.
+
+Bez `--apply` skripta izvede cijeli uvoz nad bazom i zatim ga poništi. Tako
+probni prolaz provjerava iste uvjete kao pravi upis. Obje varijante trebaju
+`DATABASE_URL`.
+
 # Varaždinski gradski vrtići
 
 JSON snimke i cacheovi opisani u nastavku lokalni su generirani podaci i nisu

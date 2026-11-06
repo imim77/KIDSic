@@ -5,6 +5,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import sys
 from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock
@@ -28,6 +29,7 @@ from test_journey import journey
 from test_sources import NATIONAL, source_client
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'data-enrichment'))  # Scripts import their shared reviewed_snapshot helper.
 spec = importlib.util.spec_from_file_location('sibenik_import', ROOT / 'data-enrichment/import_sibenik.py')
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)

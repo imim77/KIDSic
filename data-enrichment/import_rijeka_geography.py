@@ -1,17 +1,11 @@
 """Import reviewed Rijeka geography into existing CSV facilities without HTTP calls."""
-import argparse
-import asyncio
-from datetime import datetime
-import hashlib
-import json
 import math
 from pathlib import Path
 import uuid
 
-from KIDSic.db.database import database_pool
+from reviewed_snapshot import AREAS, OSM_COPYRIGHT, Batch, area_attributes, run
 
 DATA_FILE = Path(__file__).with_name('rijeka-reviewed-geography.json')
-_AREAS = ('quarter', 'suburb', 'neighbourhood')
 
 
 class RijekaGeographyImporter:
@@ -33,22 +27,10 @@ class RijekaGeographyImporter:
                     or not (14.30 < lon < 14.56 and 45.28 < lat < 45.42)):
                 raise ValueError('Invalid or duplicate reviewed Rijeka geography.')
             identities.add(identity)
-        await self._connection.execute('SELECT pg_advisory_xact_lock(194733,1)')
-        batch = uuid.uuid4()
-        fetched_at = datetime.fromisoformat(data['fetched_at'])
-        source = await self._connection.fetchrow('''
-            INSERT INTO data_source(dataset_key,title,publisher,url,license,import_allowed,
-                                    active_batch_id,fetched_at,metadata)
-            VALUES ('rijeka-reviewed-geography','OpenStreetMap — riječke lokacije vrtića',
-                    'OpenStreetMap contributors','https://www.openstreetmap.org/copyright',
-                    $1,true,$2,$3,$4)
-            ON CONFLICT(dataset_key) DO UPDATE SET active_batch_id=EXCLUDED.active_batch_id,
-                fetched_at=EXCLUDED.fetched_at,metadata=data_source.metadata || EXCLUDED.metadata
-            RETURNING id,import_allowed
-        ''', data['licence'], batch, fetched_at,
-            {'attribution': data['attribution'], 'cache_file': DATA_FILE.name})
-        if not source['import_allowed']:
-            raise ValueError('Import is disabled for reviewed Rijeka geography.')
+        batch = await Batch.start(self._connection, data['fetched_at'])
+        source = await batch.source('rijeka-reviewed-geography', 'OpenStreetMap — riječke lokacije vrtića',
+                                    'OpenStreetMap contributors', OSM_COPYRIGHT, data['licence'],
+                                    {'attribution': data['attribution'], 'cache_file': DATA_FILE.name})
         for item in accepted:
             location = uuid.UUID(item['location_id'])
             stored = await self._connection.fetchrow('''
@@ -65,56 +47,24 @@ class RijekaGeographyImporter:
                     or stored['name'] != item['location_name'] or stored['address'] != item['address']):
                 raise ValueError(f"Review the changed Rijeka location: {item['location_name']}")
             geo = item['selected']
-            record = await self._connection.fetchval('''
-                INSERT INTO source_record(source_id,batch_id,source_key,raw_data,fetched_at,
-                                          kindergarten_id,location_id,match_status,match_method,match_note)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,'accepted','manual',$8) RETURNING id
-            ''', source['id'], batch, item['source_key'], {**item, 'reviewed_address': item['address']},
-                fetched_at, stored['kindergarten_id'], location, item['review_note'])
-            manual = stored['attributes'].get('manual_area', {})
-            attributes = {field: geo.get(field) for field in _AREAS}
-            attributes.update({key: manual[key] for key in _AREAS if key in manual})
-            attributes.update(geocoding_review_status='matched',
-                              geocoding_match_basis=geo['match_basis'])
-            fields = ('longitude', 'latitude', *_AREAS)
-            provenance = {field: {'source_record_id': str(record)} for field in fields
-                          if field not in manual and geo.get(field) is not None}
-            await self._connection.execute('''
-                UPDATE location SET longitude=$2,latitude=$3,
-                    attributes=attributes || $4,provenance=provenance || $5 WHERE id=$1
-            ''', location, geo['longitude'], geo['latitude'], attributes, provenance)
-            areas = '; '.join(f'{key}: {attributes[key]}' for key in _AREAS if attributes.get(key))
-            content = (f"{item['location_name']}. Adresa: {item['address']}, Rijeka. "
-                       f"{areas}. Koordinate: {geo['latitude']}, {geo['longitude']}. "
-                       f"Podloga podudaranja: {geo['match_basis']}. "
-                       f"OSM područja nisu potvrda službenih gradskih granica. "
-                       f"{data['attribution']}; {data['licence']}.")
-            await self._connection.execute('''
-                INSERT INTO knowledge_chunk(kindergarten_id,location_id,source_record_id,
-                                            ordinal,content,source_url,content_sha256)
-                VALUES ($1,$2,$3,0,$4,$5,$6)
-            ''', stored['kindergarten_id'], location, record, content, geo['source_url'],
-                hashlib.sha256(content.encode()).hexdigest())
+            record = await batch.record(source, item['source_key'], {**item, 'reviewed_address': item['address']},
+                                        stored['kindergarten_id'], location, note=item['review_note'])
+            attributes, manual = area_attributes(geo, stored['attributes'])
+            attributes.update(geocoding_review_status='matched', geocoding_match_basis=geo['match_basis'])
+            await self._connection.execute(
+                'UPDATE location SET longitude=$2,latitude=$3,attributes=attributes || $4 WHERE id=$1',
+                location, geo['longitude'], geo['latitude'], attributes)
+            await batch.evidence(location, record, [field for field in ('longitude', 'latitude', *AREAS)
+                                                    if geo.get(field) is not None], manual)
+            areas = '; '.join(f'{key}: {attributes[key]}' for key in AREAS if attributes.get(key))
+            await batch.chunk(stored['kindergarten_id'], location, record,
+                              f"{item['location_name']}. Adresa: {item['address']}, Rijeka. "
+                              f"{areas}. Koordinate: {geo['latitude']}, {geo['longitude']}. "
+                              f"Podloga podudaranja: {geo['match_basis']}. "
+                              f"OSM područja nisu potvrda službenih gradskih granica. "
+                              f"{data['attribution']}; {data['licence']}.", geo['source_url'])
         return {'imported': len(accepted), 'needs_review': len(data['objects']) - len(accepted)}
 
 
-async def import_geography(data):
-    async with database_pool() as pool:
-        async with pool.acquire() as connection, connection.transaction():
-            return await RijekaGeographyImporter(connection).apply(data)
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--apply', action='store_true', help='Write the reviewed snapshot to DATABASE_URL.')
-    args = parser.parse_args()
-    data = json.loads(DATA_FILE.read_text())
-    if args.apply:
-        print(json.dumps(asyncio.run(import_geography(data)), ensure_ascii=False))
-    else:
-        for item in data['objects']:
-            print(item['location_name'], item['review_status'], item.get('review_note', ''))
-
-
 if __name__ == '__main__':
-    main()
+    run(__doc__, DATA_FILE, lambda connection, data: RijekaGeographyImporter(connection).apply(data))
