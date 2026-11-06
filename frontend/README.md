@@ -4,14 +4,14 @@ React/TypeScript UI za MCP app prikazuje Leaflet/OpenStreetMap kartu s vodoravni
 
 Tailwind CSS v4 uključen je preko službenog `@tailwindcss/vite` plugina u oba
 Vite builda. Klase se pišu izravno u TSX-u (npr. `w-full h-dvh p-2` ili
-`min-w-0 flex-1`). Zajednički `src/shared/theme.css` izlaže postojeće boje kao
+`min-w-0 flex-1`). Zajednički `src/mvvm/tailwind.css` izlaže postojeće boje kao
 `text-ink`, `text-muted-foreground`, `text-primary`, `border-border` i `bg-surface` tokene.
 Skeniranje klasa obuhvaća cijeli `src`, uključujući MCP ulaz. Tema i utilities
 učitavaju se bez Preflight reseta kako bi se očuvali postojeći Leaflet i osnovni
 stilovi. Specifični responsive stilovi karte, kartica i fullscreena ostaju u CSS-u.
 
 Kartice koriste lokalne shadcn/ui komponente `Card`, `Button` i `Badge` iz
-`src/shared/ui`, dodane službenim CLI-jem iz `@shadcn` registra. Konfiguracija je
+`src/mvvm/components/ui`, dodane službenim CLI-jem iz `@shadcn` registra. Konfiguracija je
 u `components.json` (`new-york`, Radix, Lucide). Komponente koriste samo Radix Slot
 primitivu, `class-variance-authority` i službeni `cn` za spajanje klasa; nisu
 potrebne sve Radix kontrole. Alias `@/` pokazuje na `src/` u oba builda i testovima.
@@ -29,13 +29,21 @@ okvir traži 520 px visine (480 px do širine 420 px), neovisno o početnoj visi
 hostova iframea. SDK automatski prijavljuje visinu hostu. Fullscreen i dalje
 ispunjava dodijeljeni prozor.
 
-- `src/views/index.html`: HTML ulaz.
-- `src/views/welcome/`: React prikaz, njegov stil i ulazna skripta.
-- `src/shared/locations/`: ugovor podataka, dohvat, kartice i carousel.
-- `src/shared/explorer/`: zajednički okvir i prošireni prikaz.
-- `src/shared/map/`: Leaflet lifecycle, grupirane oznake i odabir objekta.
-- `src/shared/motion/`: GSAP ulazne animacije (`useEntrance`) i sklopivi odjeljci (`Disclosure`).
-- `src/shared/`: zajednička tema i resursi.
+Kod slijedi React MVVM (`.agents/skills/mvvm-architecture`): container dohvaća
+host ili API i poziva ViewModel hook, a View samo prikazuje njegov ugovor i
+prosljeđuje korisničke radnje.
+
+- `src/pages/`: HTML ulazi (`index.html`, `mcp.html`); učitavaju `main.tsx` ekrana.
+- `src/mvvm/features/Locations/`: ugovor lokacija (`types.ts`), API i MCP
+  adapteri u `utils/`, ViewModeli u `hooks/` (`use-kindergarten-explorer`,
+  `use-city-map`, `use-mcp-locations`), kartice, detalji, usporedba i Leaflet
+  karta u `components/`, ekrani `CityMap` i `McpLocation` u `screens/`.
+- `src/mvvm/features/Commute/`: ugovor i provjera rute, `use-commute` i prikaz rute.
+- `src/mvvm/components/`: fullscreen okvir, `Disclosure` i shadcn `ui/`.
+- `src/mvvm/hooks/`: MCP veza (`use-mcp-app`), GSAP ulazi (`use-entrance`), media query.
+- `src/mvvm/utils/`: formatiranje, poveznice preko hosta i reduced motion.
+- Testovi značajki su u `__integrations__/` i `utils/*.test.ts`; zajednički
+  fixturei u `test-support/`, a testovi zajedničkih komponenti u `tests/`.
 - `public/`: statičke datoteke.
 
 Animacije koriste [GSAP](https://gsap.com) i `@gsap/react` (`useGSAP` čisti
@@ -65,7 +73,7 @@ Karta koristi OpenStreetMap pločice bez API tokena, WebGL-a ili Web Workera. Po
 
 API mora biti zasebno pokrenut na portu 8000. Za drugi port koristiti, primjerice, `KIDSIC_API_TARGET=http://127.0.0.1:18000 npm run dev`. Produkcijski hosting mora sam usmjeriti `/api` na backend.
 
-`npm run build:mcp` gradi `dist/mcp.html` sa svim skriptama i stilovima ugrađenima u HTML. Ulaz je `src/views/mcp/mcp.html`; koristi službeni MCP Apps SDK, prima grad i sažetak iz `structuredContent` te komprimirani GeoJSON iz `_meta.locations` (`gzip+base64`) i traži fullscreen od hosta. Dekompresija čuva sve objekte i izvore te koristi preglednički `DecompressionStream`, bez workera ili dodatnog dohvata. Ne poziva `/api` niti koristi početni Zagreb. Samostalni `npm run build` čisti `dist`, pa MCP build pokrenuti nakon njega ako trebaju oba prikaza.
+`npm run build:mcp` gradi `dist/mcp.html` sa svim skriptama i stilovima ugrađenima u HTML. Ulaz je `src/pages/mcp.html`; koristi službeni MCP Apps SDK, prima grad i sažetak iz `structuredContent` te komprimirani GeoJSON iz `_meta.locations` (`gzip+base64`) i traži fullscreen od hosta. Dekompresija čuva sve objekte i izvore te koristi preglednički `DecompressionStream`, bez workera ili dodatnog dohvata. Ne poziva `/api` niti koristi početni Zagreb. Samostalni `npm run build` čisti `dist`, pa MCP build pokrenuti nakon njega ako trebaju oba prikaza.
 
 Detaljne [upute za bazu i API](../README.md#lokalni-pregled-mcp-sučelja), [ugovor lokacija](../LOCATION_API.md) i [MCP povezivanje](../MCP.md) nalaze se u korijenu repozitorija.
 

@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { FullscreenFrame } from '../src/shared/explorer/FullscreenFrame'
-import { deferred } from './fixtures'
+import { FullscreenFrame } from '@/mvvm/components/FullscreenFrame'
+import { deferred } from '@test-support/fixtures'
 
 const enterLabel = 'Prikaži preko cijelog ekrana'
 const exitLabel = 'Vrati prikaz'

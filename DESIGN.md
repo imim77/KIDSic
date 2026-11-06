@@ -5,9 +5,8 @@ The KIDSic MCP app adopts the visual language of
 green ink colour for all text and outlines, chunky uppercase display type, a
 handwritten script accent, pill controls and a hard offset "sticker" shadow.
 
-This document supersedes the direction in
-`frontend/src/views/design/DESIGN.md` (system fonts, no rounded display type,
-no illustration). Croatian copy, the data honesty rules in `MCP.md` and the
+This document supersedes the earlier design preview (system fonts, no rounded
+display type, no illustration), which has been removed. Croatian copy, the data honesty rules in `MCP.md` and the
 existing component structure stay as they are.
 
 ## What "the same" covers
@@ -216,7 +215,7 @@ Consequences:
 
 ## Implementation notes
 
-- **Tokens** live in `frontend/src/shared/theme.css`. The shadcn role names
+- **Tokens** live in `frontend/src/mvvm/tailwind.css`. The shadcn role names
   stay and point at the palette: `--accent` → violet, `--border` → ink,
   `--surface` → cream, `--secondary` → lemon, `--muted` → ink. Tailwind gets a
   `font-display` utility.
@@ -233,7 +232,5 @@ Consequences:
    provider markers and controls retain their colours.
 2. **Host dark mode.** Maggie has no dark theme. The MCP view paints its own
    background, so it stays light inside dark hosts. Confirm that is acceptable.
-3. **Design preview.** `frontend/src/views/design/` holds an earlier
-   exploration in the old direction and was not restyled. Restyle or delete it?
-4. **Script accent.** Bring back a handwritten aside only with a face that
+3. **Script accent.** Bring back a handwritten aside only with a face that
    covers Croatian (for example Caveat), or leave it out.

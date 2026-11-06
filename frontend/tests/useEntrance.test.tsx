@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import gsap from 'gsap'
 import { afterEach, expect, it, vi } from 'vitest'
-import { LocationDetails } from '../src/shared/locations/LocationDetails'
-import { facility } from './fixtures'
+import { LocationDetails } from '@/mvvm/features/Locations/components/LocationDetails'
+import { facility } from '@test-support/fixtures'
 
 afterEach(() => vi.unstubAllGlobals())
 

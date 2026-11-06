@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import gsap from 'gsap'
 import { afterEach, expect, it, vi } from 'vitest'
-import { Disclosure } from '../src/shared/motion/Disclosure'
+import { Disclosure } from '@/mvvm/components/Disclosure'
 
 afterEach(() => vi.unstubAllGlobals())
 

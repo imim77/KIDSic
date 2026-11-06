@@ -39,8 +39,8 @@ src/KIDSic/
   services/dependency.py    # životni vijek infrastrukture
   main.py                   # ulazna točka
 frontend/src/
-  shared/                   # zajednički stilovi i resursi
-  views/                    # HTML ulazi i React prikazi
+  pages/                    # HTML ulazi
+  mvvm/                     # React MVVM: zajednički UI, hookovi i značajke (frontend/README.md)
 scripts/                    # uvoz ručno pregledane geografije (scripts/README.md)
 tests/                      # provjere servisa, infrastrukture i upita
 database/                   # lokalni ERA model i generirani rječnik (ignorirano)
@@ -247,7 +247,7 @@ npm run dev
 
 Karta koristi Leaflet i OpenStreetMap pločice bez API tokena. Potrebna je internetska veza za dohvat podloge; atribucija OpenStreetMap suradnika prikazana je na karti.
 
-Vite služi `src/views/index.html`, učitava env iz mape `frontend/` i prosljeđuje `/api` lokalnom API-ju na portu 8000. Produkcijski samostalni hosting mora usmjeriti `/api` na isti backend; razvojni proxy nije dio statičkog builda. Zajednički resursi su u `src/shared`. MCP prikaz koristi zaseban samostalni HTML build i rezultate alata preko host bridgea, bez HTTP dohvata iz iframea; [upute za MCP povezivanje](MCP.md).
+Vite služi `src/pages/index.html`, učitava env iz mape `frontend/` i prosljeđuje `/api` lokalnom API-ju na portu 8000. Produkcijski samostalni hosting mora usmjeriti `/api` na isti backend; razvojni proxy nije dio statičkog builda. Kod prikaza je u `src/mvvm` (Container → ViewModel → View). MCP prikaz koristi zaseban samostalni HTML build i rezultate alata preko host bridgea, bez HTTP dohvata iz iframea; [upute za MCP povezivanje](MCP.md).
 
 Ako je port 8000 zauzet, API pokrenuti s `--port 18000`, a frontend naredbom `KIDSIC_API_TARGET=http://127.0.0.1:18000 npm run dev`. `KIDSIC_API_TARGET` je varijabla procesa koji pokreće Vite, ne javna varijabla aplikacije iz `.env.local`.
 

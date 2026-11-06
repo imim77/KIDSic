@@ -44,30 +44,30 @@ mvvm/
 │   ├── utils/                  # Pure helpers, unit tests, preview samples
 │   └── types.ts                # Feature tool-result contracts
 ├── components/                 # App-wide UI
-├── hooks/                      # Host connection, requests, expansion, motion
-├── utils/                      # Host actions, formatting, mounting, job contracts
-├── types.ts                    # Shared tool-result contracts
+├── hooks/                      # Host connection, frame state, motion
+├── utils/                      # Formatting, host links, guards, motion checks
 └── tailwind.css                # Shared theme and Tailwind entry
 ```
 
-- Keep the seven existing feature names: `JobCards`, `JobComparison`,
-  `CountyComparison`, `JobsByCounty`, `UnemploymentHistory`,
-  `AccommodationComparison`, and `LabourMarketForecast`. Choose ownership by
-  responsibility when adding code; create subfolders when they hold code.
-- Every feature must have meaningful browser tests in `__integrations__/`.
+- Keep the existing feature names: `Locations` (city search, explorer, map
+  and the `CityMap` and `McpLocation` screens) and `Commute` (ranked routes).
+  Choose ownership by responsibility when adding code; create subfolders when
+  they hold code.
+- Every feature must have meaningful jsdom integration tests in `__integrations__/`.
   Exercise user behavior and host integration, rather than asserting folders.
   Shared browser-host support lives in `frontend/test-support/`; tests spanning
   several features remain in `frontend/tests/`.
 - Keep HTML entries in `frontend/src/pages/<view-name>.html`. They reference
   the screen's `main.tsx`, which mounts its `<ScreenName>App.tsx` container.
 - Follow existing names: PascalCase components, kebab-case hook files such as
-  `use-job-cards.ts`, and local `types.ts` contracts. Name new hooks after their
+  `use-kindergarten-explorer.ts`, and local `types.ts` contracts. Name new hooks after their
   screen responsibility; a `ViewModel` suffix is optional.
-- Use `features/JobCards/hooks/use-job-cards.ts` as an existing example of
+- Use `features/Locations/hooks/use-mcp-locations.ts` as an existing example of
   screen behavior, rather than introducing a parallel state architecture.
-- Reuse `mvvm/hooks/use-server-tool.ts` for server-tool requests,
-  `mvvm/hooks/use-mcp-app.ts` for connections, `mvvm/hooks/use-expanded.ts` for
-  expansion, and `mvvm/utils/mcp.ts` for host actions. Pass
+- Reuse `mvvm/hooks/use-mcp-app.ts` for the host connection, tool
+  notifications and host actions (server tools, model context, links, display
+  mode), `mvvm/components/FullscreenFrame.tsx` for expansion, and
+  `mvvm/utils/links.ts` for opening links through the host. Pass
   dependencies through hook arguments or existing composition boundaries so
   behavior can be tested with substitutes.
 - Keep `main.tsx` and existing mount helpers as entry points. Extract a separate
@@ -115,7 +115,7 @@ state transitions, capability gating, pagination/filter resets, and stale-result
 handling as relevant. Verify that Views render their props and invoke callbacks;
 use browser coverage when the change affects user interaction or layout.
 
-Use the existing frontend scripts (`npm test`, `npm run lint`, `npm run build`,
-and `npm run test:browser`) from `frontend/` as appropriate to the change.
-Both commands discover feature-local suites. Do not add empty test
+Use the existing frontend scripts (`npm test`, `npm run lint`, `npm run build`
+and `npm run build:mcp`) from `frontend/` as appropriate to the change.
+`npm test` discovers feature-local suites. Do not add empty test
 directories or tests that only assert this file structure.

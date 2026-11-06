@@ -6,8 +6,12 @@ import { fileURLToPath } from 'node:url'
 
 // https://vite.dev/config/
 export default defineConfig({
-  root: 'src/views',
-  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  root: 'src/pages',
+  resolve: { alias: {
+    '@': fileURLToPath(new URL('./src', import.meta.url)),
+    // Pages sit beside, not above, the screens they load.
+    '/mvvm': fileURLToPath(new URL('./src/mvvm', import.meta.url)),
+  } },
   envDir: fileURLToPath(new URL('.', import.meta.url)),
   publicDir: '../../public',
   server: { proxy: { '/api': process.env.KIDSIC_API_TARGET ?? 'http://127.0.0.1:8000' } },
@@ -16,8 +20,7 @@ export default defineConfig({
     emptyOutDir: true,
     rolldownOptions: {
       input: {
-        index: fileURLToPath(new URL('./src/views/index.html', import.meta.url)),
-        design: fileURLToPath(new URL('./src/views/design.html', import.meta.url)),
+        index: fileURLToPath(new URL('./src/pages/index.html', import.meta.url)),
       },
     },
   },

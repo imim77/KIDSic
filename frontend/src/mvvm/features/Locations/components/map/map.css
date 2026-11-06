@@ -1,0 +1,87 @@
+.kindergarten-map { isolation: isolate; position: relative; width: 100%; height: 100%; background: var(--cream); }
+.map-canvas { z-index: 0; width: 100%; height: 100%; position: absolute; inset: 0; }
+/* Desaturate the basemap while keeping markers and controls coloured. */
+.kindergarten-map .leaflet-tile-pane { filter: grayscale(1); }
+/* One column keeps legend, nearby control and notices from overlapping. */
+.map-overlay { position: absolute; z-index: 3; top: 18px; left: 18px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; width: min(380px, calc(100% - 100px)); pointer-events: none; }
+.map-overlay > * { pointer-events: auto; max-width: 100%; }
+.map-provider-legend { display: flex; flex-wrap: wrap; gap: 8px 12px; margin: 0; padding: 10px 12px; list-style: none; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 14px; box-shadow: var(--shadow-sm); font-size: 11px; }
+.map-provider-legend li { display: flex; align-items: center; gap: 5px; }
+.map-provider-legend li > span { width: 12px; height: 12px; flex: 0 0 12px; border: 1px solid var(--ink); border-radius: 50%; }
+.map-message { z-index: 4; position: absolute; inset: 30% auto auto 50%; transform: translate(-50%, -50%); width: min(340px, calc(100% - 48px)); background: var(--surface); padding: 22px; border: 2px solid var(--border); border-radius: 20px; box-shadow: var(--shadow-md); }
+.map-message-marker { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--lilac); color: var(--ink); margin-bottom: 12px; font-size: 21px; }
+.map-message h2 { font-family: var(--display); font-size: 18px; font-weight: 400; line-height: 1.05; letter-spacing: .01em; margin-bottom: 8px; }
+.map-message p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.map-data-message { background: var(--surface); border: 2px solid var(--border); border-radius: 20px; padding: 12px 14px; font-size: 13px; box-shadow: var(--shadow-sm); }
+.kindergarten-map .leaflet-top.leaflet-right { top: max(82px, calc(env(safe-area-inset-top) + 82px)); right: max(18px, env(safe-area-inset-right)); }
+.kindergarten-map .leaflet-control-zoom { margin: 0; border: 0; border-radius: 100px; overflow: hidden; background: var(--mint); box-shadow: var(--shadow-sm); }
+.kindergarten-map .leaflet-control-zoom a { color: var(--ink); background: var(--mint); }
+.kindergarten-map .leaflet-control-zoom a + a { border-top: 1px solid var(--ink-wash); }
+.kindergarten-map .leaflet-control-zoom a:hover { background: var(--lemon); }
+.kindergarten-map .leaflet-bottom.leaflet-right { bottom: calc(3px + env(safe-area-inset-bottom)); right: 8px; }
+.kindergarten-map .leaflet-control-attribution { margin: 0; font-size: 10px; }
+.location-pin { background: transparent; border: 0; }
+.location-pin span { display: block; width: 100%; height: 100%; border: 2px solid var(--ink); border-radius: 50%; box-sizing: border-box; }
+.location-pin-selected span { border-width: 4px; }
+.location-cluster { display: grid; place-items: center; color: var(--ink); background: var(--cream); border: 2px solid var(--ink); border-radius: 50%; font-size: 12px; font-weight: 600; }
+@media (max-width: 650px) {
+  .map-overlay { left: 12px; gap: 8px; }
+  .map-data-message { font-size: 11px; }
+  .map-message { top: 35%; padding: 16px; }
+  .map-message-marker { display: none; }
+}
+@media (max-height: 540px) and (orientation: landscape) {
+  .kindergarten-map .leaflet-control-zoom { display: flex; }
+  .kindergarten-map .leaflet-control-zoom a + a { border-top: 0; border-left: 1px solid var(--ink-wash); }
+  .map-overlay { width: min(380px, calc(100% - 160px)); }
+  .map-message { top: 30%; padding: 12px; }
+  .map-message-marker { display: none; }
+  .map-message h2 { font-size: 13px; }
+  .map-message p { font-size: 10px; }
+}
+@media (max-height: 350px) and (orientation: landscape) {
+  .kindergarten-map .leaflet-top.leaflet-right { top: max(64px, calc(env(safe-area-inset-top) + 64px)); }
+  .map-data-message { padding: 6px; font-size: 10px; line-height: 1.4; }
+}
+
+/* NearbyControl: compact pill buttons that follow the map controls' look. */
+.nearby-control { display: flex; flex-direction: column; padding: 4px; transition: padding 220ms ease-out, border-radius 220ms ease-out; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow-sm); font-size: 12px; }
+.nearby-control[data-open="true"] { padding: 8px 12px 10px; border-radius: 16px; }
+.nearby-control:not([data-open="true"]) { border-radius: 100px; }
+.nearby-control .nearby-toggle { align-self: flex-start; background: transparent; padding: 0 8px; }
+.nearby-toggle-radius { padding: 2px 7px; background: var(--lemon); border-radius: 100px; font-size: 11px; }
+.nearby-control .nearby-toggle-chevron { transition: transform 220ms ease-out; }
+.nearby-control[data-open="true"] .nearby-toggle-chevron { transform: rotate(180deg); }
+.nearby-body-inner { display: flex; flex-direction: column; gap: 8px; padding-top: 6px; }
+.nearby-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.nearby-control button { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; padding: 0 10px; color: var(--ink); background: var(--mint); border: 0; border-radius: 100px; font: inherit; font-weight: 600; cursor: pointer; }
+.nearby-control button:hover:not(:disabled) { background: var(--lemon); }
+.nearby-control button[aria-pressed="true"] { background: var(--lemon); box-shadow: inset 0 0 0 2px var(--ink); }
+.nearby-control button:disabled { opacity: .5; cursor: not-allowed; }
+.nearby-control button:focus-visible, .nearby-control select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.nearby-control svg { width: 14px; height: 14px; }
+.nearby-control label { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; }
+.nearby-control select { min-height: 32px; padding: 0 6px; color: var(--ink); background: var(--surface); border: 2px solid var(--ink-wash); border-radius: 10px; font: inherit; }
+.nearby-summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; color: var(--muted); line-height: 1.4; }
+.nearby-summary button { flex: none; background: var(--cream); }
+.nearby-hint, .nearby-error { margin: 0; line-height: 1.4; }
+.nearby-error { color: var(--ink); font-weight: 600; }
+/* DistrictControl: one pill like the folded nearby control. */
+.district-control { display: flex; flex-direction: column; gap: 4px; padding: 4px 6px 4px 12px; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 100px; box-shadow: var(--shadow-sm); font-size: 12px; }
+.district-control[data-active="true"] { border-radius: 16px; padding-bottom: 8px; }
+.district-control label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.district-control svg { width: 14px; height: 14px; flex: none; }
+.district-control select { min-height: 30px; max-width: 210px; padding: 0 6px; color: var(--ink); background: var(--surface); border: 2px solid var(--ink-wash); border-radius: 10px; font: inherit; }
+.district-control[data-active="true"] select { background: var(--lemon); }
+.district-control select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.district-note { margin: 0; color: var(--muted); line-height: 1.4; }
+@media (max-width: 650px) {
+  .district-control { font-size: 11px; }
+  .district-control select { min-height: 28px; }
+  .nearby-control { font-size: 11px; }
+  .nearby-control[data-open="true"] { padding: 6px 8px 8px; }
+  .nearby-body-inner { gap: 6px; }
+  .nearby-actions { gap: 4px; }
+  .nearby-control button, .nearby-control select { min-height: 28px; }
+  .nearby-control button { padding: 0 8px; }
+}
