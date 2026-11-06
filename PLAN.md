@@ -505,3 +505,14 @@ Za cjeline 2 i 3: usporediti izlaz `dohvati_kontekst_vrtica` za DV Duga
 (`topics=["document"]`) i karticu jednog zagrebačkog gradskog vrtića prije i
 poslije, uz ponovljena mjerenja iz odjeljka 1. Dokazi, datumi, `scope` i
 `applies_to` moraju biti jednaki.
+
+## 7. Provedba
+
+Odluke vlasnika od 6. 11. 2026.: cjelina 3 koristi pravilo B; cjelina 4
+uklanja aktualne programe, dobne/programske filtre i neiskorištenu CLI pretragu.
+Korak 2c i objedinjavanje historical_record ostaju odgođeni kako plan navodi.
+
+- Cjelina 1: migracija 0009, leksički dohvat bez embedding ugovora.
+  Provjeren upgrade, downgrade i ponovni upgrade na zasebnoj bazi;
+  192 testa prolaze (3 vanjske simulacije preskočene). Sigurnosna kopija
+  lokalne baze: Docker spremnik database, /tmp/kidsic_before_0009.dump.

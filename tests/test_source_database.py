@@ -89,9 +89,6 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
             program = await self.c.fetchval('''INSERT INTO program
                 (kindergarten_id,location_id,source_record_id,name,verified_on)
                 VALUES ($1,$2,$3,'Synthetic',CURRENT_DATE) RETURNING id''', owner, location, record)
-            await self.c.execute('''INSERT INTO availability
-                (kindergarten_id,location_id,source_record_id,program_id,observed_on)
-                VALUES ($1,$2,$3,$4,CURRENT_DATE)''', owner, location, record, program)
             await self.c.execute('''INSERT INTO enrolment
                 (kindergarten_id,source_record_id,academic_year,application_url,channel)
                 VALUES ($1,$2,'2026/27','https://example.invalid','kindergarten')''', owner, record)
@@ -113,6 +110,7 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
             (municipality_id,source_record_id,academic_year,application_url,channel)
             VALUES ($1,$2,'2026/27','https://example.invalid','city_system')''', cities['split'], rijeka[2])
 
+        await self.c.execute('CREATE TEMP TABLE availability (source_record_id uuid, kindergarten_id uuid, location_id uuid, program_id uuid)')
         migration = (Path(__file__).resolve().parents[1] /
                      'src/KIDSic/db/alembic/versions/0005_supported_cities.sql').read_text()
         await self.c.execute(migration)
@@ -120,7 +118,7 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
                          {rijeka[0], external[0], varazdin[0]})
         self.assertEqual({r['id'] for r in await self.c.fetch('SELECT id FROM location')},
                          {rijeka[1], zagreb[1], varazdin[1]})
-        for table in ('program', 'availability', 'enrolment', 'knowledge_chunk'):
+        for table in ('program', 'enrolment', 'knowledge_chunk'):
             self.assertEqual(await self.c.fetchval(f'SELECT count(*) FROM {table}'), 3, table)
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 4)
         self.assertIsNone(await self.c.fetchval("SELECT id FROM municipality WHERE key='osijek'"))

@@ -10,7 +10,7 @@ class KindergartenSearchService(KindergartenSearchServiceInterface):
         self._uow_factory = uow_factory
         self._request_parser = request_parser or RequestParser()
 
-    async def recommend(self, question: str, *, embedding=None, embedding_model=None, as_of=None) -> Recommendation:
+    async def recommend(self, question: str, *, as_of=None) -> Recommendation:
         """Return retrieval evidence, not an unconstrained generated answer or enrolment promise."""
         async with self._uow_factory() as uow:
             criteria = self._request_parser.parse_city_age(question, await uow.search.list_cities())
@@ -23,7 +23,7 @@ class KindergartenSearchService(KindergartenSearchServiceInterface):
             context = await uow.search.retrieve_context(
                 location_ids=[row['location_id'] for row in confirmed if row['location_id']],
                 kindergarten_ids=[row['kindergarten_id'] for row in confirmed if not row['location_id']],
-                text=question, embedding=embedding, embedding_model=embedding_model,
+                text=question,
                 program_ids=[e["program_id"] for row in confirmed for e in row["age_evidence"]],
             ) if confirmed else []
             return {'criteria': criteria, 'confirmed': confirmed, 'age_unknown': unknown,

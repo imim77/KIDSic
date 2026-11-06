@@ -54,9 +54,9 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
             await self.c.execute('INSERT INTO program(kindergarten_id,location_id,source_record_id,name,min_age_months,max_age_months_exclusive,verified_on) VALUES ($1,$2,$3,$4,$5,$6,$7)',k,l,r,'Synthetic nursery',minimum,maximum,date(2026,10,1))
         return k,l,r
 
-    async def chunk(self,fixture,text,vector,model='test-384'):
-        k,l,r=fixture
-        return await self.c.fetchval("INSERT INTO knowledge_chunk(kindergarten_id,location_id,source_record_id,ordinal,content,source_url,content_sha256,embedding,embedding_model) VALUES ($1,$2,$3,0,$4,'https://example.invalid/evidence',$5,$6::vector,$7) RETURNING id", k,l,r,text,'a'*64,'['+','.join(map(str,vector))+']',model)
+    async def chunk(self, fixture, text):
+        k, l, r = fixture
+        return await self.c.fetchval("INSERT INTO knowledge_chunk(kindergarten_id,location_id,source_record_id,ordinal,content,source_url,content_sha256) VALUES ($1,$2,$3,0,$4,'https://example.invalid/evidence',$5) RETURNING id", k,l,r,text,'a'*64)
 
     async def test_croatian_question_filters_city_and_24_months(self):
         result=await self.service.recommend('Imam dijete od 2 godine i iz varazdina sam koji su mi vrtici opcija',as_of=date(2026,11,1))
@@ -72,11 +72,10 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
                              {'quarter': 'Široke ledine', 'suburb': 'Banfica'})
         await self.c.execute("UPDATE location SET attributes=$2 WHERE id=$1", self.old[1],
                              {'quarter': 'Đurek', 'suburb': 'Centar'})
-        vector = [1.0] + [0.0] * 383
-        await self.chunk(self.eligible, 'upis Banfica', vector)
-        await self.chunk(self.other, 'upis drugi grad', vector)
+        await self.chunk(self.eligible, 'Dijete od 2 godine iz Varaždina na Banfici')
+        await self.chunk(self.other, 'Dijete od 2 godine iz Varaždina na Banfici drugi grad')
         result = await self.service.recommend('Dijete od 2 godine iz Varaždina na Banfici',
-            embedding=vector, embedding_model='test-384', as_of=date(2026, 11, 1))
+            as_of=date(2026, 11, 1))
         self.assertEqual(result['criteria']['area'], 'Banfica')
         self.assertEqual([row['location_id'] for row in result['confirmed']], [self.eligible[1]])
         self.assertEqual(result['confirmed'][0]['quarter'], 'Široke ledine')
@@ -110,29 +109,16 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.repo.find_options(city='varazdin',age_months=24,include_unknown=True),[])
 
     async def test_rag_never_introduces_other_city_or_age_group(self):
-        query=[1.0]+[0.0]*383
-        await self.chunk(self.eligible,'Jaslice: službene upute za upis.',[0.8,0.2]+[0.0]*382)
-        await self.chunk(self.other,'Najbliži vektor ali Zagreb.',query)
-        await self.chunk(self.old,'Najbliži vektor ali starija djeca.',query)
+        await self.chunk(self.eligible, 'Dijete od 2 godine iz Varazdina upute')
+        await self.chunk(self.other, 'Dijete od 2 godine iz Varazdina drugi grad')
+        await self.chunk(self.old, 'Dijete od 2 godine iz Varazdina starija djeca')
         k,l,r=self.eligible
         older_program=await self.c.fetchval("INSERT INTO program(kindergarten_id,location_id,source_record_id,name,min_age_months,max_age_months_exclusive,verified_on) VALUES ($1,$2,$3,'Older group same location',36,84,'2026-10-01') RETURNING id",k,l,r)
-        await self.c.execute("INSERT INTO knowledge_chunk(kindergarten_id,location_id,program_id,source_record_id,ordinal,content,source_url,content_sha256,embedding,embedding_model) VALUES ($1,$2,$3,$4,1,'Wrong age same location','https://example.invalid/older',$5,$6::vector,'test-384')",k,l,older_program,r,'a'*64,'['+','.join(map(str,query))+']')
-        result=await self.service.recommend('Dijete od 2 godine iz Varazdina' ,embedding=query,embedding_model='test-384',as_of=date(2026,11,1))
+        await self.c.execute("INSERT INTO knowledge_chunk(kindergarten_id,location_id,program_id,source_record_id,ordinal,content,source_url,content_sha256) VALUES ($1,$2,$3,$4,1,'Dijete od 2 godine iz Varazdina wrong age same location','https://example.invalid/older',$5)",k,l,older_program,r,'a'*64)
+        result=await self.service.recommend('Dijete od 2 godine iz Varazdina',as_of=date(2026,11,1))
         self.assertEqual(len(result['context']),1)
         self.assertEqual(result['context'][0]['kindergarten_id'],self.eligible[0])
         self.assertIn('source_url',result['context'][0])
-        self.assertGreater(result['context'][0]['distance'],0)
-
-    async def test_model_isolation_and_lexical_fallback(self):
-        vector=[1.0]+[0.0]*383
-        await self.chunk(self.eligible,'jaslice dokumenti upis',vector)
-        scope=[self.eligible[1]]
-        self.assertEqual(await self.repo.retrieve_context(location_ids=scope,embedding=vector,embedding_model='another-model'),[])
-        self.assertEqual(len(await self.repo.retrieve_context(location_ids=scope,text='dokumenti')),1)
-        with self.assertRaises(ValueError):
-            await self.repo.retrieve_context(location_ids=scope,embedding=[0]*384,embedding_model='test-384')
-        with self.assertRaises(ValueError):
-            await self.repo.retrieve_context(location_ids=scope,embedding=[1,2],embedding_model='test-384')
 
     async def test_failed_batch_preserves_active_data_and_new_snapshot_removes_it(self):
         k,l,_=self.eligible
@@ -176,13 +162,9 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         rows=await self.repo.find_options(city='sesvete',age_months=24,include_unknown=True)
         self.assertEqual([(row['settlement'],row['municipality']) for row in rows],[('Sesvete','Zagreb')])
 
-    async def test_availability_and_enrolment_scope_constraints(self):
+    async def test_enrolment_scope_constraints(self):
         k,l,r=self.eligible
-        program=await self.c.fetchval('SELECT id FROM program WHERE kindergarten_id=$1',k)
-        await self.c.execute("INSERT INTO availability(kindergarten_id,location_id,program_id,source_record_id,min_age_months,max_age_months_exclusive,free_places,observed_on) VALUES ($1,$2,$3,$4,12,36,0,'2026-10-01')",k,l,program,r)
-        bad=(("INSERT INTO availability(kindergarten_id,source_record_id,free_places) VALUES ($1,$2,3)",(k,r),asyncpg.NotNullViolationError),
-             ("INSERT INTO availability(kindergarten_id,program_id,source_record_id,observed_on) VALUES ($1,$2,$3,CURRENT_DATE)",(self.other[0],program,r),asyncpg.ForeignKeyViolationError),
-             ("INSERT INTO enrolment(kindergarten_id,municipality_id,source_record_id,academic_year,application_url,channel) VALUES ($1,$2,$3,'2027./2028.','https://example.invalid','city_system')",(k,self.municipalities['zagreb'],r),asyncpg.CheckViolationError),
+        bad=(("INSERT INTO enrolment(kindergarten_id,municipality_id,source_record_id,academic_year,application_url,channel) VALUES ($1,$2,$3,'2027./2028.','https://example.invalid','city_system')",(k,self.municipalities['zagreb'],r),asyncpg.CheckViolationError),
              ("INSERT INTO enrolment(kindergarten_id,source_record_id,academic_year,application_url) VALUES ($1,$2,'2027./2028.','https://example.invalid')",(k,r),asyncpg.NotNullViolationError))
         for sql,args,error in bad:
             with self.assertRaises(error):

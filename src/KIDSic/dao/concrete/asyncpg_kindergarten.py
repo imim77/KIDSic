@@ -1,6 +1,4 @@
 """PostgreSQL implementation of kindergarten search and RAG retrieval."""
-import math
-
 import asyncpg
 
 from KIDSic.dao.interfaces.kindergarten import KindergartenRepository
@@ -124,17 +122,10 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
         ''', normalize(city), age_months, as_of, include_unknown, limit, area)
 
 
-    async def retrieve_context(self, *, location_ids, text: str = '', embedding=None,
-                               embedding_model: str | None = None, program_ids=(),
+    async def retrieve_context(self, *, location_ids, text: str = '', program_ids=(),
                                kindergarten_ids=(), limit: int | None = 8, all_documents: bool = False):
         if not (all_documents and limit is None) and (type(limit) is not int or not 1 <= limit <= 30):
             raise ValueError('Limit mora biti od 1 do 30.')
-        vector = None
-        if embedding is not None:
-            if not embedding_model or len(embedding) != 384 or not all(math.isfinite(float(x)) for x in embedding) or not any(embedding):
-                raise ValueError('Potreban je model i konačan nenulti vektor dimenzije 384.')
-            vector = '[' + ','.join(str(float(x)) for x in embedding) + ']'
-        # Exact cosine ranking AFTER scope/source filtering: no ANN post-filter recall loss.
         return await self._connection.fetch('''
           SELECT c.id,c.kindergarten_id,c.location_id,c.content,c.source_url,c.source_record_id,
                  r.observed_on,r.fetched_at,s.title AS source_title,s.license,
@@ -143,8 +134,7 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
                  CASE WHEN r.raw_data->>'kind'='enrolment_document' AND r.raw_data->>'date_kind'='published'
                    THEN (r.raw_data->>'reference_date')::date END AS published_on,
                  CASE WHEN r.raw_data->>'kind'='enrolment_document'
-                   THEN (r.raw_data->>'valid_until')::date>=current_date END AS in_effect,
-                 CASE WHEN $3::vector IS NULL THEN NULL ELSE c.embedding <=> $3::vector END AS distance
+                   THEN (r.raw_data->>'valid_until')::date>=current_date END AS in_effect
           FROM knowledge_chunk c
           JOIN source_record r ON r.id=c.source_record_id
           JOIN data_source s ON s.id=r.source_id
@@ -157,13 +147,11 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
             AND (EXISTS (SELECT 1 FROM location l WHERE l.id=ANY($1::uuid[])
               AND l.kindergarten_id=c.kindergarten_id AND (c.location_id IS NULL OR c.location_id=l.id))
               -- Seat-only results: institution-wide chunks, never another object's chunks.
-              OR (c.location_id IS NULL AND c.kindergarten_id=ANY($7::uuid[])))
-            AND (c.program_id IS NULL OR (c.program_id=ANY($6::uuid[]) AND EXISTS (
+              OR (c.location_id IS NULL AND c.kindergarten_id=ANY($5::uuid[])))
+            AND (c.program_id IS NULL OR (c.program_id=ANY($4::uuid[]) AND EXISTS (
               SELECT 1 FROM program p WHERE p.id=c.program_id
                 AND (p.location_id IS NULL OR p.location_id=c.location_id))))
-            AND ($3::vector IS NULL OR (c.embedding IS NOT NULL AND c.embedding_model=$4))
-            AND ($8::boolean OR $3::vector IS NOT NULL OR c.search_text @@ websearch_to_tsquery('simple',$2))
-          ORDER BY CASE WHEN $3::vector IS NOT NULL THEN c.embedding <=> $3::vector END,
-                   ts_rank(c.search_text,websearch_to_tsquery('simple',$2)) DESC,c.id LIMIT $5
-        ''', list(location_ids), text, vector, embedding_model, limit, list(program_ids),
+            AND ($6::boolean OR c.search_text @@ websearch_to_tsquery('simple',$2))
+          ORDER BY ts_rank(c.search_text,websearch_to_tsquery('simple',$2)) DESC,c.id LIMIT $3
+        ''', list(location_ids), text, limit, list(program_ids),
             list(kindergarten_ids), all_documents)

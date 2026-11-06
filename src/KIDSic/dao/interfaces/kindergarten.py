@@ -16,7 +16,6 @@ class KindergartenRepository(ABC):
         """Return age-appropriate options and optionally unknown age conditions."""
 
     @abstractmethod
-    async def retrieve_context(self, *, location_ids, text='', embedding=None,
-                               embedding_model=None, program_ids=(), kindergarten_ids=(), limit=8,
+    async def retrieve_context(self, *, location_ids, text='', program_ids=(), kindergarten_ids=(), limit=8,
                                all_documents=False):
         """Retrieve source-grounded chunks only within the supplied candidate scope."""
