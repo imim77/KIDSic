@@ -279,3 +279,122 @@ Zadnja naredba smije pogoditi samo `kindergarten_search.py`,
 4. **Je li migracija 0008 primijenjena negdje osim lokalno** (staging, dijeljena
    baza)? Ako jest, treba nova migracija koja briše `rag_embedding`, umjesto
    brisanja datoteke 0008.
+
+## Proširenje ruta na Zagreb (6. 11. 2026.)
+
+Istraživanje: `api/commute_tools.py` → `services/concrete/commute.py` →
+`services/concrete/day_route.py` → postojeći LocationService i baza. Zagreb je već
+u imeniku. Grad, okvir, kalendar, izvor i adresni indeks trenutno su vezani uz
+Rijeku u DTO-u, servisu, MCP opisu, frontend parseru i routing skriptama.
+ZET potvrđuje Otvorenu dozvolu RH na
+https://www.zet.hr/preuzimanja/odredbe/datoteke-u-gtfs-formatu/669.
+Arhiva https://www.zet.hr/gtfs-scheduled/scheduled-000-000397.zip ima SHA256
+2ddf4051147837545bc1b77af5a82bc8961096da630b11fe7a1079ce3654edf8.
+Kalendar ima sve tjedne zastavice ugašene; stvarni dodani datumi u
+calendar_dates.txt su 21. 10. – 31. 12. 2026., usprkos feed_end_date=20301231.
+
+Pristupi: jedan zajednički graf oba grada olakšao bi pokretanje, ali bi tražio
+ponovnu izgradnju riječkog grafa i proširio indeks adresa bez razdvajanja grada.
+Odabrano: zajednički kod s postavkama po gradu i zasebni graf/indeks za Zagreb
+(port 18081). Postojeće putanje i port Rijeke ostaju zadani.
+
+Dodati postavke izvora, SHA256, kalendara i okvira po gradu. DTO provjerava
+koordinate prema odabranom gradu; servis pretražuje katalog tog grada; MCP bira
+ruter i adresni indeks tog grada. Frontend provjerava rezultate prema gradu.
+Routing skripte dobivaju --city i pripremaju Zagreb u routing/data/zagreb.
+Dokumentirati licencu, atribuciju, datume i naredbe. Provjeriti izolaciju gradova,
+kalendare, MCP poziv, frontend prikaz i stvarni lokalni OTP izračun.
+
+Preostale nepoznanice: uspjeh OTP uvoza, trajanje rangiranja cijelog zagrebačkog
+kataloga i pokrivenost adresa u lokalnom OSM snapshotu. Provjeriti tijekom
+implementacije; ne zamjenjivati nedostupne rute procijenjenim vremenima.
+
+
+Rezultat provjere: graf Zagreba izgrađen je iz prikvačenog ZET-a i OSM-a.
+Lokalni MCP poziv nad stvarnom bazom, Ilica 10 → Radnička cesta 1, 6. 11. 2026.
+u 07:00, uspješno rangira 358 objekata u 31,5 sekundi (357 dostupnih ruta).
+Primjeri i ograničenja uvoza zabilježeni su u routing/README.md i zasebnom
+zagreb-manifest.json. Python: 187 testova, 72 preskočena zbog vanjskih testnih
+ovisnosti. Frontend: 101 test, lint, standardni i MCP build prolaze.
+
+## Proširenje na Šibenik — manje radne cjeline (6. 11. 2026.)
+
+### Istraživanje i opseg
+
+Postojeći tok je `api/commute_tools.py` → `CommuteService` → `DayRouteService`
+→ LocationService/repozitorij i lokalni OTP. Opći imenik/RAG koriste katalog
+`dto/municipality.py`, a normalizator odbacuje gradove izvan tog kataloga.
+Uvoz nacionalnog registra stvara sjedišta ustanova, nikad automatski objekte.
+Šibenik nije u katalogu; Zagreb proširenje već je u radnom stablu i čuva se.
+Stara migracija 0005 je povijesno čišćenje, a ne ograničenje tablice: ne mijenja
+se; nakon nje novi grad može ući redovnim uvozom.
+
+Otvoreni izvori:
+- MZOM https://data.gov.hr/ckan/dataset/djecji-vrtici — Otvorena dozvola RH,
+  sedam polja, šest ustanova za Šibenik/Brodaricu. Hozana je pod zagrebačkim
+  sjedištem; podružnica traži zasebno povezivanje na postojeću ustanovu.
+- OSM snapshot Hrvatske 2026-11-04T21:21:03Z — ODbL. Samo imenovani objekti
+  s adresom i provjerenim odnosom prema ustanovi ulaze u planiranje ruta.
+  Neimenovani zapisi i neprovjerene adrese nisu kandidati za preporuku.
+- Gradski parking https://www.gradski-parking.hr/stranice/datoteke-u-gtfs-formatu/105.html
+  izričito navodi Otvorenu dozvolu za static i realtime. Preuzeti ZIP ima SHA256
+  6fd33879adc8a57e66fab75dbdcebc9136b383be0e7a7274e0accb4561530128,
+  227 stajališta, 32 zapisa linija, 346 vožnji i 5.319 stop_times zapisa.
+  Kalendar 2026-09-07–2027-06-07; bez shapes.txt. Koristi se raspored, bez RT.
+
+### Pristupi i odluka
+
+Uvoz svih web-stranica dao bi više objekata/programa, ali otvorene licence
+za taj sadržaj nisu potvrđene. Odabrano: MZOM ustanove i odvojena pregledana
+OSM snimka objekata. To daje manju, ali dokazivu pokrivenost. Kod ne smije
+pretvoriti sjedišta u objekte ni obećavati potpunost fizičkih lokacija.
+Zaseban šibenski OTP/indeks na portu 18082 čuva postojeće grafove.
+
+### Radne cjeline
+
+1. Imenik: dodati grad/alias i potvrđenu Brodaricu unutar šibenske županije;
+   proširiti opće MCP/RAG opise i testove. Nacionalni uvoz ostaje isti izvor.
+2. Objekti: dodati ponovljiv pregledani OSM uvoz s provjerom nepromijenjenih
+   nacionalnih roditelja, stabilnim identitetima, atomskim aktiviranjem i
+   provjerom source.import_allowed. Dopune iz web-stranica ne ulaze u podatke.
+3. Promet: dodati RoutingCity, SHA256 i datume, gradom odvojene putanje/env,
+   normalizaciju Šibenik/22000, OSM okvir i Docker profil. Izgraditi stvarni graf.
+4. Integracija: proširiti DTO i frontend provjere grada/okvira, MCP metapodatke,
+   testirati gradsko filtriranje, idempotentnost uvoza, nedostupne izvore,
+   povrat stare snimke, pogrešne koordinate/datum i stvarni MCP izračun.
+
+### Otvorena pitanja
+
+Pregled svih OSM oznaka još treba potvrditi konačan broj prihvatljivih objekata.
+Adresna pokrivenost i kvalitetni prometni spojevi provjeravaju se na stvarnom
+grafu. Bez shapes.txt OTP može konstruirati prometnu geometriju; treba provjeriti
+što prikazuje karta. Pravila konkretnog datathona nisu dostavljena; potvrđujemo
+licence izvora, ne prihvatljivost prema nepoznatim pravilima natjecanja.
+
+
+### Rezultat Šibenik
+
+Sve četiri cjeline su implementirane. Nacionalni uvoz dodao je šest ustanova;
+imenik za Šibenik vraća sedam zapisa (tri objekta i četiri sjedišta), uključujući
+podružnicu Hozane sa zagrebačkim roditeljem. Pregledana OSM snimka prihvaća tri
+objekta i isključuje četiri nedovoljno potvrđena kandidata. Ponovljeni uvoz,
+promjena roditelja, zabrana izvora i očuvanje aktivne snimke provjereni su u
+izoliranoj PostgreSQL bazi migriranoj od nule.
+
+Šibenski OTP radi na 18082; graf ima 227 stajališta/32 obrasca, adresni indeks
+4.564 zapisa. Manifest bilježi hashove, licence, opseg i upozorenja. Zbog
+nedostatka shapes.txt autobusna geometrija povezuje stajališta; to je navedeno
+u dokumentaciji i detaljima puta. Nepotpuna pokrivenost vrtića navedena je i u
+MCP odgovoru i UI-ju. Mrežni MCP na 8002 provjeren je sa stvarnom bazom i
+OTP-om: Svilajska 20 → Ulica Velimira Škorpika 10, 9. 11. 2026. u 07:00,
+tri uspoređena i tri dostupna objekta, autobus/hodanje, oko 0,3 sekunde.
+Stvarni odgovor prolazi frontend parser, dekodiranje geometrija i render.
+
+Python: 193 testa, 3 preskočena jer CKAN/Postman simulator nije pokrenut;
+svih 190 ostalih, uključujući DB testove, prolazi. Frontend: 102 testa,
+lint i oba builda prolaze. Posebna privremena provjera stvarnog MCP payload-a
+također je prošla i nije ostavljena kao ovisnost redovitih testova.
+
+Preostala ograničenja su pokrivenost fizičkih objekata, kvaliteta izvornog
+GTFS-a i nedostajući otvoreni podaci o programima/radnom vremenu/mjestima.
+Pravila datathona nisu pretpostavljena; navedene su stvarne licence izvora.

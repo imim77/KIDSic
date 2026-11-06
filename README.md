@@ -2,7 +2,7 @@
 
 MCP app za pronalazak dječjih vrtića povezivanjem više otvorenih skupova. Implementirani su PostgreSQL model, CKAN registracija i uvoz imenika, objekata, kontakata te povijesnih zagrebačkih programa i mjesta. MCP alat `prikazi_vrtice` povezuje obavezan grad s OpenStreetMap kartom i karticama. `dohvati_kontekst_vrtica` dohvaća podatke za razgovorne odgovore s izvorima, datumima i opsegom. [RAG](RAG.md) vraća sve prihvaćene dokaze odabranih tema za odabrani vrtić, bez rangiranja i embedding pružatelja. Odgovor sastavlja model MCP klijenta.
 
-Aplikacija podržava samo **Zagreb, Varaždin i Rijeku**. Uvoz preskače zapise
+Aplikacija podržava samo **Zagreb, Varaždin, Rijeku i Šibenik**. Uvoz preskače zapise
 iz drugih gradova prije upisa u bazu; pripadnost gradu određuje se prema
 potvrđenoj općini, pa zagrebačka naselja poput Sesveta ostaju uključena.
 HTTP API odbija nepodržani grad statusom 422, a MCP alat vraća popis podržanih
@@ -70,7 +70,7 @@ uv run kidsic-sync-kindergartens
 uv run kidsic-search 'Imam dijete od 2 godine i iz varazdina sam koji su mi vrtici opcija'
 ```
 
-Naredba pretražuje prethodno uvezene podatke. Bez imenika traži pojašnjenje jer grad nije poznat. Uvoz razlikuje mjesto (npr. Sesvete) od grada/općine (Zagreb) i dodaje kurirane padežne aliase za Zagreb, Varaždin i Rijeku. Upit za grad uključuje i njegova mjesta. `.env.example` je predložak, a `.env` se ne učitava automatski. Postavke `DATABASE_POOL_MIN_SIZE` i `DATABASE_POOL_MAX_SIZE` upravljaju poolom. CLI trenutačno koristi leksički RAG dohvat; servis podržava i predani embedding s oznakom modela.
+Naredba pretražuje prethodno uvezene podatke. Bez imenika traži pojašnjenje jer grad nije poznat. Uvoz razlikuje mjesto (npr. Sesvete) od grada/općine (Zagreb) i dodaje kurirane padežne aliase za Zagreb, Varaždin, Rijeku i Šibenik. Upit za grad uključuje i njegova mjesta. `.env.example` je predložak, a `.env` se ne učitava automatski. Postavke `DATABASE_POOL_MIN_SIZE` i `DATABASE_POOL_MAX_SIZE` upravljaju poolom. CLI trenutačno koristi leksički RAG dohvat; servis podržava i predani embedding s oznakom modela.
 
 Migracija `0005_supported_cities` uklanja postojeće ustanove izvan obuhvata,
 njihove objekte, izvorne zapise i ovisne podatke. Ustanova s barem jednim
@@ -249,3 +249,21 @@ Integracijske provjere trebaju zasebnu, migriranu bazu `kidsic_test_*` i `KIDSIC
 Testovi CKAN klijenta i normalizacije rade offline. Testovi uvoza nad PostgreSQL-om provjeravaju ponovljivost, povijest, povezivanje izvora, nepoznatu dob i rollback. [Lokalna Postman simulacija](postman/README.md) dodatno provjerava stvarni HTTP promet, timeout i pogreške bez vanjskih servisa; uključuje se varijablom `KIDSIC_CKAN_SIMULATION_URL`.
 
 Lokalno istraživanje u `docs/`, dokumentacija baze u `database/` i pomoćne skripte u `scripts/` ne ulaze u Git. Razvojni rezultati, `.env`, `.venv` i `node_modules` također su ignorirani. Commits slijede Conventional Commits (`chore`, `feat`, `test`, `docs` s odgovarajućim scopeom).
+
+
+### Vrtići na putu do posla: Rijeka, Zagreb i Šibenik
+
+MCP alat `preporuci_vrtice_usput` uspoređuje dom → vrtić → posao za sva tri grada.
+Zagreb koristi službeni ZET GTFS pod Otvorenom dozvolom RH, zaseban lokalni
+OpenTripPlanner i OSM adresni indeks. Raspored za Zagreb: 21. 10. – 31. 12. 2026.
+[Priprema i izvori](routing/README.md#zagreb), [ugovor alata](MCP.md#vrtić-na-putu-od-doma-do-posla-rijeka-zagreb-i-šibenik).
+
+Šibenik koristi službeni GTFS Gradskog parkinga pod Otvorenom dozvolom RH,
+sa zasebnim OTP-om i adresnim indeksom. Raspored: 7. 9. 2026. – 7. 6. 2027.
+Nacionalni imenik sadrži šest šibenskih/brodaričkih ustanova; šibenska Hozana
+povezana je sa zagrebačkim sjedištem. Za rute su trenutačno provjerena **tri
+OSM objekta**: Šibenski tići, Vidici i Blažena Hozana. To nije potpun popis
+objekata. Sjedišta bez potvrđenog objekta ne ulaze u rangiranje. Programi,
+radno vrijeme, cijene i slobodna mjesta nisu preuzeti s nelicenciranih stranica.
+[Šibenski uvoz](data-enrichment/README.md#šibenik),
+[priprema prometa](routing/README.md#šibenik).

@@ -179,3 +179,35 @@ CSV zapis KBC Kantrida
 ostaje za provjeru jer Grad sada govori o bivšoj bolnici na tom lokalitetu.
 Izvori: [GIS katalog](https://data.rijeka.hr/dataset/gis-grad-rijeka),
 [bivša bolnica Kantrida](https://www.rijeka.hr/rezultati-visekruznog-savjetovanja-o-buducoj-namjeni-kompleksa-bivse-djecje-bolnice-kantrida/).
+
+
+## Šibenik
+
+Prvo uvesti nacionalni registar, zatim pregledane fizičke objekte:
+
+```sh
+uv run kidsic-sync-kindergartens --source national
+uv run python data-enrichment/import_sibenik.py
+uv run python data-enrichment/import_sibenik.py --apply
+```
+
+Naredbe zahtijevaju `DATABASE_URL` u okruženju. Nacionalni registar pod
+Otvorenom dozvolom RH daje ustanove, adrese sjedišta i kontakte. Šest zapisa
+pripada Šibeniku/Brodarici; Hozana zadržava zagrebačko sjedište.
+`sibenik-reviewed-locations.geojson` je verzionirana pregledana snimka iz
+OSM-a (ODbL-1.0, © OpenStreetMap contributors), s izvornim oznakama, ID-evima,
+SHA256 izvornog PBF-a i obrazloženjima prihvaćanja/isključivanja.
+Prihvaćeni su Šibenski tići → Smilje, Vidici → Šibenska maslina i Blažena
+Hozana → istoimena ustanova u Zagrebu. Četiri preostala OSM kandidata nemaju
+potpunu potvrđenu adresu/identitet. Nisu uvezeni ni pretvoreni u sjedišta.
+
+Uvoz koristi stabilne OSM identitete, provjerava aktivni nacionalni izvor i
+nepromijenjenog vlasnika, poštuje `import_allowed`, čuva izvor svakog polja i
+aktivira snimku tek nakon uspješnog cijelog uvoza. Ponovljeni uvoz ne duplicira
+objekte. Promijenjeno povezivanje zahtijeva pregled; prazan ili nevaljan uvoz
+ne zamjenjuje posljednju dobru snimku. Povlačenje dopuštenja izvora skriva
+njegove objekte preko postojećeg mehanizma aktivnih izvora.
+
+Provjera identiteta ustanove nije dozvola za kopiranje sadržaja njezine stranice.
+Programi, radno vrijeme, cijene i upisi nisu uključeni bez otvorenog izvora.
+Pokrivenost fizičkih objekata trenutačno je tri, ne svi šibenski vrtići.

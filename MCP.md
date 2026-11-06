@@ -50,7 +50,7 @@ Nakon povezivanja odabrati KIDSic aplikaciju u chatu i pokušati:
 - „Vrtići na Banfici u Varaždinu.” → `{"city":"Varaždin","area":"Banfica"}`.
 - „Montessori u Zagrebu za dijete od 2 godine.” → `{"city":"Zagreb","age_months":24,"program":"Montessori"}`.
 - „Tražim Čarobnu kućicu.” → pitati za grad, bez pretrage po pretpostavljenom gradu.
-- „Prikaži mi vrtiće u Splitu.” → poruka da su podržani Zagreb, Varaždin i Rijeka, bez čitanja baze.
+- „Prikaži mi vrtiće u Splitu.” → poruka da su podržani Zagreb, Varaždin, Rijeka i Šibenik, bez čitanja baze.
 - „Prikaži mi vrtiće.” → AI pita „U kojem gradu želiš prikaz vrtića?” prije poziva.
 - „Gradski vrtići u Zagrebu u krugu 1 km od mene.” → `{"city":"Zagreb","provider_kind":"municipal"}`
   i molba da korisnik odabere točku na karti (gumb „Odaberi na karti” ili „Moja lokacija”);
@@ -195,7 +195,7 @@ pročitati rezultat, ali ne može prikazati interaktivnu kartu.
 
 ## Ugovor UI-ja i provjera
 
-Resurs `ui://kidsic/map-v32.html` ima MIME `text/html;profile=mcp-app`. Hostovi
+Resurs `ui://kidsic/map-v34.html` ima MIME `text/html;profile=mcp-app`. Hostovi
 predložak spremaju po URI-ju, pa se verzija u URI-ju podiže pri svakoj promjeni
 UI-ja, a server se nakon `build:mcp` mora ponovno pokrenuti. Moderni
 `_meta.ui.resourceUri` i kompatibilni `openai/outputTemplate` povezuju ga s alatom.
@@ -248,7 +248,7 @@ npm --prefix frontend run build:mcp
 MCP testovi koriste službeni Python `ClientSession` preko stvarnog ASGI HTTP
 transporta, bez baze. Frontend provjerava i stvarni SDK `postMessage` handshake,
 primanje rezultata i host fullscreen uz simulirani host. To ne zamjenjuje konačnu
-provjeru u ChatGPT-u: povezati server, isprobati oba grada i upit bez grada,
+provjeru u ChatGPT-u: povezati server, isprobati podržane gradove i upit bez grada,
 potvrditi podlogu, odabir kartica i izlazak iz fullscreena.
 
 Reference: [MCP Apps](https://modelcontextprotocol.io/extensions/apps/overview),
@@ -259,7 +259,7 @@ Scenariji za provjeru filtra područja i nastavaka razgovora nalaze se u
 
 Scenariji za dob i programe: [conversational_age_program.md](tests/fixtures/conversational_age_program.md).
 
-## Vrtić na putu od doma do posla (Rijeka)
+## Vrtić na putu od doma do posla (Rijeka, Zagreb i Šibenik)
 
 `preporuci_vrtice_usput` je alat za razgovorni upit poput:
 
@@ -287,6 +287,13 @@ Primjer poziva:
 }
 ```
 
+Za Zagreb isti alat prima `city="Zagreb"`, primjerice `home="Ilica 10"`,
+`work="Radnička cesta 1"`, `departure="2026-11-06T07:00"`, `mode="TRANSIT"`.
+Pretražuje se zagrebački katalog; adrese i prometni graf odvojeni su po gradu.
+Prikvačeni ZET raspored pokriva 21. 10. – 31. 12. 2026.; riječki ostaje
+9. 10. – 8. 11. 2026. Alat odbija koordinate drugog grada i datume izvan
+rasporeda odabranog grada. Postupak pripreme Zagreba je u [routing/README.md](routing/README.md#zagreb).
+
 Adrese se razrješavaju u lokalnom OSM indeksu; ne šalju se vanjskom geokoderu.
 Za indeks treba izvorni Geofabrik PBF, jer mali cestovni isječak ne sadrži
 sve kućne brojeve i zgrade. Nakon pripreme [rutera](routing/README.md) pokrenuti:
@@ -297,7 +304,9 @@ uv run --with osmium==4.3.2 python routing/index_addresses.py \
 npm --prefix frontend run build:mcp
 ```
 
-`KIDSIC_ADDRESS_INDEX` opcionalno određuje apsolutni put do indeksa. Postojeći
+`KIDSIC_ADDRESS_INDEX` opcionalno određuje put do riječkog indeksa, a
+`KIDSIC_ADDRESS_INDEX_ZAGREB` do zagrebačkog (zadano
+`routing/data/zagreb/addresses.sqlite`). Postojeći
 snapshot daje 8.831 adresni ili imenovani POI zapis u obuhvatu Rijeke i okolice.
 Zapisi s izričitim `addr:city` izvan Rijeke isključeni su; zapisi bez grada
 ograničeni su geografskim okvirom. Zato model treba tražiti grad i točnu adresu,
@@ -326,7 +335,7 @@ odabranog kandidata umjesto naziva. `top_k` i dalje određuje koliko ih se
 prikazuje.
 Ako ima manje dostupnih ruta, alat vraća samo njih i točne brojeve pokrivenosti.
 
-Oba alata koriste isti resurs `ui://kidsic/map-v32.html` iz `frontend/dist/mcp.html`.
+Oba alata koriste isti resurs `ui://kidsic/map-v34.html` iz `frontend/dist/mcp.html`.
 Preporuka koristi istu sivu Leaflet/OSM kartu, boje oznaka, vodoravne kartice i
 fullscreen prikaz kao `prikazi_vrtice`. Na karti i karticama su samo vraćenih
 `top_k` vrtića u poretku dolaska na posao. Najbolja ruta je odabrana odmah;
@@ -352,3 +361,18 @@ zaseban `day-mcp.html` i postavka `day_ui_path` više se ne koriste.
 To ne potvrđuje radno vrijeme, dobnu prikladnost, kvalitetu vrtića, slobodna
 mjesta ni mogućnost upisa. Učitani vozni red je 9. 10. – 8. 11. 2026., bez
 kašnjenja uživo. Pogreška rutera ne zamjenjuje se procjenom.
+
+
+### Šibenik
+
+`prikazi_vrtice` i RAG alati prihvaćaju `city="Šibenik"`. Imenik uključuje
+Brodaricu kao naselje Grada Šibenika, uz provjeru županije pri uvozu.
+`preporuci_vrtice_usput` prihvaća `city="Šibenik"`, primjerice
+`home="Svilajska ulica 20"`, `work="Ulica Velimira Škorpika 10"`,
+`departure="2026-11-09T07:00"`, `mode="TRANSIT"`.
+Šibenski ruter koristi port 18082, indeks `routing/data/sibenik/addresses.sqlite`,
+`OTP_URL_SIBENIK` i `KIDSIC_ADDRESS_INDEX_SIBENIK`. Datum mora biti između
+2026-09-07 i 2027-06-07, a obje točke u šibenskom okviru.
+Trenutačno se uspoređuju tri pregledana OSM objekta. Nepotpunu pokrivenost,
+neprovjereno radno vrijeme i nepoznata slobodna mjesta treba navesti korisniku;
+pobjednik je najbrži među dostupnim mapiranim kandidatima.
