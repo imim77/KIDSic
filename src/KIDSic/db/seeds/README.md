@@ -105,3 +105,31 @@ Skup [Upisi u vrtiće u gradu Rijeka po godinama](https://data.gov.hr/ckan/datas
 (CC BY 4.0) sadrži samo broj upisane djece 2015.–2018., a ne postupak upisa.
 Nova pedagoška godina dobiva novu snimku i nove ključeve obavijesti, a stare
 ostaju za povijest. Stranica `zagreb-enrolment-page` zamjenjuje se novijim stanjem.
+
+
+# Šibenik — pregledane lokacije i službene poveznice
+
+[Snimka lokacija od 6. studenoga 2026.](2026-11-06_sibenik_locations.json)
+čuva četiri izravne dopune baze: Brat Sunce, Osmijeh (Jelačićeva 13F), Sunce
+(Brodarica) i Žižula. Sadrži točne DGU adresne točke, izvorni GML izdvojene
+adrese, SHA256 arhive, postupak pretvorbe EPSG:3035 u EPSG:4326 i bilješku
+provjere identiteta. Adrese/nazivi povezani su s nacionalnim registrom MZOM-a.
+Oba skupa koriste Otvorenu dozvolu RH. Točke označavaju službene adrese;
+nisu terenski izmjereni ulazi. Osmijehov objekt u Jelačićevoj nije zasebno
+registrirano sjedište u Ulici Martina Kolunića 2A.
+
+[Snimka službenih poveznica](2026-11-06_sibenik_official_references.json)
+pokriva svih sedam trenutačno mapiranih objekata. Čuva URL-ove za programe,
+radno vrijeme ili kontakt za njegovu potvrdu, datum i rezultat provjere.
+Otvorena licenca vanjskog sadržaja nije potvrđena. Snimka ne sadrži preuzete
+opise programa, satnice, cijene, dobne uvjete, brojeve skupina ni slobodna
+mjesta. Pet objekata ima referencu na stranicu s radnim vremenom; Sunce i
+Osmijeh imaju kontakt za potvrdu. Poveznica ne potvrđuje aktualnost sadržaja.
+
+Ovo su podatkovne snimke već primijenjenih jednokratnih dopuna lokalne baze,
+a ne migracije ni novi automatski uvoznici. Generirani UUID-ovi baze izostavljeni
+su; ustanove/objekti opisani su nazivom i adresom. Za ponovnu primjenu prvo
+jednoznačno provjeriti identitet, postojeće objekte i status izvora. Ne stvarati
+duplikate ni ponovno omogućavati opozvane izvore. Postojeće adrese sjedišta,
+OSM objekti i njihove koordinate ostaju sačuvani. Uvoz programa i satnica traži
+zasebno potvrđen otvoreni izvor ili dopuštenje; nije dio ovih snimki.
