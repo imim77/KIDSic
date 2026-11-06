@@ -93,7 +93,7 @@ class RijekaGeographyDatabaseTests(unittest.IsolatedAsyncioTestCase):
         mapped = [row for row in api if row['longitude'] is not None]
         self.assertEqual(len(mapped), 1)
         self.assertEqual(mapped[0]['longitude'], 14.4)
-        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM knowledge_chunk'), 2)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM knowledge_chunk'), 1)
         self.assertEqual({r['name'] for r in
             await AsyncpgKindergartenRepository(self.c).list_areas(city='Rijeka')},
             {'Reviewed correction', 'Test area'})

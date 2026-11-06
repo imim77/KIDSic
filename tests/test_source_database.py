@@ -63,7 +63,7 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         bad = replace(snapshot, rows=(replace(snapshot.rows[0], municipality='split'),))
         with self.assertRaises(SourceImportError):
             await self.repo.import_snapshot(bad)
-        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 6)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 3)
 
     async def test_city_cleanup_preserves_supported_branches_and_removes_dependent_data(self):
         from uuid import uuid4
@@ -242,7 +242,7 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(SourceImportError):
                 await service.import_data()
             self.assertEqual(await self.c.fetchval("SELECT active_batch_id FROM data_source WHERE dataset_key='varazdin-childminders'"), before)
-            self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 4)
+            self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 2)
 
     async def test_registration_is_idempotent_and_preserves_approval_and_active_snapshot(self):
         self.assertEqual(await self.repo.register(self.source), 'added')
@@ -275,18 +275,20 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
     async def test_repeated_import_preserves_ids_raw_evidence_and_unknown_age(self):
         first = await self.repo.import_snapshot(self.snapshot())
         identity = await self.c.fetchval('SELECT id FROM kindergarten')
+        record_identity = await self.c.fetchval('SELECT id FROM source_record')
         second = await self.repo.import_snapshot(self.snapshot([{**NATIONAL, 'Telefon': '123'}]))
         # The national directory describes institutions: its address is a seat, not an object.
         self.assertEqual((first['locations_added'], second['locations_added']), (0, 0))
         self.assertEqual(second['kindergartens_added'], 0)
+        self.assertEqual(await self.c.fetchval('SELECT id FROM source_record'), record_identity)
         self.assertEqual(await self.c.fetchval('SELECT id FROM kindergarten'), identity)
         seat = await self.c.fetchrow('SELECT seat_address,seat_settlement,seat_postal_code,m.key '
                                      'FROM kindergarten k JOIN municipality m ON m.id=k.seat_municipality_id')
         self.assertEqual(tuple(seat), ('Primjer 1', 'Varaždin', '42000', 'varazdin'))
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM location'), 0)
-        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 2)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 1)
         self.assertEqual([r['match_method'] for r in await self.c.fetch(
-            'SELECT match_method FROM source_record ORDER BY fetched_at')], ['new', 'source_identity'])
+            'SELECT match_method FROM source_record ORDER BY fetched_at')], ['new'])
         self.assertEqual(await self.c.fetchval('SELECT phone FROM kindergarten'), '123')
         raw = await self.c.fetchval('SELECT raw_data FROM source_record WHERE batch_id=$1::text::uuid',
                                      second['batch_id'])
@@ -355,7 +357,7 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         await self.repo.import_snapshot(self.snapshot(national))
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM kindergarten'), 4)
         self.assertEqual(await self.c.fetchval("SELECT count(*) FROM kindergarten WHERE provider_kind='unknown'"), 0)
-        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 24)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 12)
 
     async def test_rijeka_csv_can_precede_national_import_without_duplicate_parents(self):
         from test_rijeka import rijeka_records, rijeka_source
@@ -397,14 +399,60 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.c.fetchval(
             'SELECT match_method FROM source_record ORDER BY fetched_at DESC LIMIT 1'), 'oib')
 
-    async def test_new_snapshot_hides_removed_location_and_keeps_history(self):
+    async def test_new_snapshot_removes_missing_records(self):
         other = {**NATIONAL, 'Naziv': 'Dječji vrtić Drugi', 'Adresa': 'Druga 2'}
         await self.repo.import_snapshot(self.snapshot([NATIONAL, other]))
         await self.repo.import_snapshot(self.snapshot())
         result = await AsyncpgKindergartenRepository(self.c).find_options(
             city='varazdin', age_months=24, include_unknown=True)
         self.assertEqual([r['name'] for r in result], [NATIONAL['Naziv']])
-        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 3)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 1)
+
+    async def test_current_state_rejects_invalid_sets_atomically_and_keeps_manual_decisions(self):
+        from dataclasses import replace
+        await self.repo.import_snapshot(self.snapshot())
+        before = await self.c.fetch('SELECT * FROM source_record')
+        original = self.snapshot()
+        for rows in ((), (original.rows[0], original.rows[0])):
+            with self.assertRaises(SourceImportError):
+                await self.repo.import_snapshot(replace(original, rows=rows))
+            self.assertEqual(await self.c.fetch('SELECT * FROM source_record'), before)
+        await self.c.execute("UPDATE source_record SET match_method='manual',match_note='Reviewed owner'")
+        identity = before[0]['id']
+        await self.repo.import_snapshot(self.snapshot())
+        record = await self.c.fetchrow('SELECT * FROM source_record')
+        self.assertEqual((record['id'], record['match_method'], record['match_note']),
+                         (identity, 'manual', 'Reviewed owner'))
+
+    async def test_current_state_clears_own_missing_contact_and_preserves_other_sources(self):
+        from dataclasses import replace
+        original = self.snapshot()
+        original = replace(original, rows=(replace(original.rows[0], phone='old'),))
+        await self.repo.import_snapshot(original)
+        await self.repo.import_snapshot(replace(original, rows=(replace(original.rows[0], phone=None),)))
+        self.assertIsNone(await self.c.fetchval('SELECT phone FROM kindergarten'))
+        owner = await self.c.fetchval('SELECT id FROM kindergarten')
+        await self.c.execute("UPDATE kindergarten SET phone='reviewed',provenance=provenance || $2 WHERE id=$1",
+                             owner, {'phone': {'dataset_key': 'another-reviewed-source'}})
+        await self.repo.import_snapshot(original)
+        self.assertEqual(await self.c.fetchval('SELECT phone FROM kindergarten'), 'reviewed')
+        await self.c.execute("UPDATE kindergarten SET provider_kind='private'")
+        before = await self.c.fetch('SELECT * FROM source_record')
+        with self.assertRaisesRegex(SourceImportError, 'provider_kind'):
+            await self.repo.import_snapshot(replace(original, rows=(replace(original.rows[0], provider_kind='unknown'),)))
+        self.assertEqual(await self.c.fetch('SELECT * FROM source_record'), before)
+
+    async def test_removed_state_deletes_derived_rows_and_dangling_provenance(self):
+        second = {**NATIONAL, 'Naziv': 'DV Drugi', 'Adresa': 'Druga 2'}
+        await self.repo.import_snapshot(self.snapshot([NATIONAL, second]))
+        record = await self.c.fetchrow("SELECT * FROM source_record WHERE raw_data->>'Naziv'='DV Drugi'")
+        await self.c.execute("INSERT INTO knowledge_chunk(kindergarten_id,source_record_id,ordinal,content,source_url,content_sha256) VALUES ($1,$2,0,'Test','https://example.invalid',$3)", record['kindergarten_id'], record['id'], 'a'*64)
+        await self.c.execute("INSERT INTO enrolment(kindergarten_id,source_record_id,academic_year,application_url,channel) VALUES ($1,$2,'2026/27','https://example.invalid','kindergarten')", record['kindergarten_id'], record['id'])
+        await self.repo.import_snapshot(self.snapshot())
+        for table in ('knowledge_chunk', 'enrolment'):
+            self.assertEqual(await self.c.fetchval(f'SELECT count(*) FROM {table}'), 0)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 1)
+        self.assertEqual(await self.c.fetchval('SELECT provenance FROM kindergarten WHERE id=$1', record['kindergarten_id']), {})
 
     async def test_ambiguous_match_is_retained_for_review(self):
         for name in ('DV Primjer', 'Dječji vrtić "Primjer"'):

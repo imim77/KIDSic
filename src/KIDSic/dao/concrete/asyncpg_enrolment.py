@@ -3,6 +3,7 @@ from collections import defaultdict
 from hashlib import sha256
 from uuid import uuid4
 
+from KIDSic.dao.concrete.source_state import SourceStateWriter
 from KIDSic.dao.interfaces.enrolment import EnrolmentDocumentRepository
 from KIDSic.dto.enrolment import EnrolmentDocument
 from KIDSic.dto.source import name_key
@@ -16,6 +17,11 @@ class AsyncpgEnrolmentDocumentRepository(EnrolmentDocumentRepository):
         self._connection = connection
 
     async def import_document(self, document: EnrolmentDocument, snapshot_key: str, fetched_at) -> dict:
+        async with self._connection.transaction():
+            await self._connection.execute('SELECT pg_advisory_xact_lock(194733, 1)')
+            return await self._import_document(document, snapshot_key, fetched_at)
+
+    async def _import_document(self, document, snapshot_key, fetched_at):
         stored = await self._connection.fetchrow('''
             INSERT INTO data_source(dataset_key,title,publisher,url,license,import_allowed,metadata)
             VALUES ($1,$2,$3,$4,$5,true,$6)
@@ -67,20 +73,19 @@ class AsyncpgEnrolmentDocumentRepository(EnrolmentDocumentRepository):
             for owner in covered:  # A call needs a record even without shared excerpts.
                 records.setdefault((owner, default_scope), [])
         batch, record_ids = uuid4(), {}
+        state = SourceStateWriter(self._connection, stored['id'], fetched_at, batch=batch)
+        SourceStateWriter.validate(f'{owner}:{scope}' for owner, scope in records)
         dates = {'reference_date': document.reference_date.isoformat(), 'date_kind': document.date_kind,
                  'valid_until': document.valid_until.isoformat() if document.valid_until else None}
         observed_on = document.reference_date if document.date_kind == 'observed' else None
         for (owner, scope), chunks in records.items():
-            record = record_ids[owner, scope] = await self._connection.fetchval('''
-                INSERT INTO source_record(source_id,batch_id,source_key,raw_data,fetched_at,observed_on,
-                                          kindergarten_id,match_status,match_method,match_note)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,'accepted',$8,$9) RETURNING id
-            ''', stored['id'], batch, f'{owner}:{scope}',
+            record = record_ids[owner, scope] = await state.record(f'{owner}:{scope}',
                 {'kind': KIND, 'snapshot_key': snapshot_key, 'document_url': str(document.url),
-                 'scope': scope, **dates}, fetched_at, observed_on, owner,
-                'name' if scope == 'institution' else 'manual',
-                'Reviewed snapshot: named institution.' if scope == 'institution'
+                 'scope': scope, **dates}, owner=owner, observed_on=observed_on,
+                method='name' if scope == 'institution' else 'manual',
+                note='Reviewed snapshot: named institution.' if scope == 'institution'
                 else 'Reviewed snapshot: every active provider of the listed kinds in the municipality.')
+            await state.clear_derived([record])
             await self._connection.executemany('''
                 INSERT INTO knowledge_chunk(kindergarten_id,source_record_id,ordinal,content,source_url,content_sha256)
                 VALUES ($1,$2,$3,$4,$5,$6)
@@ -95,9 +100,7 @@ class AsyncpgEnrolmentDocumentRepository(EnrolmentDocumentRepository):
             ''', [(owner, record_ids[owner, default_scope], call.academic_year, str(call.application_url),
                    call.opens_at, call.closes_at, call.channel, call.round, owner not in refused)
                   for owner in covered])
-        await self._connection.execute('''
-            UPDATE data_source SET active_batch_id=$2,fetched_at=$3,observed_on=$4 WHERE id=$1
-        ''', stored['id'], batch, fetched_at, observed_on)
+        await state.finish(observed_on=observed_on)
         return {'source': document.dataset_key, 'institutions': len({owner for owner, _ in records}),
                 'records': len(records), 'chunks': sum(len(c) for c in records.values()),
                 'enrolment_rounds': len(document.calls) * len(covered),

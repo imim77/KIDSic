@@ -63,6 +63,7 @@ class RijekaGeographyImporter:
                               f"Podloga podudaranja: {geo['match_basis']}. "
                               f"OSM područja nisu potvrda službenih gradskih granica. "
                               f"{data['attribution']}; {data['licence']}.", geo['source_url'])
+        await batch.finish()
         return {'imported': len(accepted), 'needs_review': len(data['objects']) - len(accepted)}
 
 

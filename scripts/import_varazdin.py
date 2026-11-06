@@ -51,6 +51,7 @@ async def import_facilities(connection, data):
                               f"Quarter: {geo.get('quarter')}; suburb: {geo.get('suburb')}. "
                               f"Koordinate: {geo['latitude']}, {geo['longitude']}. "
                               f"{data['attribution']}, {data['licence']}.", geo['osm_url'])
+    await batch.finish()
     return {'imported': len(data['objects'])}
 
 

@@ -40,11 +40,11 @@ async def import_venues(connection, data):
                              attributes)
         venue = await source('venue', 'Varaždin — objavljene lokacije ustanova i programa',
                              'Grad Varaždin / pružatelj programa', item['address_source'], None)
-        record = await batch.record(venue, item['location_key'], item, owner, location, note=item['review_note'])
+        record = await batch.record(venue, f"{owner}:{item['location_key']}", item, owner, location, note=item['review_note'])
         await batch.evidence(location, record, ('location_name', 'address', 'settlement'), manual)
         osm = await source('osm', 'OpenStreetMap — ostale varaždinske ustanove',
                            'OpenStreetMap contributors', OSM_COPYRIGHT, data['licence'])
-        record = await batch.record(osm, item['location_key'], item, owner, location, note=item['review_note'])
+        record = await batch.record(osm, f"{owner}:{item['location_key']}", item, owner, location, note=item['review_note'])
         await batch.evidence(location, record, ('longitude', 'latitude', *AREAS), manual)
         areas = ', '.join(f'{key}: {attributes[key]}' for key in AREAS if attributes.get(key))
         await batch.chunk(owner, location, record,
@@ -54,6 +54,7 @@ async def import_venues(connection, data):
                           f"Vrsta lokacije: {item['venue_role']}. "
                           f"Izvor lokacije: {item['address_source']}. "
                           f"{data['attribution']}, {data['licence']}.", geo['osm_url'])
+    await batch.finish()
     return {'imported': len(data['objects'])}
 
 

@@ -2,6 +2,7 @@
 import re
 from uuid import uuid4
 
+from KIDSic.dao.concrete.source_state import SourceStateWriter
 from KIDSic.dao.interfaces.historical import HistoricalRepository
 from KIDSic.dto.historical import HistoricalSnapshot
 from KIDSic.dto.source import name_key
@@ -17,6 +18,12 @@ class AsyncpgHistoricalRepository(HistoricalRepository):
         self._connection = connection
 
     async def import_snapshot(self, snapshot: HistoricalSnapshot) -> dict:
+        SourceStateWriter.validate(row.source_key for row in snapshot.rows)
+        async with self._connection.transaction():
+            await self._connection.execute('SELECT pg_advisory_xact_lock(194733, 1)')
+            return await self._import_snapshot(snapshot)
+
+    async def _import_snapshot(self, snapshot):
         stored = await self._connection.fetchrow(
             'SELECT id,import_allowed FROM data_source WHERE dataset_key=$1 FOR UPDATE',
             snapshot.source.definition.key)
@@ -58,9 +65,7 @@ class AsyncpgHistoricalRepository(HistoricalRepository):
                 list(row.programs), [v.model_dump(mode='json') for v in row.vacancies])
         if not accepted:
             raise SourceImportError('No historical records could be linked; retain the previous batch.')
-        await self._connection.execute('''UPDATE data_source
-            SET active_batch_id=$2,fetched_at=$3,observed_on=$4 WHERE id=$1''',
-            stored['id'], batch, snapshot.fetched_at,
+        await SourceStateWriter.activate(self._connection, stored['id'], batch, snapshot.fetched_at,
             snapshot.reference_date if snapshot.date_kind == 'observed' else None)
         return {'source': snapshot.source.definition.key, 'records': len(snapshot.rows),
                 'accepted': accepted, 'needs_review': len(snapshot.rows) - accepted,

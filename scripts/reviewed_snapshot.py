@@ -12,6 +12,7 @@ import json
 import uuid
 
 from KIDSic.db.database import database_pool
+from KIDSic.dao.concrete.source_state import SourceStateWriter
 from KIDSic.dto.text import normalize
 
 AREAS = ('quarter', 'suburb', 'neighbourhood')
@@ -59,6 +60,7 @@ class Batch:
     def __init__(self, connection, fetched_at):
         self._connection = connection
         self.id = uuid.uuid4()
+        self._states = {}
         self.fetched_at = datetime.fromisoformat(fetched_at)
 
     @classmethod
@@ -72,20 +74,25 @@ class Batch:
             INSERT INTO data_source(dataset_key,title,publisher,url,license,import_allowed,
                                     active_batch_id,fetched_at,metadata)
             VALUES ($1,$2,$3,$4,$5,true,$6,$7,$8)
-            ON CONFLICT(dataset_key) DO UPDATE SET active_batch_id=EXCLUDED.active_batch_id,
-                fetched_at=EXCLUDED.fetched_at,metadata=data_source.metadata || EXCLUDED.metadata
+            ON CONFLICT(dataset_key) DO UPDATE SET
+                metadata=data_source.metadata || EXCLUDED.metadata
             RETURNING id,import_allowed
         ''', key, title, publisher, url, license, self.id, self.fetched_at, metadata)
         if not stored['import_allowed']:
             raise ValueError(f'Import is disabled for {key}.')
+        self._states[stored['id']] = SourceStateWriter(
+            self._connection, stored['id'], self.fetched_at, batch=self.id)
         return stored['id']
 
     async def record(self, source, key, raw, owner, location=None, status='accepted', note=None):
-        return await self._connection.fetchval('''
-            INSERT INTO source_record(source_id,batch_id,source_key,raw_data,fetched_at,
-                                      kindergarten_id,location_id,match_status,match_method,match_note)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'manual',$9) RETURNING id
-        ''', source, self.id, key, raw, self.fetched_at, owner, location, status, note)
+        record = await self._states[source].record(key, raw, owner=owner, location=location,
+                                                   status=status, note=note)
+        await self._states[source].clear_derived([record])
+        return record
+
+    async def finish(self):
+        for state in self._states.values():
+            await state.finish()
 
     async def evidence(self, location, record, fields, manual=()):
         """evidence links location fields to a record; user-corrected fields keep their own."""

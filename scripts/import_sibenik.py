@@ -89,6 +89,7 @@ class SibenikLocationImporter:
                     provenance=provenance || $6 WHERE id=$1
             ''', location, tags['name'], address, lon, lat,
                 {key: evidence for key in ('location_name', 'address', 'longitude', 'latitude')})
+        await batch.finish()
         return {'imported': len(rows), 'excluded': len(data['features']) - len(rows)}
 
 

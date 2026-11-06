@@ -108,7 +108,9 @@ class EnrolmentDatabaseTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_reimport_replaces_the_batch_and_revocation_hides_documents(self):
         await self.load()
+        record = await self.c.fetchval("SELECT r.id FROM source_record r JOIN data_source s ON s.id=r.source_id WHERE s.dataset_key='example-enrolment'")
         await self.load(excerpts=[{'content': 'Nova verzija obavijesti.'}])
+        self.assertEqual(await self.c.fetchval("SELECT r.id FROM source_record r JOIN data_source s ON s.id=r.source_id WHERE s.dataset_key='example-enrolment'"), record)
         [item] = (await self.rag.retrieve(self.query)).evidence
         self.assertEqual(item.content, 'Nova verzija obavijesti.')
         await self.c.execute("UPDATE data_source SET import_allowed=false WHERE dataset_key='example-enrolment'")

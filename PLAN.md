@@ -516,3 +516,13 @@ Korak 2c i objedinjavanje historical_record ostaju odgođeni kako plan navodi.
   Provjeren upgrade, downgrade i ponovni upgrade na zasebnoj bazi;
   192 testa prolaze (3 vanjske simulacije preskočene). Sigurnosna kopija
   lokalne baze: Docker spremnik database, /tmp/kidsic_before_0009.dump.
+
+- Cjelina 2: stabilni source_record ID-jevi, jedinstveni ključevi i zajednički
+  SourceStateWriter za pisanje/brisanje/aktivaciju. historical_record zadržava
+  zasebnu povijest (cjelina 6); dijeli aktivaciju i zaključavanje.
+  Izmjereno nakon 0010: 913 source_record, 870 knowledge_chunk, 122 enrolment,
+  423 historical_record. RAG za DV Duga i kartice identični su prije/poslije.
+  U bazi je sporni provider_kind već unknown; dokaz je povezan s aktivnim
+  zapisom iste ustanove i ključa bez promjene klasifikacije. Poznate vrijednosti
+  bez aktivnog dokaza migracija odbija. Upgrade/downgrade/upgrade prolaze;
+  195 testova prolazi (3 vanjske simulacije preskočene). Backup: /tmp/kidsic_before_0010.dump.

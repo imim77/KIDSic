@@ -3,6 +3,7 @@ from dataclasses import asdict
 from uuid import uuid4
 
 from KIDSic.dao.interfaces.source import SourceRepository
+from KIDSic.dao.concrete.source_state import SourceStateWriter
 from KIDSic.dto.municipality import MUNICIPALITIES
 from KIDSic.dto.source import PlannedSource, SourceSnapshot, name_key
 from KIDSic.dto.text import normalize
@@ -51,6 +52,12 @@ class AsyncpgSourceRepository(SourceRepository):
         return 'updated'
 
     async def import_snapshot(self, snapshot: SourceSnapshot) -> dict:
+        SourceStateWriter.validate(row.source_key for row in snapshot.rows)
+        async with self._connection.transaction():
+            await self._connection.execute('SELECT pg_advisory_xact_lock(194733, 1)')
+            return await self._import_snapshot(snapshot)
+
+    async def _import_snapshot(self, snapshot):
         if any(row.municipality not in MUNICIPALITIES for row in snapshot.rows):
             raise SourceImportError('Import supports only Zagreb, Varaždin, Rijeka and Šibenik.')
         source = snapshot.source
@@ -60,11 +67,10 @@ class AsyncpgSourceRepository(SourceRepository):
         if not stored['import_allowed']:
             raise SourceImportError(f'Import is disabled for {source.definition.key}.')
         source_id, batch = stored['id'], uuid4()
+        self._state = SourceStateWriter(self._connection, source_id, snapshot.fetched_at, batch=batch)
         self._municipalities = {}
         previous = {r['source_key']: r for r in await self._connection.fetch('''
-            SELECT DISTINCT ON (source_key) source_key,kindergarten_id,location_id
-            FROM source_record WHERE source_id=$1 AND match_status='accepted'
-            ORDER BY source_key,fetched_at DESC,id
+            SELECT * FROM source_record WHERE source_id=$1
         ''', source_id)}
         owners = {r['id']: {**dict(r), 'name_key': name_key(r['name']), 'areas': set()}
                   for r in await self._connection.fetch('''
@@ -105,7 +111,11 @@ class AsyncpgSourceRepository(SourceRepository):
             exact = [l for l in same_address if l['kindergarten_id'] in compatible]
             prior = previous.get(row.source_key)
             location = None
-            if prior is not None:
+            if prior is not None and prior['match_status'] == 'rejected':
+                await self._record(source_id, batch, row, snapshot.fetched_at)
+                counts['needs_review'] += 1
+                continue
+            if prior is not None and prior['match_status'] == 'accepted':
                 owner, method = prior['kindergarten_id'], 'source_identity'
                 location = None if institution else prior['location_id']
             elif by_oib:
@@ -123,7 +133,7 @@ class AsyncpgSourceRepository(SourceRepository):
             else:
                 owner = next(iter(compatible), None)
                 method = 'name' if owner else 'new'
-            record_id = uuid4()
+            record_id = prior['id'] if prior is not None else uuid4()
             evidence = {'dataset_key': source.definition.key, 'source_record_id': str(record_id)}
             if owner is None:
                 owner = await self._connection.fetchval('''
@@ -139,30 +149,29 @@ class AsyncpgSourceRepository(SourceRepository):
                 if row.provider_kind_source_url:
                     owner_provenance['provider_kind'] = {
                         **evidence, 'source_url': row.provider_kind_source_url}
-            owner_values = await self._connection.fetchrow('''
-                UPDATE kindergarten SET email=COALESCE($2,email),phone=COALESCE($3,phone),
-                    website_url=COALESCE($4,website_url),oib=COALESCE($10,oib),
-                    provider_kind=CASE WHEN $5='unknown' THEN provider_kind ELSE $5 END,
-                    name=CASE WHEN provenance->'name'->>'dataset_key'=$7 THEN $8 ELSE name END,
-                    provenance=provenance || $6 || CASE
-                        WHEN provenance->'name'->>'dataset_key'=$7
-                        THEN jsonb_build_object('name',$9::jsonb) ELSE '{}'::jsonb END
-                WHERE id=$1 RETURNING name,provider_kind,oib
-            ''', owner, row.email, row.phone, row.website_url, row.provider_kind,
-                owner_provenance, source.definition.key, row.name, evidence, row.oib)
+            existing = await self._connection.fetchrow('SELECT * FROM kindergarten WHERE id=$1', owner)
+            proof = existing['provenance'].get('provider_kind', {})
+            if (row.provider_kind == 'unknown' and existing['provider_kind'] != 'unknown'
+                    and proof.get('dataset_key') == source.definition.key):
+                raise SourceImportError(f'Review provider_kind before replacing evidence: {existing["name"]}.')
+            values = {key: getattr(row, key) for key in ('email', 'phone', 'website_url', 'oib')}
+            if row.provider_kind != 'unknown':
+                values['provider_kind'] = row.provider_kind
+            if existing['provenance'].get('name', {}).get('dataset_key') == source.definition.key:
+                values['name'] = row.name
+                owner_provenance['name'] = evidence
+            await self._write_fields('kindergarten', owner, values, owner_provenance, source.definition.key)
+            owner_values = await self._connection.fetchrow(
+                'SELECT name,provider_kind,oib FROM kindergarten WHERE id=$1', owner)
             owners[owner].update(owner_values, name_key=name_key(owner_values['name']))
             municipality_id = await self._municipality_id(row.municipality)
             data = asdict(row)
             if institution:
-                seat_provenance = {f'seat_{key}': evidence for key in
-                                   ('address', 'postal_code', 'settlement', 'county')
-                                   if data[key] is not None}
-                await self._connection.execute('''
-                    UPDATE kindergarten SET seat_address=$2,seat_postal_code=$3,seat_settlement=$4,
-                        seat_settlement_key=$5,seat_county=$6,seat_municipality_id=$7,
-                        provenance=provenance || $8 WHERE id=$1
-                ''', owner, row.address, row.postal_code, row.settlement, settlement_key,
-                    row.county, municipality_id, seat_provenance)
+                seat_values = {f'seat_{key}': data[key] for key in
+                               ('address', 'postal_code', 'settlement', 'county')}
+                seat_values.update(seat_settlement_key=settlement_key, seat_municipality_id=municipality_id)
+                await self._write_fields('kindergarten', owner, seat_values,
+                    {key: evidence for key, value in seat_values.items() if value is not None}, source.definition.key)
                 owners[owner]['areas'].add(area)
                 claimed.add(owner)
             else:
@@ -187,16 +196,12 @@ class AsyncpgSourceRepository(SourceRepository):
                       AND raw_data ? 'reviewed_address'
                       AND raw_data->>'reviewed_address' IS DISTINCT FROM $2
                 ''', location, row.address)
-                await self._connection.execute('''
-                    UPDATE location SET name=$2,settlement=$3,settlement_key=$4,address=$5,
-                        kind=CASE WHEN $6='unknown' THEN kind ELSE $6 END,
-                        postal_code=COALESCE($7,postal_code),county=COALESCE($8,county),
-                        district=COALESCE($9,district),longitude=COALESCE($10,longitude),
-                        latitude=COALESCE($11,latitude),municipality_id=$12,
-                        provenance=provenance || $13 WHERE id=$1 AND kindergarten_id=$14
-                ''', location, row.location_name, row.settlement, settlement_key, row.address,
-                    row.kind, row.postal_code, row.county, row.district, row.longitude,
-                    row.latitude, municipality_id, location_provenance, owner)
+                location_values = {key: data[key] for key in
+                                   ('settlement', 'address', 'postal_code', 'county', 'district', 'longitude', 'latitude')}
+                location_values.update(name=row.location_name, settlement_key=settlement_key,
+                                       municipality_id=municipality_id, kind=row.kind)
+                await self._write_fields('location', location, location_values,
+                    {**location_provenance, 'name': evidence}, source.definition.key)
                 # Keep the in-memory index current for subsequent rows in this batch.
                 for item in locations:
                     if item['id'] == location:
@@ -207,9 +212,7 @@ class AsyncpgSourceRepository(SourceRepository):
             counts['accepted'] += 1
         if not counts['accepted']:
             raise SourceImportError('No accepted records; refusing to activate the snapshot.')
-        await self._connection.execute('''
-            UPDATE data_source SET active_batch_id=$2,fetched_at=$3,observed_on=NULL WHERE id=$1
-        ''', source_id, batch, snapshot.fetched_at)
+        await self._state.finish()
         # Fetch time and resource modification are not the observed date of the data.
         return {'source': source.definition.key, 'registration': registered,
                 'batch_id': str(batch), **counts}
@@ -228,9 +231,29 @@ class AsyncpgSourceRepository(SourceRepository):
 
     async def _record(self, source_id, batch, row, fetched_at, *, owner=None, location=None,
                       record_id=None, method=None, note=None):
-        await self._connection.execute('''
-            INSERT INTO source_record(id,source_id,batch_id,source_key,raw_data,fetched_at,
-                                      kindergarten_id,location_id,match_status,match_method,match_note)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-        ''', record_id or uuid4(), source_id, batch, row.source_key, row.raw_data,
-            fetched_at, owner, location, 'accepted' if owner else 'candidate', method, note)
+        return await self._state.record(row.source_key, row.raw_data, owner=owner,
+            location=location, status='accepted' if owner else 'candidate', method=method,
+            note=note, record_id=record_id)
+
+    async def _write_fields(self, table, identity, values, evidence, dataset):
+        stored = await self._connection.fetchrow(f'SELECT * FROM {table} WHERE id=$1', identity)
+        provenance = dict(stored['provenance'])
+        updates = {}
+        for field, value in values.items():
+            proof_key = 'location_name' if table == 'location' and field == 'name' else field
+            old = provenance.get(proof_key, {})
+            owned = old.get('dataset_key') == dataset or await self._connection.fetchval(
+                'SELECT EXISTS(SELECT 1 FROM source_record r JOIN data_source s ON s.id=r.source_id '
+                'WHERE r.id::text=$1 AND s.dataset_key=$2)', old.get('source_record_id'), dataset)
+            if old and not owned and not (field == 'provider_kind' and stored[field] == 'unknown'):
+                continue
+            if value is not None:
+                updates[field] = value
+                if proof_key in evidence:
+                    provenance[proof_key] = evidence[proof_key]
+            elif owned:
+                updates[field] = None
+                provenance.pop(proof_key, None)
+        updates['provenance'] = provenance
+        columns = ','.join(f'{field}=${index}' for index, field in enumerate(updates, 2))
+        await self._connection.execute(f'UPDATE {table} SET {columns} WHERE id=$1', identity, *updates.values())

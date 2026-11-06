@@ -428,7 +428,7 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual([r['location_id'] for r in rows], [branch])
         self.assertEqual(await self.repository.list_locations(LocationQuery(q="%' OR 1=1 --")), [])
 
-    async def test_reimport_exposes_last_known_coordinate_evidence_without_relabeling_it(self):
+    async def test_reimport_clears_coordinates_missing_from_current_source(self):
         from test_sources import MUNICIPAL, source_client
         client = source_client('municipal')
         package = client.get_package.return_value
@@ -443,13 +443,10 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
             {**MUNICIPAL, 'X': None, 'Y': None, 'GradskaCetvrt': None}], 'municipal'), current))
         rows = await self.repository.list_locations(LocationQuery())
         self.assertEqual(len(rows), 1)
-        self.assertEqual((rows[0]['longitude'], rows[0]['latitude']), (15.9452, 45.8017))
+        self.assertEqual((rows[0]['longitude'], rows[0]['latitude']), (None, None))
         fields = rows[0]['field_sources']
-        self.assertFalse(fields['longitude']['active_snapshot'])
-        self.assertFalse(fields['latitude']['active_snapshot'])
-        self.assertFalse(fields['district']['active_snapshot'])
-        self.assertEqual(datetime.fromisoformat(fields['longitude']['retrieved_at']), earlier)
-        self.assertIsNone(fields['longitude']['reference_date'])
+        for field in ('longitude', 'latitude', 'district'):
+            self.assertNotIn(field, fields)
         self.assertTrue(fields['address']['active_snapshot'])
         self.assertEqual(datetime.fromisoformat(fields['address']['retrieved_at']), current)
         self.assertEqual(datetime.fromisoformat(rows[0]['sources'][0]['retrieved_at']), current)

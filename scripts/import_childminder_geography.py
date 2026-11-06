@@ -43,6 +43,7 @@ async def import_geography(connection, data):
                           f"Koordinate sjedišta: {geo['latitude']}, {geo['longitude']}. "
                           f"Mjesto rada nije neovisno potvrđeno. {data['attribution']}, {data['licence']}.",
                           geo['osm_url'])
+    await batch.finish()
     return {'imported': len(data['objects'])}
 
 
