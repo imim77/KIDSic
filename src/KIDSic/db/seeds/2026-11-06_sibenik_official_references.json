@@ -1,0 +1,346 @@
+{
+  "schema_version": 1,
+  "snapshot_kind": "official_reference_index",
+  "scope": "Manually reviewed URLs and review notes only; no external program descriptions, opening hours, fees, age bounds, group counts or vacancies copied.",
+  "content_license_status": "not_confirmed",
+  "structured_programs_added": 0,
+  "facilities": [
+    {
+      "institution": "Dječji vrtić Blažena Hozana",
+      "facility_match": {
+        "name": "Dječji vrtić Blažena Hozana",
+        "address": "Ulica Velimira Škorpika 8",
+        "settlement": "Šibenik",
+        "municipality": "sibenik"
+      },
+      "dataset_key": "sibenik-official-links-hozana",
+      "official_references": {
+        "hours": "https://dominikanke.org/o-vrticu-sibenik/",
+        "website": "https://dominikanke.org/o-vrticu-sibenik/",
+        "programs": "https://dominikanke.org/o-vrticu-sibenik/"
+      },
+      "review": {
+        "scope": "links_only",
+        "checked_at": "2026-11-06T14:20:11.129598+00:00",
+        "references": {
+          "hours": "https://dominikanke.org/o-vrticu-sibenik/",
+          "website": "https://dominikanke.org/o-vrticu-sibenik/",
+          "programs": "https://dominikanke.org/o-vrticu-sibenik/"
+        },
+        "availability": {
+          "https://dominikanke.org/o-vrticu-sibenik/": {
+            "status": 200,
+            "final_url": "https://dominikanke.org/o-vrticu-sibenik/",
+            "checked_at": "2026-11-06T14:18:31.094333+00:00"
+          }
+        },
+        "review_method": "Manual review of official website, program and location pages; URLs and own review notes only. No copied program descriptions, hours, fees or child/group details.",
+        "permission_status": "not_confirmed",
+        "hours_reference_status": "official_page_link_only",
+        "website_reference_status": "official_website_link",
+        "external_content_import_allowed": false,
+        "external_content_license_status": "not_confirmed"
+      },
+      "information_review": {
+        "checked_at": "2026-11-06T14:20:11.129598+00:00",
+        "dataset_key": "sibenik-official-links-hozana",
+        "programs_status": "reference_only",
+        "opening_hours_status": "reference_only",
+        "content_license_status": "not_confirmed"
+      }
+    },
+    {
+      "institution": "Dječji vrtić \"Brat Sunce\"",
+      "facility_match": {
+        "name": "Dječji vrtić \"Brat Sunce\"",
+        "address": "Majke Klare Žižić 6",
+        "settlement": "Šibenik",
+        "municipality": "sibenik"
+      },
+      "dataset_key": "sibenik-official-links-brat",
+      "official_references": {
+        "hours": "https://www.dvbratsunce.hr/lokacije",
+        "website": "https://www.dvbratsunce.hr/",
+        "programs": "https://www.dvbratsunce.hr/programi"
+      },
+      "review": {
+        "scope": "links_only",
+        "checked_at": "2026-11-06T14:20:11.129598+00:00",
+        "references": {
+          "hours": "https://www.dvbratsunce.hr/lokacije",
+          "website": "https://www.dvbratsunce.hr/",
+          "programs": "https://www.dvbratsunce.hr/programi"
+        },
+        "availability": {
+          "https://www.dvbratsunce.hr/": {
+            "status": 200,
+            "final_url": "https://www.dvbratsunce.hr/",
+            "checked_at": "2026-11-06T14:18:30.465341+00:00"
+          },
+          "https://www.dvbratsunce.hr/lokacije": {
+            "status": 200,
+            "final_url": "https://www.dvbratsunce.hr/lokacije",
+            "checked_at": "2026-11-06T14:18:30.458041+00:00"
+          },
+          "https://www.dvbratsunce.hr/programi": {
+            "status": 200,
+            "final_url": "https://www.dvbratsunce.hr/programi",
+            "checked_at": "2026-11-06T14:18:30.460104+00:00"
+          }
+        },
+        "review_method": "Manual review of official website, program and location pages; URLs and own review notes only. No copied program descriptions, hours, fees or child/group details.",
+        "permission_status": "not_confirmed",
+        "hours_reference_status": "official_page_link_only",
+        "website_reference_status": "official_website_link",
+        "external_content_import_allowed": false,
+        "external_content_license_status": "not_confirmed"
+      },
+      "information_review": {
+        "checked_at": "2026-11-06T14:20:11.129598+00:00",
+        "dataset_key": "sibenik-official-links-brat",
+        "programs_status": "reference_only",
+        "opening_hours_status": "reference_only",
+        "content_license_status": "not_confirmed"
+      }
+    },
+    {
+      "institution": "Dječji vrtić \"Osmijeh\"",
+      "facility_match": {
+        "name": "Dječji vrtić \"Osmijeh\"",
+        "address": "Bana Josipa Jelačića 13F",
+        "settlement": "Šibenik",
+        "municipality": "sibenik"
+      },
+      "dataset_key": "sibenik-official-links-osmijeh",
+      "official_references": {
+        "hours": null,
+        "contact": "https://www.dvosmijeh.hr/kontakt.php",
+        "website": "https://www.dvosmijeh.hr/",
+        "programs": "https://www.dvosmijeh.hr/"
+      },
+      "review": {
+        "scope": "links_only",
+        "checked_at": "2026-11-06T14:20:11.129598+00:00",
+        "references": {
+          "hours": null,
+          "contact": "https://www.dvosmijeh.hr/kontakt.php",
+          "website": "https://www.dvosmijeh.hr/",
+          "programs": "https://www.dvosmijeh.hr/"
+        },
+        "availability": {
+          "https://www.dvosmijeh.hr/": {
+            "status": 200,
+            "final_url": "https://www.dvosmijeh.hr/",
+            "checked_at": "2026-11-06T14:18:30.831069+00:00"
+          }
+        },
+        "review_method": "Manual review of official website, program and location pages; URLs and own review notes only. No copied program descriptions, hours, fees or child/group details.",
+        "permission_status": "not_confirmed",
+        "hours_reference_status": "contact_confirmation_required",
+        "website_reference_status": "official_website_link",
+        "external_content_import_allowed": false,
+        "external_content_license_status": "not_confirmed"
+      },
+      "information_review": {
+        "checked_at": "2026-11-06T14:20:11.129598+00:00",
+        "dataset_key": "sibenik-official-links-osmijeh",
+        "programs_status": "reference_only",
+        "opening_hours_status": "contact_confirmation_required",
+        "content_license_status": "not_confirmed"
+      }
+    },
+    {
+      "institution": "Dječji vrtić Šibenska maslina",
+      "facility_match": {
+        "name": "Dječji vrtić „Šibenska maslina” Vidici",
+        "address": "Ulica branitelja domovinskog rata 2G",
+        "settlement": "Šibenik",
+        "municipality": "sibenik"
+      },
+      "dataset_key": "sibenik-official-links-vidici",
+      "official_references": {
+        "hours": "https://www.dv-simaslina.com/djecji-vrtic-jaslice-vidici/",
+        "website": "https://www.dv-simaslina.com/djecji-vrtic-jaslice-vidici/",
+        "programs": "https://www.dv-simaslina.com/djecji-vrtic-jaslice-vidici/"
+      },
+      "review": {
+        "scope": "links_only",
+        "checked_at": "2026-11-06T14:20:11.129598+00:00",
+        "references": {
+          "hours": "https://www.dv-simaslina.com/djecji-vrtic-jaslice-vidici/",
+          "website": "https://www.dv-simaslina.com/djecji-vrtic-jaslice-vidici/",
+          "programs": "https://www.dv-simaslina.com/djecji-vrtic-jaslice-vidici/"
+        },
+        "availability": {
+          "https://www.dv-simaslina.com/djecji-vrtic-jaslice-vidici/": {
+            "status": "web_tool_page_available",
+            "checked_at": "2026-11-06T14:20:11.129598+00:00",
+            "direct_http": "transient_connection_failure"
+          }
+        },
+        "review_method": "Manual review of official website, program and location pages; URLs and own review notes only. No copied program descriptions, hours, fees or child/group details.",
+        "permission_status": "not_confirmed",
+        "hours_reference_status": "official_page_link_only",
+        "website_reference_status": "official_website_link",
+        "external_content_import_allowed": false,
+        "external_content_license_status": "not_confirmed"
+      },
+      "information_review": {
+        "checked_at": "2026-11-06T14:20:11.129598+00:00",
+        "dataset_key": "sibenik-official-links-vidici",
+        "programs_status": "reference_only",
+        "opening_hours_status": "reference_only",
+        "content_license_status": "not_confirmed"
+      }
+    },
+    {
+      "institution": "Dječji vrtić Smilje",
+      "facility_match": {
+        "name": "Dječji vrtić \"Šibenski tići\"",
+        "address": "Šubićevo šetalište 2",
+        "settlement": "Šibenik",
+        "municipality": "sibenik"
+      },
+      "dataset_key": "sibenik-official-links-tici",
+      "official_references": {
+        "hours": "https://www.dv-smilje.hr/vrtici/",
+        "website": "https://www.dv-smilje.hr/vrtici/",
+        "programs": "https://www.dv-smilje.hr/vrtici/"
+      },
+      "review": {
+        "scope": "links_only",
+        "checked_at": "2026-11-06T14:20:11.129598+00:00",
+        "references": {
+          "hours": "https://www.dv-smilje.hr/vrtici/",
+          "website": "https://www.dv-smilje.hr/vrtici/",
+          "programs": "https://www.dv-smilje.hr/vrtici/"
+        },
+        "availability": {
+          "https://www.dv-smilje.hr/vrtici/": {
+            "status": 200,
+            "final_url": "https://www.dv-smilje.hr/vrtici/",
+            "checked_at": "2026-11-06T14:18:33.624356+00:00"
+          }
+        },
+        "review_method": "Manual review of official website, program and location pages; URLs and own review notes only. No copied program descriptions, hours, fees or child/group details.",
+        "permission_status": "not_confirmed",
+        "hours_reference_status": "official_page_link_only",
+        "website_reference_status": "official_website_link",
+        "external_content_import_allowed": false,
+        "external_content_license_status": "not_confirmed"
+      },
+      "information_review": {
+        "checked_at": "2026-11-06T14:20:11.129598+00:00",
+        "dataset_key": "sibenik-official-links-tici",
+        "programs_status": "reference_only",
+        "opening_hours_status": "reference_only",
+        "content_license_status": "not_confirmed"
+      }
+    },
+    {
+      "institution": "Dječji vrtić Sunce",
+      "facility_match": {
+        "name": "Dječji vrtić Sunce",
+        "address": "Gomljanik 41",
+        "settlement": "Brodarica",
+        "municipality": "sibenik"
+      },
+      "dataset_key": "sibenik-official-links-sunce",
+      "official_references": {
+        "hours": null,
+        "contact": "https://www.vrtic-sunce.hr/stranice/kontakt/43.html",
+        "website": "https://www.vrtic-sunce.hr/",
+        "programs": "https://www.vrtic-sunce.hr/stranice/programi/7.html"
+      },
+      "review": {
+        "scope": "links_only",
+        "checked_at": "2026-11-06T14:20:11.129598+00:00",
+        "references": {
+          "hours": null,
+          "contact": "https://www.vrtic-sunce.hr/stranice/kontakt/43.html",
+          "website": "https://www.vrtic-sunce.hr/",
+          "programs": "https://www.vrtic-sunce.hr/stranice/programi/7.html"
+        },
+        "availability": {
+          "https://www.vrtic-sunce.hr/": {
+            "status": 200,
+            "final_url": "https://www.vrtic-sunce.hr/",
+            "checked_at": "2026-11-06T14:18:31.065552+00:00"
+          },
+          "https://www.vrtic-sunce.hr/stranice/programi/7.html": {
+            "status": 200,
+            "final_url": "https://www.vrtic-sunce.hr/stranice/programi/7.html",
+            "checked_at": "2026-11-06T14:18:31.067990+00:00"
+          }
+        },
+        "review_method": "Manual review of official website, program and location pages; URLs and own review notes only. No copied program descriptions, hours, fees or child/group details.",
+        "permission_status": "not_confirmed",
+        "hours_reference_status": "contact_confirmation_required",
+        "website_reference_status": "official_website_link",
+        "external_content_import_allowed": false,
+        "external_content_license_status": "not_confirmed"
+      },
+      "information_review": {
+        "checked_at": "2026-11-06T14:20:11.129598+00:00",
+        "dataset_key": "sibenik-official-links-sunce",
+        "programs_status": "reference_only",
+        "opening_hours_status": "contact_confirmation_required",
+        "content_license_status": "not_confirmed"
+      }
+    },
+    {
+      "institution": "Dječji vrtić \"Žižula\"",
+      "facility_match": {
+        "name": "Dječji vrtić \"Žižula\"",
+        "address": "Žaborićka 3E",
+        "settlement": "Šibenik",
+        "municipality": "sibenik"
+      },
+      "dataset_key": "sibenik-official-links-zizula",
+      "official_references": {
+        "hours": "https://www.zizula.hr/upisi-1/javni-poziv-za-2023-2024-godinu",
+        "website": "https://www.zizula.hr/",
+        "programs": "https://www.zizula.hr/programi"
+      },
+      "review": {
+        "scope": "links_only",
+        "checked_at": "2026-11-06T14:20:11.129598+00:00",
+        "references": {
+          "hours": "https://www.zizula.hr/upisi-1/javni-poziv-za-2023-2024-godinu",
+          "website": "https://www.zizula.hr/",
+          "programs": "https://www.zizula.hr/programi"
+        },
+        "availability": {
+          "https://www.zizula.hr/": {
+            "status": 200,
+            "final_url": "https://www.zizula.hr/",
+            "checked_at": "2026-11-06T14:18:32.016439+00:00"
+          },
+          "https://www.zizula.hr/programi": {
+            "status": 200,
+            "final_url": "https://www.zizula.hr/programi",
+            "checked_at": "2026-11-06T14:18:32.172425+00:00"
+          },
+          "https://www.zizula.hr/upisi-1/javni-poziv-za-2023-2024-godinu": {
+            "status": 200,
+            "final_url": "https://www.zizula.hr/upisi-1/javni-poziv-za-2023-2024-godinu",
+            "checked_at": "2026-11-06T14:18:34.518602+00:00"
+          }
+        },
+        "review_method": "Manual review of official website, program and location pages; URLs and own review notes only. No copied program descriptions, hours, fees or child/group details.",
+        "permission_status": "not_confirmed",
+        "hours_reference_status": "official_page_link_only",
+        "website_reference_status": "official_website_link",
+        "external_content_import_allowed": false,
+        "external_content_license_status": "not_confirmed"
+      },
+      "information_review": {
+        "checked_at": "2026-11-06T14:20:11.129598+00:00",
+        "dataset_key": "sibenik-official-links-zizula",
+        "programs_status": "reference_only",
+        "opening_hours_status": "reference_only",
+        "content_license_status": "not_confirmed"
+      }
+    }
+  ]
+}
