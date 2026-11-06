@@ -47,6 +47,9 @@ class SourceStateWriter:
             observed_on, owner, location, status, method, note)
 
     async def clear_derived(self, record_ids):
+        await self._connection.execute('''DELETE FROM enrolment_refusal
+            WHERE source_record_id=ANY($1::uuid[]) OR enrolment_id IN
+              (SELECT id FROM enrolment WHERE source_record_id=ANY($1::uuid[]))''', list(record_ids))
         await self._connection.execute('''DELETE FROM knowledge_chunk WHERE program_id IN
             (SELECT id FROM program WHERE source_record_id=ANY($1::uuid[]))''', list(record_ids))
         for table in ('knowledge_chunk', 'enrolment', 'program'):
@@ -62,6 +65,7 @@ class SourceStateWriter:
         if ids:
             await self._forget_fields(ids)
             await self.clear_derived(ids)
+            await self._connection.execute('DELETE FROM document_scope WHERE source_record_id=ANY($1::uuid[])', ids)
             await self._connection.execute('DELETE FROM source_record WHERE id=ANY($1::uuid[])', ids)
         await self.activate(self._connection, self.source_id, self.batch, self.fetched_at, observed_on)
 

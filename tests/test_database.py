@@ -162,15 +162,11 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         rows=await self.repo.find_options(city='sesvete',age_months=24,include_unknown=True)
         self.assertEqual([(row['settlement'],row['municipality']) for row in rows],[('Sesvete','Zagreb')])
 
-    async def test_enrolment_scope_constraints(self):
+    async def test_enrolment_channel_is_required(self):
         k,l,r=self.eligible
-        bad=(("INSERT INTO enrolment(kindergarten_id,municipality_id,source_record_id,academic_year,application_url,channel) VALUES ($1,$2,$3,'2027./2028.','https://example.invalid','city_system')",(k,self.municipalities['zagreb'],r),asyncpg.CheckViolationError),
-             ("INSERT INTO enrolment(kindergarten_id,source_record_id,academic_year,application_url) VALUES ($1,$2,'2027./2028.','https://example.invalid')",(k,r),asyncpg.NotNullViolationError))
-        for sql,args,error in bad:
-            with self.assertRaises(error):
-                async with self.c.transaction():
-                    await self.c.execute(sql,*args)
-        await self.c.execute("INSERT INTO enrolment(municipality_id,source_record_id,academic_year,application_url,channel) VALUES ($1,$2,'2027./2028.','https://example.invalid','city_system')",self.municipalities['zagreb'],r)
+        with self.assertRaises(asyncpg.NotNullViolationError):
+            async with self.c.transaction():
+                await self.c.execute("INSERT INTO enrolment(kindergarten_id,source_record_id,academic_year,application_url) VALUES ($1,$2,'2027/2028','https://example.invalid')", k,r)
 
     async def test_cross_owner_and_invalid_age_are_rejected(self):
         with self.assertRaises(asyncpg.ForeignKeyViolationError):

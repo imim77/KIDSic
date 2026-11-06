@@ -127,7 +127,7 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
         if not (all_documents and limit is None) and (type(limit) is not int or not 1 <= limit <= 30):
             raise ValueError('Limit mora biti od 1 do 30.')
         return await self._connection.fetch('''
-          SELECT c.id,c.kindergarten_id,c.location_id,c.content,c.source_url,c.source_record_id,
+          SELECT c.id,a.kindergarten_id,c.location_id,c.content,c.source_url,c.source_record_id,
                  r.observed_on,r.fetched_at,s.title AS source_title,s.license,
                  -- Reviewed documents carry their own scope and governed period.
                  CASE WHEN r.raw_data->>'kind'='enrolment_document' THEN r.raw_data->>'scope' END AS document_scope,
@@ -137,17 +137,18 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
                    THEN (r.raw_data->>'valid_until')::date>=current_date END AS in_effect
           FROM knowledge_chunk c
           JOIN source_record r ON r.id=c.source_record_id
+          JOIN document_applicability a ON a.source_record_id=r.id
           JOIN data_source s ON s.id=r.source_id
           WHERE r.match_status='accepted' AND s.import_allowed AND s.active_batch_id=r.batch_id
-            AND r.kindergarten_id=c.kindergarten_id
+            AND r.kindergarten_id IS NOT DISTINCT FROM c.kindergarten_id
             AND (r.raw_data->>'evidence_scope' IS DISTINCT FROM 'registered_seat_geography'
               OR EXISTS (SELECT 1 FROM kindergarten_seat_geography sg
-                WHERE sg.kindergarten_id=c.kindergarten_id AND sg.source_record_id=r.id))
+                WHERE sg.kindergarten_id=a.kindergarten_id AND sg.source_record_id=r.id))
             AND (r.location_id IS NULL OR r.location_id IS NOT DISTINCT FROM c.location_id)
             AND (EXISTS (SELECT 1 FROM location l WHERE l.id=ANY($1::uuid[])
-              AND l.kindergarten_id=c.kindergarten_id AND (c.location_id IS NULL OR c.location_id=l.id))
+              AND l.kindergarten_id=a.kindergarten_id AND (c.location_id IS NULL OR c.location_id=l.id))
               -- Seat-only results: institution-wide chunks, never another object's chunks.
-              OR (c.location_id IS NULL AND c.kindergarten_id=ANY($5::uuid[])))
+              OR (c.location_id IS NULL AND a.kindergarten_id=ANY($5::uuid[])))
             AND (c.program_id IS NULL OR (c.program_id=ANY($4::uuid[]) AND EXISTS (
               SELECT 1 FROM program p WHERE p.id=c.program_id
                 AND (p.location_id IS NULL OR p.location_id=c.location_id))))

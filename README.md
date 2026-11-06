@@ -267,3 +267,12 @@ objekata. Sjedišta bez potvrđenog objekta ne ulaze u rangiranje. Programi,
 radno vrijeme, cijene i slobodna mjesta nisu preuzeti s nelicenciranih stranica.
 [Šibenski uvoz](scripts/README.md#šibenik),
 [priprema prometa](routing/README.md#šibenik).
+
+Rekonstrukcija sheme: prije migracija 0009–0012 spremiti `pg_dump -Fc`.
+Migracija 0010 uklanja stare snimke izvora i čuva ID postojećeg zapisa pri
+ponovnom uvozu. Povijesni programi i mjesta ostaju u `historical_record`.
+Migracija 0011 uklanja dotadašnje upisne kopije; odmah zatim pokrenuti
+`uv run kidsic-sync-enrolment` iz pregledanih seedova. Opći dokument vrijedi
+prema gradu i vrstama pružatelja, uključujući kasnije dodane ustanove; imenovani
+odlomci i odbijanja ostaju ograničeni na navedene ustanove. Downgrade vraća
+shemu, a izbrisani sadržaj vraća se iz dumpa ili ponovnim uvozom.

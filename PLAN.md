@@ -526,3 +526,10 @@ Korak 2c i objedinjavanje historical_record ostaju odgođeni kako plan navodi.
   zapisom iste ustanove i ključa bez promjene klasifikacije. Poznate vrijednosti
   bez aktivnog dokaza migracija odbija. Upgrade/downgrade/upgrade prolaze;
   195 testova prolazi (3 vanjske simulacije preskočene). Backup: /tmp/kidsic_before_0010.dump.
+
+- Cjelina 3: document_scope, enrolment_refusal i zajednički view
+  document_applicability. Nakon migracije seedovi su ponovno uvezeni dvaput;
+  ukupno 771 source_record, 106 knowledge_chunk, 2 enrolment, 423 historical_record.
+  DV Duga: cijeli RAG odgovor i kartice identični prije/poslije. Provjeren
+  downgrade/upgrade; 198 testova prolazi (3 simulacije preskočene).
+  Backup: /tmp/kidsic_before_0011.dump.

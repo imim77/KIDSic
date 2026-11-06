@@ -112,10 +112,15 @@ class AsyncpgLocationRepository(LocationRepository):
                 OR (h.scope='facility' AND h.location_id=pl.location_id))
               AND (cardinality(h.programs)>0 OR jsonb_array_length(h.vacancies)>0)
           ) history ON true
-          -- Only institution-level rounds: a municipal row would reach every provider kind.
+          -- Shared applicability enforces named owners and municipality/provider rules.
           LEFT JOIN LATERAL (
             SELECT jsonb_agg(jsonb_build_object('round',e.round,'academic_year',e.academic_year,
-              'channel',e.channel,'application_url',e.application_url,'accepting',e.accepting,
+              'channel',e.channel,'application_url',e.application_url,'accepting',NOT EXISTS (
+                SELECT 1 FROM enrolment_refusal f JOIN active_record fr
+                  ON fr.record_id=f.source_record_id::text
+                JOIN document_applicability fa ON fa.source_record_id=f.source_record_id
+                  AND fa.kindergarten_id=pl.kindergarten_id
+                WHERE f.enrolment_id=e.id AND f.kindergarten_id=pl.kindergarten_id),
               'opens_at',e.opens_at,'closes_at',e.closes_at,
               'source_title',s.title,'source_url',COALESCE(r.raw_data->>'document_url',s.url),'license',s.license,
               'reference_date',COALESCE(r.evidence->>'reference_date',r.raw_data->>'reference_date'),
@@ -124,7 +129,8 @@ class AsyncpgLocationRepository(LocationRepository):
               ORDER BY e.academic_year DESC,e.round,s.dataset_key) AS items
             FROM enrolment e JOIN active_record r ON r.record_id=e.source_record_id::text
             JOIN data_source s ON s.id=r.source_id
-            WHERE e.kindergarten_id=pl.kindergarten_id AND r.kindergarten_id=e.kindergarten_id
+            JOIN document_applicability a ON a.source_record_id=e.source_record_id
+            WHERE a.kindergarten_id=pl.kindergarten_id
           ) rounds ON true
           LEFT JOIN LATERAL (
             SELECT jsonb_agg(jsonb_build_object('program_id',p.id,'name',p.name,

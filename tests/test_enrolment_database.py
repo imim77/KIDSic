@@ -55,6 +55,44 @@ class EnrolmentDatabaseTests(unittest.IsolatedAsyncioTestCase):
         document = EnrolmentDocument.model_validate({**DOCUMENT, **changes})
         return await self.enrolment.import_document(document, 'test-snapshot', datetime.now(timezone.utc))
 
+    async def add_owner(self, name, provider='municipal'):
+        owner = await self.c.fetchval('INSERT INTO kindergarten(name,provider_kind) VALUES ($1,$2) RETURNING id', name, provider)
+        location = await self.c.fetchval("INSERT INTO location(kindergarten_id,name,settlement,settlement_key,municipality_id) VALUES ($1,$2,'Zagreb','zagreb',(SELECT id FROM municipality WHERE key='zagreb')) RETURNING id", owner, name)
+        await self.c.execute("INSERT INTO source_record(source_id,batch_id,source_key,raw_data,kindergarten_id,location_id,match_status,match_method) SELECT id,active_batch_id,$1,'{}',$2,$3,'accepted','manual' FROM data_source WHERE dataset_key='directory'", str(owner), owner, location)
+        return owner, location
+
+    async def test_shared_rule_excludes_private_providers_and_includes_later_municipal_owners(self):
+        await self.add_owner('Privatni primjer', 'private')
+        await self.load(calls=[CALL])
+        source_records = await self.c.fetchval("SELECT count(*) FROM source_record r JOIN data_source s ON s.id=r.source_id WHERE s.dataset_key='example-enrolment'")
+        self.assertEqual(source_records, 1)
+        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM enrolment'), 1)
+        owner, location = await self.add_owner('Kasniji gradski vrtić')
+        rows = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Zagreb'))
+        private = next(r for r in rows if r['provider_kind'] == 'private')
+        later = next(r for r in rows if r['kindergarten_id'] == owner)
+        self.assertEqual(private['enrolment'], [])
+        self.assertEqual(len(later['enrolment']), 1)
+        later_context = await self.rag.retrieve(RagQuery(city='Zagreb',name='Kasniji',topics=['document']))
+        self.assertEqual((later_context.status, later_context.evidence[0].scope), ('ok','municipality'))
+        self.assertEqual(later_context.evidence[0].applies_to, [str(location)])
+        self.assertEqual((await self.rag.retrieve(RagQuery(city='Zagreb',name='Privatni',topics=['document']))).status, 'no_evidence')
+
+    async def test_named_document_never_reaches_another_municipal_owner(self):
+        await self.add_owner('Drugi gradski vrtić')
+        await self.load(institutions=['Dječji vrtić Primjer'],calls=[CALL])
+        other = await self.rag.retrieve(RagQuery(city='Zagreb',name='Drugi',topics=['document']))
+        self.assertEqual(other.status, 'no_evidence')
+        rows = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='Zagreb',q='Drugi'))
+        self.assertEqual(rows[0]['enrolment'], [])
+
+    async def test_ownerless_accepted_evidence_requires_a_scope_at_commit(self):
+        import asyncpg
+        with self.assertRaises(asyncpg.CheckViolationError):
+            async with self.c.transaction():
+                await self.c.execute("INSERT INTO source_record(source_id,batch_id,source_key,raw_data,match_status,match_method) SELECT id,active_batch_id,'unscoped','{}','accepted','manual' FROM data_source WHERE dataset_key='directory'")
+                await self.c.execute('SET CONSTRAINTS ALL IMMEDIATE')
+
     async def test_municipal_and_named_excerpts_reach_every_object_with_dates_and_licence(self):
         result = await self.load(valid_until=(date.today() + timedelta(days=30)).isoformat(), excerpts=[
             {'content': 'Zahtjevi se podnose od 13. svibnja 2026. do 22. svibnja 2026.'},

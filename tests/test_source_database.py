@@ -66,6 +66,7 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 3)
 
     async def test_city_cleanup_preserves_supported_branches_and_removes_dependent_data(self):
+        await self.c.execute('ALTER TABLE enrolment ADD COLUMN municipality_id uuid REFERENCES municipality(id)')
         from uuid import uuid4
         await self.repo.register(self.source)
         source_id = await self.c.fetchval("SELECT id FROM data_source WHERE dataset_key='national'")

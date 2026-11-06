@@ -1,7 +1,6 @@
 """AsyncpgEnrolmentDocumentRepository stores reviewed excerpts as RAG document chunks."""
 from collections import defaultdict
 from hashlib import sha256
-from uuid import uuid4
 
 from KIDSic.dao.concrete.source_state import SourceStateWriter
 from KIDSic.dao.interfaces.enrolment import EnrolmentDocumentRepository
@@ -60,32 +59,46 @@ class AsyncpgEnrolmentDocumentRepository(EnrolmentDocumentRepository):
             return found[0]
 
         covered = [resolve(n) for n in document.institutions] or [o['id'] for o in owners]
-        default_scope = 'institution' if document.institutions else 'municipality'
         records = defaultdict(list)
+        targets = {}
+
+        def group(names=()):
+            named = tuple(sorted((resolve(n) for n in names), key=str))
+            key = ':'.join(map(str, named)) if named else 'municipality'
+            targets[key] = named
+            return key
+
+        default_key = group(document.institutions)
         for ordinal, excerpt in enumerate(document.excerpts):
-            if excerpt.institutions:
-                for owner in (resolve(n) for n in excerpt.institutions):
-                    records[owner, 'institution'].append((ordinal, excerpt.content))
-            else:
-                for owner in covered:
-                    records[owner, default_scope].append((ordinal, excerpt.content))
+            key = group(excerpt.institutions) if excerpt.institutions else default_key
+            records[key].append((ordinal, excerpt.content))
         if document.calls:
-            for owner in covered:  # A call needs a record even without shared excerpts.
-                records.setdefault((owner, default_scope), [])
-        batch, record_ids = uuid4(), {}
-        state = SourceStateWriter(self._connection, stored['id'], fetched_at, batch=batch)
-        SourceStateWriter.validate(f'{owner}:{scope}' for owner, scope in records)
+            records.setdefault(default_key, [])
+        SourceStateWriter.validate(records)
+        state = SourceStateWriter(self._connection, stored['id'], fetched_at)
+        record_ids = {}
         dates = {'reference_date': document.reference_date.isoformat(), 'date_kind': document.date_kind,
                  'valid_until': document.valid_until.isoformat() if document.valid_until else None}
         observed_on = document.reference_date if document.date_kind == 'observed' else None
-        for (owner, scope), chunks in records.items():
-            record = record_ids[owner, scope] = await state.record(f'{owner}:{scope}',
+        municipality = await self._connection.fetchval('SELECT id FROM municipality WHERE key=$1', document.municipality)
+        for key, chunks in records.items():
+            named = targets[key]
+            owner = named[0] if len(named) == 1 else None
+            scope = 'institution' if named else 'municipality'
+            record = record_ids[key] = await state.record(key,
                 {'kind': KIND, 'snapshot_key': snapshot_key, 'document_url': str(document.url),
                  'scope': scope, **dates}, owner=owner, observed_on=observed_on,
-                method='name' if scope == 'institution' else 'manual',
-                note='Reviewed snapshot: named institution.' if scope == 'institution'
-                else 'Reviewed snapshot: every active provider of the listed kinds in the municipality.')
+                method='name' if named else 'manual', note='Reviewed document scope.')
             await state.clear_derived([record])
+            await self._connection.execute('DELETE FROM document_scope WHERE source_record_id=$1', record)
+            if named:
+                await self._connection.executemany(
+                    'INSERT INTO document_scope(source_record_id,kindergarten_id) VALUES($1,$2)',
+                    [(record, target) for target in named])
+            else:
+                await self._connection.execute('''INSERT INTO document_scope
+                    (source_record_id,municipality_id,provider_kinds) VALUES($1,$2,$3)''',
+                    record, municipality, list(document.provider_kinds))
             await self._connection.executemany('''
                 INSERT INTO knowledge_chunk(kindergarten_id,source_record_id,ordinal,content,source_url,content_sha256)
                 VALUES ($1,$2,$3,$4,$5,$6)
@@ -93,15 +106,19 @@ class AsyncpgEnrolmentDocumentRepository(EnrolmentDocumentRepository):
                   for ordinal, content in chunks])
         for call in document.calls:
             refused = {resolve(name) for name in call.not_accepting}
-            await self._connection.executemany('''
+            record = record_ids[default_key]
+            named = targets[default_key]
+            enrolment = await self._connection.fetchval('''
                 INSERT INTO enrolment(kindergarten_id,source_record_id,academic_year,application_url,
-                                      opens_at,closes_at,channel,round,accepting)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-            ''', [(owner, record_ids[owner, default_scope], call.academic_year, str(call.application_url),
-                   call.opens_at, call.closes_at, call.channel, call.round, owner not in refused)
-                  for owner in covered])
+                                      opens_at,closes_at,channel,round)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id
+            ''', named[0] if len(named) == 1 else None, record, call.academic_year,
+                str(call.application_url), call.opens_at, call.closes_at, call.channel, call.round)
+            await self._connection.executemany('''INSERT INTO enrolment_refusal
+                (enrolment_id,kindergarten_id,source_record_id) VALUES ($1,$2,$3)''',
+                [(enrolment, owner, record) for owner in refused])
         await state.finish(observed_on=observed_on)
-        return {'source': document.dataset_key, 'institutions': len({owner for owner, _ in records}),
+        return {'source': document.dataset_key, 'institutions': len(set(covered) | {o for key in records for o in targets[key]}),
                 'records': len(records), 'chunks': sum(len(c) for c in records.values()),
-                'enrolment_rounds': len(document.calls) * len(covered),
+                'enrolment_rounds': len(document.calls),
                 'reference_date': document.reference_date.isoformat(), 'date_kind': document.date_kind}
