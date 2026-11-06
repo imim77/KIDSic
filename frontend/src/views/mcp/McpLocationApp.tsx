@@ -67,7 +67,7 @@ export function McpLocationApp() {
       revision.current++
       shareSelection(null)
       setCommute(args && ['home', 'work', 'departure', 'mode', 'top_k'].some(key => key in args)
-        ? { revision: revision.current, result: null, notice: 'Uspoređujem putove kroz riječke vrtiće…' } : null)
+        ? { revision: revision.current, result: null, notice: 'Uspoređujem putove kroz vrtiće…' } : null)
       const city = typeof args?.city === 'string' ? args.city.trim() : ''
       const name = typeof args?.name === 'string' ? args.name.trim() : ''
       const area = typeof args?.area === 'string' ? args.area.trim() : ''

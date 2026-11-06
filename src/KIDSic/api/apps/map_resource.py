@@ -4,12 +4,12 @@ from mcp import types
 from mcp.server.lowlevel.helper_types import ReadResourceContents
 
 # Hosts cache the template by URI; bump the version whenever the UI changes.
-UI_URI = 'ui://kidsic/map-v32.html'
+UI_URI = 'ui://kidsic/map-v34.html'
 UI_MIME = 'text/html;profile=mcp-app'
 SERVER_INSTRUCTIONS = (
     'When the user asks which kindergartens fit a home-to-work commute, use '
     'KIDSic:preporuci_vrtice_usput instead of the general map tool. It resolves explicit '
-    'addresses locally, ranks all mapped Rijeka facilities, and returns '
+    'addresses locally, ranks all mapped Rijeka, Zagreb or Šibenik facilities, and returns '
     'top_k ranked options on the same map/cards UI as prikazi_vrtice. '
     'Set top_k to the total requested: best plus three alternatives=4, '
     'top three=3 (default 4). When the user names the kindergartens they are choosing '
@@ -27,7 +27,7 @@ SERVER_INSTRUCTIONS = (
     'A city explicitly supplied by the user is required. If the city is missing '
     'or ambiguous, ask the user which city before calling the tool. Never infer '
     'a city from location, history, or a default. Do not replace the map with '
-    'a text-only list. Only Zagreb, Varaždin and Rijeka are supported; explain '
+    'a text-only list. Only Zagreb, Varaždin, Rijeka and Šibenik are supported; explain '
     'this limitation for other cities. Extract an optional kindergarten/facility name '
     'into the name argument, e.g. "Bajka u Zagrebu" -> city="Zagreb", name="Bajka". '
     'Send only the name, not the whole user sentence. A city must be supplied for '

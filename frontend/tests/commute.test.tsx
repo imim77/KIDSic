@@ -116,7 +116,7 @@ it('receives both tools through one bridge and clears old routes on new input, e
   expect(bridge.updateModelContext).toHaveBeenLastCalledWith({content:[{type:'text',text:expect.stringContaining('Odabir vrtića je uklonjen')}]})
   await act(async()=>call('ontoolinput',{arguments:{city:'Rijeka',home:'Zametska 6',work:'Korzo 16',top_k:4}}))
   expect(screen.getByLabelText('Broj oznaka')).toHaveTextContent('0')
-  expect(screen.getByText('Uspoređujem putove kroz riječke vrtiće…')).toBeInTheDocument()
+  expect(screen.getByText('Uspoređujem putove kroz vrtiće…')).toBeInTheDocument()
   await act(async()=>call('ontoolresult',{isError:true}))
   expect(screen.getByText(/Izračun nije dostupan/)).toBeInTheDocument()
   await act(async()=>call('ontoolresult',{_meta:{commute:{status:'clarification_required'}}}))
@@ -142,4 +142,29 @@ it('shows an empty map without inventing options when there is no route', () => 
 it('decodes route geometry and rejects truncated polylines', () => {
   expect(decodePolyline('_p~iF~ps|U_ulLnnqC_mqNvxq`@')).toEqual([[38.5,-120.2],[40.7,-120.95],[43.252,-126.453]])
   expect(() => decodePolyline('_')).toThrow('Invalid geometry')
+})
+
+
+it('accepts Zagreb routes and rejects mixed-city points and facilities', () => {
+  const result = commuteResult('Zagreb')
+  expect(parseCommuteResult(result).city).toBe('Zagreb')
+  render(<CommuteView result={parseCommuteResult(result)} />)
+  expect(screen.getByLabelText('Broj oznaka')).toHaveTextContent('4')
+  expect(screen.getByLabelText('Odabrana geometrija')).toHaveTextContent('shape0')
+  expect(() => parseCommuteResult({...result, city: 'Rijeka'})).toThrow()
+  expect(() => parseCommuteResult({...result, home: {lat: 45.33, lon: 14.42}})).toThrow()
+  result.locations.features[0].properties.city = 'Rijeka'
+  expect(() => parseCommuteResult(result)).toThrow()
+})
+
+
+it('accepts Šibenik routes and rejects points from the other routing cities', () => {
+  const result = commuteResult('Šibenik')
+  expect(parseCommuteResult(result).city).toBe('Šibenik')
+  render(<CommuteView result={parseCommuteResult(result)} />)
+  expect(screen.getByLabelText('Broj oznaka')).toHaveTextContent('4')
+  expect(() => parseCommuteResult({...result, city: 'Zagreb'})).toThrow()
+  expect(() => parseCommuteResult({...result, work: {lat: 45.33, lon: 14.42}})).toThrow()
+  result.locations.features[0].properties.city = 'Rijeka'
+  expect(() => parseCommuteResult(result)).toThrow()
 })

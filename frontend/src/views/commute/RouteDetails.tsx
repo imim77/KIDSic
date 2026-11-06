@@ -67,6 +67,12 @@ export function RouteDetails({ result, option }: { result: CommuteResult; option
       <Step at={toWork.arrival} kind="finish" icon={<BriefcaseBusiness />} title="Dolazak na posao" />
     </ol>
 
+    <p className="location-details-note">Vozni red: {result.sources.publisher} · {result.sources.license}.
+      {' '}Preuzeto {result.sources.retrieved_on}; razdoblje {result.sources.service_start} – {result.sources.service_end}.
+      {' '}Planirani polasci, bez podataka o kašnjenjima.</p>
+
+    {result.city === 'Šibenik' && <p className="location-details-note">Popis šibenskih objekata nije potpun; uspoređuju se samo dostupni mapirani objekti. Autobusna geometrija povezuje stajališta.</p>}
+
     {option.journeys.some(journey => journey.legs.some(leg => !leg.geometry))
       && <p className="location-details-note">Dio puta nema geometriju pa nije ucrtan na karti.</p>}
   </div></div>
