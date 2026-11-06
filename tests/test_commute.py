@@ -216,7 +216,17 @@ class CommuteToolTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(result.isError)
             self.assertIn('invalid_commute',result.content[0].text)
         service.recommend.assert_not_awaited()
-        service.recommend.side_effect=RuntimeError('Private address')
-        result=await tool.call_tool(tool.name,criteria())
+        try:
+            raise ConnectionError('Zametska 6')
+        except ConnectionError as cause:
+            failure=RuntimeError('Private address')
+            failure.__cause__=cause
+        service.recommend.side_effect=failure
+        with self.assertLogs('KIDSic.api.commute_tools','ERROR') as logs:
+            result=await tool.call_tool(tool.name,criteria())
         self.assertTrue(result.isError)
         self.assertNotIn('Private address',result.content[0].text)
+        log=' '.join(logs.output)
+        self.assertIn('RuntimeError <- ConnectionError',log)  # names the failing dependency
+        self.assertNotIn('Private address',log)
+        self.assertNotIn('Zametska',log)

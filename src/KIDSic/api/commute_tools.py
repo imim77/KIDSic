@@ -1,6 +1,7 @@
 """CommuteTools exposes one complete chat-to-ranked-routes workflow."""
 import asyncio
 import json
+import logging
 from collections.abc import Callable
 
 from mcp import types
@@ -10,6 +11,8 @@ from KIDSic.api.apps.map_resource import UI_URI
 from KIDSic.dto.commute import CommuteQuery
 from KIDSic.dto.day_route import SERVICE_START, SERVICE_END
 from KIDSic.services.concrete.commute import CommuteService
+
+logger = logging.getLogger(__name__)
 
 COMMUTE_URI = UI_URI
 COMMUTE_META = {'ui': {'resourceUri': COMMUTE_URI}, 'openai/outputTemplate': COMMUTE_URI,
@@ -70,6 +73,17 @@ class CommuteTools:
             annotations=types.ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True))]
 
     @staticmethod
+    def failure_cause(error: BaseException) -> str:
+        """failure_cause names the exception chain by type only, e.g.
+        RoutingUnavailable <- ConnectError, so operators see which dependency
+        failed while messages that may hold addresses stay out of the log."""
+        names = []
+        while error is not None and len(names) < 5:  # bound a cyclic chain
+            names.append(type(error).__name__)
+            error = error.__cause__ or error.__context__
+        return ' <- '.join(names)
+
+    @staticmethod
     def error(code, message):
         return types.CallToolResult(isError=True, content=[types.TextContent(type='text',
             text=json.dumps({'code': code, 'message': message}, ensure_ascii=False))], _meta=COMMUTE_META)
@@ -84,8 +98,9 @@ class CommuteTools:
         try:
             async with asyncio.timeout(90):
                 result = await self._service().recommend(query)
-        except Exception:
+        except Exception as error:
             # Address text and home coordinates must not leak through diagnostics.
+            logger.error('Commute recommendation failed: %s', self.failure_cause(error))
             return self.error('commute_unavailable', 'Izračun ili lokalni podaci trenutačno nisu dostupni. '
                 'Pokušaj ponovno kasnije; nemoj zamijeniti rezultat procjenom ili oglednim vremenima.')
         summary = {key: value for key, value in result.items()
