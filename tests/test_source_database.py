@@ -101,9 +101,9 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
                 (kindergarten_id,source_record_id,academic_year,application_url,channel)
                 VALUES ($1,$2,'2026/27','https://example.invalid','kindergarten')''', owner, record)
             await self.c.execute('''INSERT INTO knowledge_chunk
-                (kindergarten_id,location_id,source_record_id,program_id,ordinal,content,source_url,content_sha256)
-                VALUES ($1,$2,$3,$4,0,'Synthetic','https://example.invalid',$5)''',
-                owner, location, record, program, 'a' * 64)
+                (kindergarten_id,location_id,source_record_id,program_id,ordinal,content,source_url)
+                VALUES ($1,$2,$3,$4,0,'Synthetic','https://example.invalid')''',
+                owner, location, record, program)
             return owner, location, record
 
         outside = await place('Outside only', 'split')
@@ -453,7 +453,7 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         second = {**NATIONAL, 'Naziv': 'DV Drugi', 'Adresa': 'Druga 2'}
         await self.repo.import_snapshot(self.snapshot([NATIONAL, second]))
         record = await self.c.fetchrow("SELECT * FROM source_record WHERE raw_data->>'Naziv'='DV Drugi'")
-        await self.c.execute("INSERT INTO knowledge_chunk(kindergarten_id,source_record_id,ordinal,content,source_url,content_sha256) VALUES ($1,$2,0,'Test','https://example.invalid',$3)", record['kindergarten_id'], record['id'], 'a'*64)
+        await self.c.execute("INSERT INTO knowledge_chunk(kindergarten_id,source_record_id,ordinal,content,source_url) VALUES ($1,$2,0,'Test','https://example.invalid')", record['kindergarten_id'], record['id'])
         await self.c.execute("INSERT INTO enrolment(kindergarten_id,source_record_id,academic_year,application_url,channel) VALUES ($1,$2,'2026/27','https://example.invalid','kindergarten')", record['kindergarten_id'], record['id'])
         await self.repo.import_snapshot(self.snapshot())
         for table in ('knowledge_chunk', 'enrolment'):

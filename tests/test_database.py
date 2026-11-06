@@ -35,7 +35,7 @@ class SearchTests(unittest.IsolatedAsyncioTestCase):
         return await self.c.fetchval("INSERT INTO source_record(source_id,batch_id,source_key,raw_data,kindergarten_id,location_id,match_status,match_method) VALUES ($1,$2,$3,'{}',$4,$5,'accepted','manual') RETURNING id",self.source,self.batch,str(uuid4()),owner,location)
 
     async def chunk(self, owner, location, record, content='Sourced document'):
-        await self.c.execute("INSERT INTO knowledge_chunk(kindergarten_id,location_id,source_record_id,ordinal,content,source_url,content_sha256) VALUES ($1,$2,$3,0,$4,'https://example.invalid/evidence',$5)",owner,location,record,content,'a'*64)
+        await self.c.execute("INSERT INTO knowledge_chunk(kindergarten_id,location_id,source_record_id,ordinal,content,source_url) VALUES ($1,$2,$3,0,$4,'https://example.invalid/evidence')",owner,location,record,content)
 
     async def test_context_respects_owner_facility_and_institution_scope(self):
         owner = await self.c.fetchval("INSERT INTO kindergarten(name) VALUES ('Selected') RETURNING id")

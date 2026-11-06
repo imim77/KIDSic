@@ -1,6 +1,5 @@
 """AsyncpgEnrolmentDocumentRepository stores reviewed excerpts as RAG document chunks."""
 from collections import defaultdict
-from hashlib import sha256
 
 from KIDSic.dao.concrete.source_state import SourceStateWriter
 from KIDSic.dao.interfaces.enrolment import EnrolmentDocumentRepository
@@ -101,10 +100,9 @@ class AsyncpgEnrolmentDocumentRepository(EnrolmentDocumentRepository):
                     (source_record_id,municipality_id,provider_kinds) VALUES($1,$2,$3)''',
                     record, municipality, list(document.provider_kinds))
             await self._connection.executemany('''
-                INSERT INTO knowledge_chunk(kindergarten_id,source_record_id,ordinal,content,source_url,content_sha256)
-                VALUES ($1,$2,$3,$4,$5,$6)
-            ''', [(owner, record, ordinal, content, str(document.url), sha256(content.encode()).hexdigest())
-                  for ordinal, content in chunks])
+                INSERT INTO knowledge_chunk(kindergarten_id,source_record_id,ordinal,content,source_url)
+                VALUES ($1,$2,$3,$4,$5)
+            ''', [(owner, record, ordinal, content, str(document.url)) for ordinal, content in chunks])
         for call in document.calls:
             refused = {resolve(name) for name in call.not_accepting}
             record = record_ids[default_key]

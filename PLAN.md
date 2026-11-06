@@ -100,7 +100,7 @@ Ostalo:
 Upiti za ponovno mjerenje:
 
 ```sql
-SELECT (s.active_batch_id=r.batch_id) active, count(*), count(DISTINCT c.content_sha256)
+SELECT (s.active_batch_id=r.batch_id) active, count(*), count(DISTINCT c.content)
 FROM knowledge_chunk c JOIN source_record r ON r.id=c.source_record_id
 JOIN data_source s ON s.id=r.source_id GROUP BY 1;
 

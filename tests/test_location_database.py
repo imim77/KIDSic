@@ -144,7 +144,7 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
                              record)
         await self.c.execute('UPDATE source_record SET raw_data=$2 WHERE id=$1', record,
                              {'evidence_scope':'registered_seat_geography'})
-        await self.c.execute("INSERT INTO knowledge_chunk(kindergarten_id,source_record_id,ordinal,content,source_url,content_sha256) VALUES ($1,$2,0,'Banfica seat geography','https://example.invalid/geo',$3)", owner, record, 'a'*64)
+        await self.c.execute("INSERT INTO knowledge_chunk(kindergarten_id,source_record_id,ordinal,content,source_url) VALUES ($1,$2,0,'Banfica seat geography','https://example.invalid/geo')", owner, record)
         rows = await self.repository.list_locations(LocationQuery())
         self.assertEqual((rows[0]['location_id'],rows[0]['location_role'],rows[0]['longitude']), (None,'seat',15.98))
         self.assertIn('longitude', rows[0]['field_sources'])

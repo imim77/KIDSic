@@ -153,9 +153,9 @@ class HistoricalDatabaseTests(unittest.IsolatedAsyncioTestCase):
         main = next(l for l in locations if l['address']=='Primjer 1')
         for location in locations:
             record = await self.c.fetchval('SELECT id FROM source_record WHERE location_id=$1',location['id'])
-            await self.c.execute('''INSERT INTO knowledge_chunk(kindergarten_id,location_id,source_record_id,ordinal,content,source_url,content_sha256)
-                VALUES($1,$2,$3,0,$4,'https://example.invalid/upis',$5)''',location['kindergarten_id'],location['id'],record,
-                'Dokumenti za upis: ' + location['address'],'a'*64)
+            await self.c.execute('''INSERT INTO knowledge_chunk(kindergarten_id,location_id,source_record_id,ordinal,content,source_url)
+                VALUES($1,$2,$3,0,$4,'https://example.invalid/upis')''',location['kindergarten_id'],location['id'],record,
+                'Dokumenti za upis: ' + location['address'])
         query = RagQuery(city='Zagreb',name='Primjer',topics=['programs'],feature_id=str(main['id']))
         result = await service.retrieve(query)
         self.assertEqual(len(result.evidence),1)

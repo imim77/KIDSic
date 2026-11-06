@@ -7,7 +7,6 @@ failed import leaves the previous state visible.
 import argparse
 import asyncio
 from datetime import datetime
-import hashlib
 import json
 import uuid
 
@@ -101,10 +100,9 @@ class Batch:
 
     async def chunk(self, owner, location, record, content, url):
         await self._connection.execute('''
-            INSERT INTO knowledge_chunk(kindergarten_id,location_id,source_record_id,
-                                        ordinal,content,source_url,content_sha256)
-            VALUES ($1,$2,$3,0,$4,$5,$6)
-        ''', owner, location, record, content, url, hashlib.sha256(content.encode()).hexdigest())
+            INSERT INTO knowledge_chunk(kindergarten_id,location_id,source_record_id,ordinal,content,source_url)
+            VALUES ($1,$2,$3,0,$4,$5)
+        ''', owner, location, record, content, url)
 
     async def location(self, location, owner, name, address, settlement, municipality, lon, lat, attributes):
         """location upserts a reviewed facility under a stable ID, merging attributes."""
