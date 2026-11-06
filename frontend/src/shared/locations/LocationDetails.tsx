@@ -3,7 +3,6 @@ import { Building2, MapPin, X } from 'lucide-react'
 import { providerLabels, type LocationFeature } from './types'
 import { websiteHref } from './links'
 import { SubsidyDetails } from './SubsidyDetails'
-import { ProgramDetails } from './ProgramDetails'
 import { HistoricalDetails } from './HistoricalDetails'
 import { EnrolmentDetails } from './EnrolmentDetails'
 import { VacancyDetails } from './VacancyDetails'
@@ -82,7 +81,6 @@ export function LocationDetails({ feature, onClose, openLink, compare }: Locatio
 
         <EnrolmentDetails rounds={location.enrolment ?? []} openLink={openLink} />
         <VacancyDetails location={location} openLink={openLink} />
-        <ProgramDetails location={location} openLink={openLink} />
         <HistoricalDetails records={location.historical_data ?? []} openLink={openLink} />
         <SubsidyDetails policies={location.subsidy_policies ?? []} openLink={openLink} />
 

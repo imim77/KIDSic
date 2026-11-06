@@ -47,7 +47,6 @@ class RagServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(evidence.sources[0].url, 'https://example.invalid/programs')
         self.assertIn('nisu potvrđeni', evidence.content)
         self.assertEqual(self.events, ['enter','exit'])
-        self.assertIsNone(self.locations.list_locations.await_args.args[0].age_months)
 
     async def test_institution_vacancies_are_deduplicated_and_zero_is_not_unknown(self):
         first = row(); second = deepcopy(first); second['location_id'] = uuid4()
@@ -90,15 +89,10 @@ class RagServiceTests(unittest.IsolatedAsyncioTestCase):
         self.search.retrieve_context.assert_not_awaited()
         await service.retrieve(RagQuery(city='Zagreb',name='Primjer'))
         call = self.search.retrieve_context.await_args.kwargs
-        self.assertTrue(call['all_documents'])
         self.assertNotIn('text', call)  # Documents are filtered by scope, never by question terms.
 
     async def test_chunks_stay_within_selected_owner_and_exact_facility(self):
         first = row(); sibling = deepcopy(first); sibling['location_id'] = uuid4()
-        program = uuid4()
-        first['programs'] = [dict(program_id=str(program),name='Montessori',min_age_months=12,
-            max_age_months_exclusive=36,verified_on='2026-11-04',valid_until=None,
-            scope='facility',source_title='Current',source_url='https://example.invalid/current')]
         base = dict(kindergarten_id=first['kindergarten_id'],location_id=first['location_id'],
             content='Dokumenti za upis: potvrda.',source_url='https://example.invalid/instructions',
             source_title='Synthetic instructions',observed_on=None)
@@ -111,7 +105,6 @@ class RagServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(e.temporal_status == 'undated' for e in result.evidence))
         call = self.search.retrieve_context.await_args.kwargs
         self.assertEqual(call['location_ids'],[first['location_id']])
-        self.assertEqual(call['program_ids'],[str(program)])
         self.assertEqual(call['kindergarten_ids'],[])
 
     async def test_contacts_require_field_specific_source_evidence(self):

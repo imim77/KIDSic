@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import { LocationDetails } from '../src/shared/locations/LocationDetails'
-import { enrolmentRound, facility, historicalEvidence, programEvidence } from './fixtures'
+import { enrolmentRound, facility, historicalEvidence } from './fixtures'
 import type { SubsidyPolicy } from '../src/shared/locations/types'
 
 const policy: SubsidyPolicy = {
@@ -61,21 +61,6 @@ it('keeps a published zero, a blank count and an unpublished count apart', () =>
   expect(screen.queryByRole('link', { name: /Službeni pregled slobodnih mjesta/ })).toBeNull()
 })
 
-it('shows evidence scope, explicit age bounds and missing-program notice without promising enrolment', () => {
-  const item = facility('program')
-  item.properties.suitability_status = 'confirmed'
-  item.properties.programs = [programEvidence({ scope: 'institution' })]
-  const { rerender } = render(<LocationDetails feature={item} onClose={() => {}} />)
-  expect(screen.getByText('Montessori')).toBeVisible()
-  expect(screen.getByText(/od 12 mjeseci; manje od 36 mjeseci/)).toBeVisible()
-  expect(screen.getByText(/Podatak za ustanovu; provedbu u ovom objektu treba provjeriti/)).toBeVisible()
-  expect(screen.getByText(/nije potvrda slobodnog mjesta ni jamstvo upisa/)).toBeVisible()
-  item.properties.programs = []
-  item.properties.suitability_status = 'unknown'
-  rerender(<LocationDetails feature={item} onClose={() => {}} />)
-  expect(screen.queryByText('Montessori')).toBeNull()
-  expect(screen.getByText(/To ne znači da program nije dostupan/)).toBeVisible()
-})
 
 it('shows the selected policy, expands rates and opens the official source through the host', async () => {
   const location = facility('subsidy')

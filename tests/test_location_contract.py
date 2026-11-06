@@ -14,15 +14,11 @@ class LocationQueryTests(unittest.TestCase):
         self.assertEqual(LocationQuery(bbox=(15, 45, 16, 46)).bbox, (15, 45, 16, 46))
         radius = LocationQuery(near=(15.98, 45.81), radius_m=1000)
         self.assertEqual((radius.near, radius.radius_m), ((15.98, 45.81), 1000))
-        self.assertEqual(LocationQuery(program=' Montessori ',age_months=0).program,'Montessori')
-        self.assertEqual(LocationQuery(age_months=216).age_months,216)
-        self.assertIsNone(LocationQuery().age_months)
-        self.assertTrue(LocationQuery().include_unknown)
 
     def test_invalid_queries_are_rejected(self):
         for values in ({'city': 'Split'}, {'city': 'Osijek'}, {'city': 'Sesvete'},
                        {'city': ' '}, {'city': 'x' * 101}, {'q': 'x' * 201},
-                       {'age_months': True}, {'age_months': 24.0}, {'age_months':'24'},
+                       {'age_months':24}, {'program':'Montessori'}, {'include_unknown':True}, {'age_months': True}, {'age_months': 24.0}, {'age_months':'24'},
                        {'age_months':-1}, {'age_months':217}, {'age_months':[24]},
                        {'include_unknown':'false'}, {'include_unknown':0}, {'program':None},
                        {'program':['Montessori']}, {'program':'x'*201},

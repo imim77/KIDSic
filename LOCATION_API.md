@@ -1,19 +1,15 @@
 # Location read API
 
 `GET /api/locations` returns a complete GeoJSON FeatureCollection of accepted
-records in import-approved sources' active snapshots. It does not alter the
-existing conversational search. No authentication is required for this public
+records in import-approved sources' active snapshots. No authentication is required for this public
 read endpoint; the local server binds to `127.0.0.1` by default.
 
 | Query | Meaning |
 | --- | --- |
-| `city` | `Zagreb`, `Varaždin` or `Rijeka`, including case/diacritic variants and curated aliases, default `Zagreb`. Trimmed, 1–100 characters. Each city includes its settlements, such as Sesvete within Zagreb. Other cities return HTTP 422. |
+| `city` | `Zagreb`, `Varaždin`, `Rijeka` or `Šibenik`, including case/diacritic variants and curated aliases, default `Zagreb`. Trimmed, 1–100 characters. Each city includes its settlements, such as Sesvete within Zagreb. Other cities return HTTP 422. |
 | `q` | Literal substring of institution or facility name, ignoring case and Croatian diacritics (č/ć/ž/š/đ), trimmed, at most 200 characters. `%` and `_` are literal characters. No address search. |
 | `provider_kind` | One of `municipal`, `private`, `religious`, `childminder`, `other`, `unknown`; omitted means all. |
 | `area` | Jedan točan naziv četvrti, predjela ili naselja, triman, do 200 znakova; izostavljeno ili prazno znači sva područja. Podudaranje zanemaruje velika slova i hrvatske dijakritike te opcionalni prefiks `Mjesni odbor `. Kombinira se s ostalim filtrima logikom AND. |
-| `age_months` | Optional integer 0–216, in months. Omit for no age filter. HTTP accepts decimal integer text; MCP accepts an integer or null, never a boolean or fractional number. |
-| `program` | Trimmed program-name substring, at most 200 characters; ignores case and Croatian diacritics. Empty/omitted means no program filter. `%` and `_` remain literal. |
-| `include_unknown` | `true` (default) keeps separately labelled unconfirmed suitability; `false` returns confirmed matches only when age/program is set. No effect otherwise. HTTP requires literal `true` or `false`. |
 | `has_vacancies` | `true` keeps objects whose newest published vacancy snapshot in `historical_data` lists at least one free place; `false` (default) applies no filter. A newer published zero replaces an older positive count, and unpublished or blank counts never match. Snapshots are dated, often per institution, and are not a guarantee of a place. HTTP requires literal `true` or `false`. |
 | `bbox` | Optional `west,south,east,north` in WGS84; finite ordered longitude/latitude bounds. Antimeridian wrapping is unsupported. |
 | `near`, `radius_m` | Optional `longitude,latitude` in WGS84 and an integer radius of 1–50000 metres; both or neither. Cannot be combined with `bbox`. |
@@ -29,9 +25,7 @@ With `near` and `radius_m`, `scope` is `radius` and only points whose straight-l
 coordinate validity rules as `bbox` apply, so unlocated objects and seats without
 reviewed geocoding are excluded. Each feature then carries
 `properties.distance_m`, rounded to whole metres; it is null without `near`.
-Distance is not walking or travel time. Results are ordered nearest first,
-after the confirmed-before-unknown grouping below; equal distances fall back to
-name ordering.
+Distance is not walking or travel time. Results are ordered nearest first; equal distances fall back to name ordering.
 Unsupported query parameters, repeated parameters and invalid filters return
 HTTP 422 with `{"error":"invalid_query"}`. Database unavailable returns HTTP 503
 with `{"error":"locations_unavailable"}`; internal exception text is never sent.
@@ -48,25 +42,9 @@ geocoded address or its geographic source is disabled/replaced. An unlocated act
 facility also has null geometry but retains its facility ID and role. Sources
 include the active records' reference date (null when unknown), fetch timestamp,
 source URL/title and license (null when unrecorded). No missing coordinates,
-reference dates, licenses or age groups are inferred. `age_groups: null` is retained for older clients. Use the sourced
-`programs` and `suitability_status` fields for program/age evidence; no field
-is an enrolment or capacity claim.
-
-`properties.programs` includes current, accepted, import-approved program evidence
-from the same institution and applicable facility. Both the program's location
-and the source record's location must be institution-wide or this exact facility;
-a facility record never confirms sibling facilities. Seat results only use
-institution-wide evidence. Each program carries its ID, name, nullable minimum
-and exclusive maximum age in months, verification/expiry dates, source-record ID,
-source URL/title and `scope` (`institution` or `facility`). Institution-wide evidence
-does not promise implementation at every branch. Requested program text narrows
-this list; without it all current applicable programs are shown.
-
-Program verification cannot be in the future. Expiry is inclusive; the source's
-`stale_after_days` limit applies to the verification date, following the existing
-age search. Old snapshots, rejected or disabled sources and another owner's
-records cannot confirm suitability. No program data is fabricated by this change;
-current program evidence is independent of the historical import below.
+reference dates or licenses are inferred. Current program/age evidence and
+suitability counts are no longer returned. Retired age/program query parameters
+are rejected with HTTP 422; historical programs remain dated evidence below.
 
 `properties.historical_data` contains accepted records from active, approved
 historical snapshots. Each item includes `reference_date`, `date_kind` (`published`
@@ -78,20 +56,6 @@ on its branches but their counts describe the whole institution, so never sum th
 across branches. Historical data never confirms current age/program suitability.
 The dedicated `kidsic-sync-historical` command and migration `0007` populate this
 field from the pinned 2019/2025 Zagreb resources; other cities return an empty list.
-
-`properties.suitability_status` is `not_evaluated` without age/program criteria.
-Otherwise the same program must match every requested criterion for `confirmed`:
-`min_age_months <= age_months < max_age_months_exclusive`. Missing age bounds or
-no current matching-program record produce `unknown`, which is not a negative
-answer or a recommendation of suitability. Known complete ranges that all exclude
-the age are omitted. Other named programs do not establish the absence of the
-requested one. Program-only matching does not assert age suitability.
-
-Confirmed results precede unknown results; within each group results are
-ordered nearest first when `near` is set, otherwise by deterministic name.
-`metadata.confirmed` and `metadata.unknown` count the returned groups; both are
-zero when not evaluated. With criteria their sum equals `total`. Counts do not estimate missing or excluded records, vacancies or enrolment
-chances. All filters combine with AND before counts; there is no result limit.
 
 `properties.field_sources` separately attributes stored fields to their accepted,
 still import-approved evidence, including historical records. It defaults to `{}`

@@ -50,9 +50,7 @@ class SourceStateWriter:
         await self._connection.execute('''DELETE FROM enrolment_refusal
             WHERE source_record_id=ANY($1::uuid[]) OR enrolment_id IN
               (SELECT id FROM enrolment WHERE source_record_id=ANY($1::uuid[]))''', list(record_ids))
-        await self._connection.execute('''DELETE FROM knowledge_chunk WHERE program_id IN
-            (SELECT id FROM program WHERE source_record_id=ANY($1::uuid[]))''', list(record_ids))
-        for table in ('knowledge_chunk', 'enrolment', 'program'):
+        for table in ('knowledge_chunk', 'enrolment'):
             await self._connection.execute(
                 f'DELETE FROM {table} WHERE source_record_id=ANY($1::uuid[])', list(record_ids))
 

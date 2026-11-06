@@ -67,10 +67,9 @@ export DATABASE_URL=postgresql://kidsic:kidsic_local@localhost:55432/kidsic
 uv run alembic -c src/KIDSic/db/alembic/alembic.ini upgrade head
 uv run kidsic-register-sources
 uv run kidsic-sync-kindergartens
-uv run kidsic-search 'Imam dijete od 2 godine i iz varazdina sam koji su mi vrtici opcija'
 ```
 
-Naredba pretražuje prethodno uvezene podatke. Bez imenika traži pojašnjenje jer grad nije poznat. Uvoz razlikuje mjesto (npr. Sesvete) od grada/općine (Zagreb) i dodaje kurirane padežne aliase za Zagreb, Varaždin, Rijeku i Šibenik. Upit za grad uključuje i njegova mjesta. `.env.example` je predložak, a `.env` se ne učitava automatski. Postavke `DATABASE_POOL_MIN_SIZE` i `DATABASE_POOL_MAX_SIZE` upravljaju poolom. CLI koristi leksički RAG dohvat.
+Uvoz razlikuje mjesto (npr. Sesvete) od grada/općine (Zagreb) i dodaje kurirane padežne aliase za Zagreb, Varaždin, Rijeku i Šibenik. Upit za grad uključuje i njegova mjesta. `.env.example` je predložak, a `.env` se ne učitava automatski. Postavke `DATABASE_POOL_MIN_SIZE` i `DATABASE_POOL_MAX_SIZE` upravljaju poolom.
 
 Migracija `0005_supported_cities` uklanja postojeće ustanove izvan obuhvata,
 njihove objekte, izvorne zapise i ovisne podatke. Ustanova s barem jednim
@@ -218,7 +217,7 @@ API se pokreće nad prethodno migriranom i popunjenom bazom iz koraka iznad:
 uv run uvicorn KIDSic.api.locations:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
-`DATABASE_URL` mora biti postavljen u istom terminalu. API drži jedan pool kroz životni vijek aplikacije; svaki zahtjev čita konzistentnu snimku kroz read-only Unit of Work. Pokretanje ne izvršava migracije ni uvoz. [Ugovor lokacija](LOCATION_API.md) opisuje `GET /api/locations`, filtre, GeoJSON, izvore, datume i pogreške. MCP karta podržava dob u mjesecima i program; alat za [RAG kontekst](RAG.md) koristi zaseban servis nad istim poolom. CLI dobna pretraga zadržava postojeći ugovor.
+`DATABASE_URL` mora biti postavljen u istom terminalu. API drži jedan pool kroz životni vijek aplikacije; svaki zahtjev čita konzistentnu snimku kroz read-only Unit of Work. Pokretanje ne izvršava migracije ni uvoz. [Ugovor lokacija](LOCATION_API.md) opisuje `GET /api/locations`, filtre, GeoJSON, izvore, datume i pogreške. MCP karta podržava grad, naziv, vrstu pružatelja, područje i radijus; alat za [RAG kontekst](RAG.md) koristi zaseban servis nad istim poolom.
 
 Frontend pokrenuti u drugom terminalu:
 
@@ -268,7 +267,7 @@ radno vrijeme, cijene i slobodna mjesta nisu preuzeti s nelicenciranih stranica.
 [Šibenski uvoz](scripts/README.md#šibenik),
 [priprema prometa](routing/README.md#šibenik).
 
-Rekonstrukcija sheme: prije migracija 0009–0012 spremiti `pg_dump -Fc`.
+Rekonstrukcija sheme: prije migracija 0009–0013 spremiti `pg_dump -Fc`.
 Migracija 0010 uklanja stare snimke izvora i čuva ID postojećeg zapisa pri
 ponovnom uvozu. Povijesni programi i mjesta ostaju u `historical_record`.
 Migracija 0011 uklanja dotadašnje upisne kopije; odmah zatim pokrenuti
@@ -276,3 +275,8 @@ Migracija 0011 uklanja dotadašnje upisne kopije; odmah zatim pokrenuti
 prema gradu i vrstama pružatelja, uključujući kasnije dodane ustanove; imenovani
 odlomci i odbijanja ostaju ograničeni na navedene ustanove. Downgrade vraća
 shemu, a izbrisani sadržaj vraća se iz dumpa ili ponovnim uvozom.
+
+Migracija 0012 uklanja aktualne programe i pripadajuće filtre. `prikazi_vrtice`
+i HTTP više ne prihvaćaju `age_months`, `program` ni `include_unknown`;
+`kidsic-search` je uklonjen. Tema `programs` u RAG-u i `historical_data.programs`
+čuvaju isključivo povijesne objave, bez potvrde današnje provedbe ili dobi.

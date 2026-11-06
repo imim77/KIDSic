@@ -39,7 +39,7 @@ class RagService(RagServiceInterface):
                     notice='Odabir nije jednoznačan. Pitaj za puni naziv/adresu i ponovi s feature_id iz matches; '
                     'ne miješaj podatke različitih ustanova.')
             chunks = await work.search.retrieve_context(**self._builder.context_scope(rows),
-                all_documents=True, limit=self._max_documents) if 'document' in topics else []
+                limit=self._max_documents) if 'document' in topics else []
             evidence = self._builder.collect(rows, [dict(c) for c in chunks])
         relevant = sorted((e for e in evidence if e.topic in topics), key=lambda e: (TOPICS.index(e.topic),
             e.reference_date is None, -e.reference_date.toordinal() if e.reference_date else 0, e.citation_id))

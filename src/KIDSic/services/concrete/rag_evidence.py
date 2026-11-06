@@ -15,8 +15,7 @@ class RagEvidenceBuilder:
     @staticmethod
     def context_scope(rows):
         return dict(location_ids=[r['location_id'] for r in rows if r['location_id']],
-            kindergarten_ids=[r['kindergarten_id'] for r in rows if not r['location_id']],
-            program_ids=list({p['program_id'] for r in rows for p in r.get('programs', [])}))
+            kindergarten_ids=[r['kindergarten_id'] for r in rows if not r['location_id']])
 
     def collect(self, rows, chunks):
         evidence = {}
@@ -85,17 +84,6 @@ class RagEvidenceBuilder:
                 result.append(self.evidence(row, topic='vacancies',
                     content='Povijesno objavljena slobodna mjesta:\n' + '\n'.join(groups) +
                     f'\n{scope_note} Ovo nije današnja raspoloživost ni jamstvo upisa.', **common))
-        for program in row.get('programs', []):
-            minimum = program['min_age_months'] if program['min_age_months'] is not None else 'nije potvrđena'
-            maximum = program['max_age_months_exclusive'] if program['max_age_months_exclusive'] is not None else 'nije potvrđena'
-            result.append(self.evidence(row, topic='programs', content=(
-                f"Program: {program['name']}. Donja dobna granica u mjesecima: {minimum}; "
-                f"isključiva gornja granica: {maximum}. "
-                f"Vrijedi do: {program['valid_until'] or 'nije navedeno'}. "
-                'Nepoznata granica nije potvrda prikladnosti. Program nije jamstvo mjesta ni upisa.'),
-                sources=[RagSource(title=program['source_title'], url=program['source_url'])],
-                reference_date=program['verified_on'], date_kind='verified', temporal_status='current',
-                scope=program['scope']))
         for raw in row.get('subsidy_policies', []):
             policy = self._subsidies.present(raw)
             rates = [rate.model_dump_json() for rate in policy.rates]

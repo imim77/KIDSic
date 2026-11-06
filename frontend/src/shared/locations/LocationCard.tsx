@@ -2,7 +2,6 @@ import { Building2 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import type { LocationFeature } from './types'
-import { SuitabilityBadge } from './ProgramDetails'
 import { formatDistance } from './distance'
 import { CompareToggle, type CompareChoice } from './CompareToggle'
 
@@ -34,7 +33,6 @@ export function LocationCard({ feature, selected, onSelect, compare, summary }: 
         <CardDescription className="truncate text-xs" title={address}>{address}</CardDescription>
       </CardHeader>
       {summary && <p className="truncate text-[11px] font-semibold">{summary}</p>}
-      <SuitabilityBadge status={location.suitability_status} />
       {(distance || location.district) && <CardContent className="min-w-0 p-0">
         {/* One meta line keeps the card short; distance leads when searching nearby. */}
         <p className="truncate text-[11px] text-muted-foreground" title={location.district ?? undefined}>

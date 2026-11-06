@@ -50,7 +50,7 @@ filtrira objekte prije RAG dohvaćanja. Parser prepoznaje pohranjena područja
 unutar traženog grada, česte padeže ženskih naziva te Centra i Đurka:
 
 ```sh
-uv run kidsic-search 'Dijete od 2 godine iz Varaždina na Banfici'
+# Provjeri objekte alatom prikazi_vrtice: grad Varaždin, područje Banfica.
 ```
 
 Dobna prikladnost ostaje `unknown` bez odgovarajućeg izvora programa. Za takve

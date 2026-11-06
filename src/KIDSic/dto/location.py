@@ -17,9 +17,6 @@ class LocationQuery(BaseModel):
     city: str = Field(default='Zagreb', min_length=1, max_length=100)
     q: str = Field(default='', max_length=200)
     area: str = Field(default='', max_length=200)
-    age_months: int | None = Field(default=None, strict=True, ge=0, le=216)
-    program: str = Field(default='', max_length=200)
-    include_unknown: bool = Field(default=True, strict=True)
     # has_vacancies keeps objects whose latest published vacancy snapshot lists
     # at least one free place; unpublished counts never match.
     has_vacancies: bool = Field(default=False, strict=True)
@@ -30,7 +27,7 @@ class LocationQuery(BaseModel):
     near: tuple[float, float] | None = None
     radius_m: int | None = Field(default=None, strict=True, ge=1, le=50_000)
 
-    @field_validator('city', 'q', 'area', 'program', mode='before')
+    @field_validator('city', 'q', 'area', mode='before')
     @classmethod
     def strip_text(cls, value):
         return value.strip() if isinstance(value, str) else value
@@ -85,19 +82,6 @@ class LocationFieldSource(LocationSource):
     active_snapshot: bool
 
 
-class LocationProgram(BaseModel):
-    program_id: str
-    name: str
-    min_age_months: int | None
-    max_age_months_exclusive: int | None
-    verified_on: date
-    valid_until: date | None
-    source_record_id: str
-    source_url: str
-    source_title: str
-    scope: Literal['institution', 'facility']
-
-
 class LocationEnrolment(BaseModel):
     # LocationEnrolment is one published round with its official channel. The
     # status compares the round's own times with one clock reading; it never
@@ -134,13 +118,9 @@ class LocationProperties(BaseModel):
     sources: list[LocationSource]
     field_sources: dict[str, LocationFieldSource] = Field(default_factory=dict)
     subsidy_policies: list[SubsidyPolicy] = Field(default_factory=list)
-    suitability_status: Literal['not_evaluated', 'confirmed', 'unknown'] = 'not_evaluated'
-    programs: list[LocationProgram] = Field(default_factory=list)
     historical_data: list[HistoricalEvidence] = Field(default_factory=list)
     enrolment: list[LocationEnrolment] = Field(default_factory=list)
     distance_m: int | None = None  # Straight-line metres from near; null without it.
-    # Retained for older clients; the sourced programs carry explicit age bounds.
-    age_groups: None = None
 
 
 class LocationPoint(BaseModel):
@@ -161,8 +141,6 @@ class LocationMetadata(BaseModel):
     unmapped: int
     scope: Literal['city', 'bbox', 'radius']
     complete: Literal[True] = True
-    confirmed: int = Field(default=0, ge=0)
-    unknown: int = Field(default=0, ge=0)
 
 
 class LocationCollection(BaseModel):

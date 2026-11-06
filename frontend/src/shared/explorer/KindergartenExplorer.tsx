@@ -92,7 +92,7 @@ function ExplorerLayout({ data, status, selectedId, onSelect, retry, notice, emp
   // The comparison covers the explorer; what lies beneath must not take focus.
   const covered = comparing && comparedNow.length > 1
   const described = criteria ? describeCriteria(criteria) : undefined
-  return <div ref={layoutRef} className="explorer-layout" data-suitability={data?.features.some((feature) => feature.properties.suitability_status === 'confirmed') ? '' : undefined} data-layout={panels ? 'panels' : 'map'} data-details={expanded && selected ? '' : undefined} data-comparing={covered ? '' : undefined}>
+  return <div ref={layoutRef} className="explorer-layout" data-layout={panels ? 'panels' : 'map'} data-details={expanded && selected ? '' : undefined} data-comparing={covered ? '' : undefined}>
     {/* display: contents keeps list and details as grid items of the layout. */}
     <div className="contents" inert={covered}>
     {panels && <LocationList collection={data!} selectedId={selectedId} onSelect={onSelect} criteria={described} summary={summary} />}

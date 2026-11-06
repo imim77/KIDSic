@@ -1,4 +1,4 @@
-import { isAgeMonths, isProviderKind, type LocationCollection, type LocationProgram, type Nearby, type ProviderKind, type SearchCriteria } from '../locations/types'
+import { isProviderKind, type LocationCollection, type Nearby, type ProviderKind, type SearchCriteria } from '../locations/types'
 
 function record(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -23,18 +23,6 @@ function date(value: unknown): value is string {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const parsed = new Date(`${value}T00:00:00Z`)
   return Number.isFinite(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value
-}
-
-function validProgram(value: unknown): value is LocationProgram {
-  if (!record(value)) return false
-  const min = value.min_age_months, max = value.max_age_months_exclusive
-  return ['program_id', 'name', 'source_record_id', 'source_url', 'source_title'].every((key) => typeof value[key] === 'string' && !!value[key].trim())
-    && ['institution', 'facility'].includes(String(value.scope))
-    && date(value.verified_on)
-    && (value.valid_until === null || date(value.valid_until) && value.valid_until >= value.verified_on)
-    && (min === null || typeof min === 'number' && Number.isInteger(min) && min >= 0)
-    && (max === null || typeof max === 'number' && Number.isInteger(max) && max > 0)
-    && (min == null || max == null || (max as number) > (min as number))
 }
 
 function validHistory(value: unknown): boolean {
@@ -77,6 +65,7 @@ export class LocationToolResult {
   static async fromResult(result: { structuredContent?: unknown; _meta?: Record<string, unknown> }) {
     const summary = result.structuredContent
     if (!record(summary)) throw new Error('Missing summary')
+    if (['age_months', 'program', 'include_unknown'].some((key) => key in summary)) throw new Error('Unsupported search criteria')
     let locations = result._meta?.locations
     if (record(locations) && locations.encoding === 'gzip+base64') {
       if (typeof locations.data !== 'string') throw new Error('Missing compressed locations')
@@ -85,27 +74,21 @@ export class LocationToolResult {
       locations = await new Response(stream).json()
     }
     const parsed = this.parse({ city: summary.city, name: summary.name, provider_kind: summary.provider_kind, area: summary.area,
-      age_months: summary.age_months, program: summary.program, include_unknown: summary.include_unknown,
       near: summary.near, radius_m: summary.radius_m, locations })
     const metadata = summary.metadata
     if (!record(metadata) || metadata.total !== parsed.locations.metadata.total
       || metadata.mapped !== parsed.locations.metadata.mapped || metadata.unmapped !== parsed.locations.metadata.unmapped
-      || metadata.confirmed !== parsed.locations.metadata.confirmed || metadata.unknown !== parsed.locations.metadata.unknown
       || metadata.scope !== parsed.locations.metadata.scope || metadata.complete !== true) throw new Error('Mismatched summary')
     return parsed
   }
 
   static parse(value: unknown): SearchCriteria & { locations: LocationCollection } {
     if (!record(value) || typeof value.city !== 'string' || !value.city.trim()) throw new Error('Missing city')
+    if (['age_months', 'program', 'include_unknown'].some((key) => key in value)) throw new Error('Unsupported search criteria')
     if (value.name !== undefined && (typeof value.name !== 'string' || value.name.trim().length > 200)) throw new Error('Invalid search name')
     if (value.provider_kind !== undefined && value.provider_kind !== null && !isProviderKind(value.provider_kind)) throw new Error('Invalid provider kind')
     if (value.area !== undefined && (typeof value.area !== 'string' || value.area.trim().length > 200)) throw new Error('Invalid search area')
-    if (value.age_months != null && !isAgeMonths(value.age_months)) throw new Error('Invalid child age')
-    if (value.program !== undefined && (typeof value.program !== 'string' || value.program.trim().length > 200)) throw new Error('Invalid search program')
-    if (value.include_unknown !== undefined && typeof value.include_unknown !== 'boolean') throw new Error('Invalid unknown filter')
     const area = typeof value.area === 'string' ? value.area.trim() : ''
-    const program = typeof value.program === 'string' ? value.program.trim() : ''
-    const evaluated = value.age_months != null || !!program
     const around = nearby(value.near, value.radius_m)
     const data = value.locations
     if (!record(data) || data.type !== 'FeatureCollection' || !Array.isArray(data.features)
@@ -113,7 +96,6 @@ export class LocationToolResult {
       || data.metadata.total !== data.features.length) throw new Error('Invalid locations')
     const ids = new Set<string>()
     let mapped = 0
-    let confirmed = 0, unknown = 0
     for (const feature of data.features) {
       if (!record(feature) || feature.type !== 'Feature' || typeof feature.id !== 'string' || ids.has(feature.id)
         || !record(feature.properties)) throw new Error('Invalid feature')
@@ -129,23 +111,6 @@ export class LocationToolResult {
       if (value.provider_kind != null && p.provider_kind !== value.provider_kind) throw new Error('Mismatched provider kind')
       if (p.areas !== undefined && (!Array.isArray(p.areas) || !p.areas.every((name) => typeof name === 'string' && name.trim()))) throw new Error('Invalid areas')
       if (area && (!Array.isArray(p.areas) || !p.areas.some((name: string) => areaKey(name) === areaKey(area)))) throw new Error('Mismatched area')
-      if (p.programs !== undefined && (!Array.isArray(p.programs) || !p.programs.every(validProgram))) throw new Error('Invalid programs')
-      const programs = Array.isArray(p.programs) ? p.programs : []
-      if (p.location_role === 'seat' && programs.some((item) => item.scope !== 'institution')) throw new Error('Invalid seat program scope')
-      if (p.suitability_status !== undefined && !['not_evaluated', 'confirmed', 'unknown'].includes(String(p.suitability_status))) throw new Error('Invalid suitability')
-      if (evaluated && !['confirmed', 'unknown'].includes(String(p.suitability_status))) throw new Error('Missing suitability')
-      if (!evaluated && p.suitability_status != null && p.suitability_status !== 'not_evaluated') throw new Error('Unexpected suitability')
-      if (p.suitability_status === 'unknown') {
-        if (value.include_unknown === false) throw new Error('Unexpected unknown result')
-        unknown++
-      }
-      if (p.suitability_status === 'confirmed') {
-        const matches = programs.some((item) => textKey(item.name).includes(textKey(program))
-          && (value.age_months == null || typeof item.min_age_months === 'number' && typeof item.max_age_months_exclusive === 'number'
-            && item.min_age_months <= (value.age_months as number) && (value.age_months as number) < item.max_age_months_exclusive))
-        if (!matches) throw new Error('Missing matching program evidence')
-        confirmed++
-      }
       if (['website_url', 'email', 'phone'].some((field) =>
         p[field] != null && typeof p[field] !== 'string')) throw new Error('Invalid contact')
       // A radius result asserts a verified point no further than the radius.
@@ -160,14 +125,9 @@ export class LocationToolResult {
       }
     }
     if (data.metadata.mapped !== mapped || data.metadata.unmapped !== data.features.length - mapped) throw new Error('Invalid counts')
-    if ((evaluated || data.metadata.confirmed !== undefined || data.metadata.unknown !== undefined)
-      && (data.metadata.confirmed !== confirmed || data.metadata.unknown !== unknown)) throw new Error('Invalid suitability counts')
     return { city: value.city.trim(), ...(value.name !== undefined ? { name: (value.name as string).trim() } : {}),
       ...(value.provider_kind !== undefined ? { provider_kind: value.provider_kind as ProviderKind | null } : {}),
       ...(value.area !== undefined ? { area } : {}),
-      ...(value.age_months !== undefined ? { age_months: value.age_months as number | null } : {}),
-      ...(value.program !== undefined ? { program } : {}),
-      ...(value.include_unknown !== undefined ? { include_unknown: value.include_unknown as boolean } : {}),
       ...(value.near !== undefined || value.radius_m !== undefined ? { nearby: around } : {}),
       locations: data as unknown as LocationCollection }
   }

@@ -533,3 +533,10 @@ Korak 2c i objedinjavanje historical_record ostaju odgođeni kako plan navodi.
   DV Duga: cijeli RAG odgovor i kartice identični prije/poslije. Provjeren
   downgrade/upgrade; 198 testova prolazi (3 simulacije preskočene).
   Backup: /tmp/kidsic_before_0011.dump.
+
+- Cjelina 4 (odluka vlasnika: uklanjanje): migracija 0012_remove_programs,
+  uklonjeni aktualni programi, dobni/programski filtri, pokazatelji prikladnosti,
+  kidsic-search i leksička grana. Povijesni programi ostaju pod temom programs.
+  Sjedište je zbog zasebne migracije ove cjeline pomaknuto na 0013.
+  Provjeren downgrade/upgrade, 181 poslužiteljski test i 97 frontend testova,
+  TypeScript/Vite za web i MCP te ESLint.

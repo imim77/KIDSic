@@ -90,9 +90,6 @@
   .location-carousel-caption { left: 44px; max-width: calc(100% - 88px); }
 }
 
-.explorer-layout[data-suitability] { --card-height: 112px; }
-.program-details { display: flex; flex-direction: column; gap: 10px; }
-.program-details article { display: flex; flex-direction: column; gap: 6px; padding-block: 10px; border-bottom: 1px solid var(--ink); overflow-wrap: anywhere; }
 .historical-details { display: flex; flex-direction: column; gap: 12px; }
 .historical-details article { display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid var(--ink); border-radius: 12px; background: var(--cream); overflow-wrap: anywhere; }
 .historical-details-date { font-weight: 600; }

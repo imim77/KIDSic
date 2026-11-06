@@ -7,7 +7,6 @@ from KIDSic.exceptions import PersistenceError
 from KIDSic.config.settings import Settings
 from KIDSic.db.database import database_pool
 from KIDSic.db.uow.asyncpg import AsyncpgUnitOfWork
-from KIDSic.factories.kindergarten_search import KindergartenSearchServiceFactory
 from KIDSic.factories.location import LocationServiceFactory
 from KIDSic.factories.source import SourceServiceFactory
 from KIDSic.factories.historical import HistoricalServiceFactory
@@ -48,11 +47,6 @@ class DependencyService:
         else:
             async with self._pool() as pool:
                 yield EnrolmentDocumentServiceFactory().create(lambda: AsyncpgSourceUnitOfWork(pool))
-
-    @asynccontextmanager
-    async def kindergarten_search_service(self):
-        async with self._pool() as pool:
-            yield KindergartenSearchServiceFactory().create(lambda: AsyncpgUnitOfWork(pool))
 
     @asynccontextmanager
     async def conversation_services(self):

@@ -8,7 +8,6 @@ from KIDSic.dto.source import KindergartenRow, SourceDefinition
 from KIDSic.services.interfaces.source_parser import SourceRowParser
 from KIDSic.services.concrete.source import SourceService
 from KIDSic.services.concrete.source_normalizer import SourceRecordNormalizer
-from KIDSic.services.concrete.request_parser import RequestParser
 from test_sources import source_client
 
 ROOT = Path(__file__).resolve().parents[1] / 'src' / 'KIDSic'
@@ -52,21 +51,7 @@ class LayerDependencyTests(unittest.TestCase):
         from KIDSic.api.mcp_server import create_app
         self.assertIs(legacy, create_app)
 
-    def test_request_parser_needs_only_catalogue_values(self):
-        parser = RequestParser()
-        criteria = parser.parse_city_age('Dijete od 2 godine iz Varaždina',
-                                        [{'city_key':'varazdin','city_aliases':['varazdina']}])
-        self.assertEqual(criteria, {'city':'varazdin','age_months':24})
-        self.assertEqual(parser.parse_area('na Banfici', [{'name':'Banfica'}]), 'Banfica')
 
-    def test_request_parser_rejects_unsupported_cities_even_in_a_legacy_catalogue(self):
-        parser = RequestParser()
-        for city in ('split', 'osijek', 'sesvete'):
-            with self.subTest(city=city), self.assertRaisesRegex(ValueError, 'Zagreb, Varaždin, Rijeka i Šibenik'):
-                parser.parse_city_age(f'Dijete od 2 godine iz {city}',
-                                      [{'city_key': city, 'city_aliases': []}])
-        self.assertEqual(parser.parse_city_age('Dijete od 2 godine iz Rijeke',
-            [{'city_key': 'rijeka', 'city_aliases': ['rijeke']}]), {'city': 'rijeka', 'age_months': 24})
 
 
 class ExtensibleSourceTests(unittest.IsolatedAsyncioTestCase):

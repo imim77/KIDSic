@@ -1,4 +1,4 @@
-import type { HistoricalEvidence, LocationCollection, LocationEnrolment, LocationFeature, LocationProgram } from '../src/shared/locations/types'
+import type { HistoricalEvidence, LocationCollection, LocationEnrolment, LocationFeature } from '../src/shared/locations/types'
 
 export function enrolmentRound(overrides: Partial<LocationEnrolment> = {}): LocationEnrolment {
   return { round: 'main', academic_year: '2026./2027.', channel: 'city_system',
@@ -34,7 +34,6 @@ export function facility(id: string, located = true): LocationFeature {
       phone: null,
       district: null,
       location_role: 'facility',
-      age_groups: null,
       sources: [{
         name: 'Synthetic source',
         url: 'https://example.invalid/source',
@@ -51,16 +50,8 @@ export function collection(...features: LocationFeature[]): LocationCollection {
   return {
     type: 'FeatureCollection',
     features,
-    metadata: { total: features.length, mapped, unmapped: features.length - mapped, scope: 'city', complete: true,
-      confirmed: features.filter((f) => f.properties.suitability_status === 'confirmed').length,
-      unknown: features.filter((f) => f.properties.suitability_status === 'unknown').length },
+    metadata: { total: features.length, mapped, unmapped: features.length - mapped, scope: 'city', complete: true },
   }
-}
-
-export function programEvidence(overrides: Partial<LocationProgram> = {}): LocationProgram {
-  return { program_id: 'synthetic-program', name: 'Montessori', min_age_months: 12, max_age_months_exclusive: 36,
-    verified_on: '2026-11-04', valid_until: null, source_record_id: 'synthetic-record',
-    source_url: 'https://example.invalid/program', source_title: 'Synthetic program source', scope: 'facility', ...overrides }
 }
 
 export function deferred<T>() {

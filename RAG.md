@@ -71,9 +71,8 @@ repozitorija lokacija. Tek zatim nastaje ograničeni korpus za odabranu ustanovu
 - Prihvaćeni `historical_record` aktivne snimke daje programe iz XLSX-a objavljenog
   9. 10. 2019. i mjesta sa stanjem 1. 1. 2025. Oznaka `historical` ostaje uz svaki
   odlomak, čak i kada pitanje traži današnje stanje.
-- Aktualni programi koriste postojeću provjeru izvora, opsega i razdoblja.
-  Nepoznate dobne granice nisu potvrda prikladnosti. RAG ne izvodi dobni filtar
-  iz pitanja; za njega se koristi `prikazi_vrtice` s `age_months` i `program`.
+- Tema `programs` čuva samo povijesno objavljene programe. Aktualni programi
+  i dobni/programski filtri uklonjeni su jer nema uvoza koji ih potvrđuje.
 - Sufinanciranje koristi postojeći prikaz pravila za grad objekta i njegov tip.
   Vrsta iznosa razlikuje gradsku subvenciju i roditeljsku cijenu; tarife su
   izričito označene eurocentima. Uvjeti, olakšice i razdoblje ostaju uz iznos.

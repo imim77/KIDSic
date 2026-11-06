@@ -3,7 +3,7 @@ import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
 import { McpLocationApp } from '../src/views/mcp/McpLocationApp'
-import { collection, facility, programEvidence } from './fixtures'
+import { collection, facility } from './fixtures'
 import { commuteResult } from './commuteFixtures'
 
 vi.mock('../src/shared/map/KindergartenMap', () => ({
@@ -39,13 +39,10 @@ it('negotiates the real SDK postMessage bridge, receives results, and requests h
       source: window.parent, data: { jsonrpc: '2.0', id: request.id, result },
     })))
     if (request.method === 'ui/notifications/initialized') queueMicrotask(() => {
-      notify('ui/notifications/tool-input', { arguments: { city: 'Zagreb', name: 'Bajka', provider_kind: 'municipal', area: 'Črnomerec', age_months: 24, program: 'Montessori', include_unknown: false } })
+      notify('ui/notifications/tool-input', { arguments: { city: 'Zagreb', name: 'Bajka', provider_kind: 'municipal', area: 'Črnomerec' } })
       const locations = collection(facility('bridge'))
       locations.features[0].properties.areas = ['Črnomerec']
-      locations.features[0].properties.suitability_status = 'confirmed'
-      locations.features[0].properties.programs = [programEvidence()]
-      locations.metadata.confirmed = 1
-      notify('ui/notifications/tool-result', { content: [], structuredContent: { city: 'Zagreb', name: 'Bajka', provider_kind: 'municipal', area: 'Črnomerec', age_months: 24, program: 'Montessori', include_unknown: false, metadata: locations.metadata }, _meta: { locations } })
+      notify('ui/notifications/tool-result', { content: [], structuredContent: { city: 'Zagreb', name: 'Bajka', provider_kind: 'municipal', area: 'Črnomerec', metadata: locations.metadata }, _meta: { locations } })
     })
   })
   const { unmount } = render(<McpLocationApp />)

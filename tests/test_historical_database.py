@@ -71,9 +71,6 @@ class HistoricalDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(await self.c.fetchval("SELECT observed_on FROM data_source WHERE dataset_key='zagreb-programs-2019'"))
         self.assertEqual(sum(v['free_places'] for v in main['historical_data'][0]['vacancies']), 5)
         self.assertEqual(await self.c.fetch('SELECT id,kindergarten_id,address FROM location ORDER BY id'), before)
-        self.assertEqual(await self.c.fetchval('SELECT count(*) FROM program'), 0)
-        self.assertEqual(await AsyncpgLocationRepository(self.c).list_locations(
-            LocationQuery(program='Montessori', age_months=24, include_unknown=False)), [])
 
     async def test_reimport_activates_one_batch_and_revocation_hides_history(self):
         snapshot = await self.snapshot()

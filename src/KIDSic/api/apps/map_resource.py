@@ -4,7 +4,7 @@ from mcp import types
 from mcp.server.lowlevel.helper_types import ReadResourceContents
 
 # Hosts cache the template by URI; bump the version whenever the UI changes.
-UI_URI = 'ui://kidsic/map-v34.html'
+UI_URI = 'ui://kidsic/map-v35.html'
 UI_MIME = 'text/html;profile=mcp-app'
 SERVER_INSTRUCTIONS = (
     'When the user asks which kindergartens fit a home-to-work commute, use '
@@ -41,15 +41,7 @@ SERVER_INSTRUCTIONS = (
     'Reuse an established city only when unambiguous; otherwise ask. Calls do not inherit arguments. '
     'Omit area or send "" to clear it. For zero matches, report the applied city, name, type and area '
     'and ask which criterion to change; do not conclude that no kindergartens exist there. '
-    'Use age_months for one explicit child age: 2 years=24, 2 years 6 months=30. '
-    'Never infer age from jaslice; ask if ambiguous. Age is optional for general/program-only searches. '
-    'Put a requested program (e.g. Montessori) in program, not the institution name. '
-    'Age and program must match the same current sourced program. include_unknown=true (default) '
-    'keeps records with unknown conditions; false is only for an explicit confirmed-only request. '
-    'Report confirmed/unknown counts separately. Missing data is not proof of unavailability, '
-    'and confirmed suitability never promises vacancies or enrolment. '
-    'Historical open snapshots appear in location details with source dates; never describe their '
-    'vacancies or programs as current, and never sum institution vacancy counts across branches. '
+    'Never describe historical vacancies or programs as current, and never sum institution vacancy counts across branches. '
     'Never broaden a failed search automatically. Explain unavailable results without inventing data. '
     'For factual follow-up questions about a named kindergarten use KIDSic:dohvati_kontekst_vrtica. '
     'It retrieves source excerpts for the answer, not a map. Cite source URLs and their reference dates '

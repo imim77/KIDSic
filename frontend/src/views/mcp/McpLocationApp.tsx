@@ -2,7 +2,7 @@ import { App } from '@modelcontextprotocol/ext-apps'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { KindergartenExplorer } from '../../shared/explorer/KindergartenExplorer'
 import { LocationToolResult } from '../../shared/mcp/LocationToolResult'
-import { isAgeMonths, isProviderKind, providerLabels, type LocationCollection, type LocationFeature, type Nearby, type SearchCriteria } from '../../shared/locations/types'
+import { isProviderKind, providerLabels, type LocationCollection, type LocationFeature, type Nearby, type SearchCriteria } from '../../shared/locations/types'
 import { formatDistance } from '../../shared/locations/distance'
 import { CommuteView } from '../commute/CommuteView'
 import { parseCommuteResult, type CommuteResult } from '../commute/types'
@@ -12,10 +12,8 @@ type Snapshot = Omit<SearchCriteria, 'city'> & { city: string | null; data: Loca
 const initial: Snapshot = { city: null, data: null, status: 'loading', notice: 'U kojem gradu želiš prikaz vrtića?' }
 
 // toolArguments sends every retained criterion, since each call is a full search.
-function toolArguments({ city, name, provider_kind, area, age_months, program, include_unknown, nearby }: SearchCriteria) {
+function toolArguments({ city, name, provider_kind, area, nearby }: SearchCriteria) {
   return { city, ...(name ? { name } : {}), ...(provider_kind ? { provider_kind } : {}), ...(area ? { area } : {}),
-    ...(age_months != null ? { age_months } : {}), ...(program ? { program } : {}),
-    ...(age_months != null || program || include_unknown === false ? { include_unknown } : {}),
     ...(nearby ? { near: nearby.near, radius_m: nearby.radius_m } : {}) }
 }
 
@@ -71,13 +69,10 @@ export function McpLocationApp() {
       const city = typeof args?.city === 'string' ? args.city.trim() : ''
       const name = typeof args?.name === 'string' ? args.name.trim() : ''
       const area = typeof args?.area === 'string' ? args.area.trim() : ''
-      const age_months = isAgeMonths(args?.age_months) ? args.age_months : null
-      const program = typeof args?.program === 'string' ? args.program.trim() : ''
-      const include_unknown = typeof args?.include_unknown === 'boolean' ? args.include_unknown : true
       const provider_kind = isProviderKind(args?.provider_kind) ? args.provider_kind : null
       const nearby = toolNearby(args?.near, args?.radius_m)
       setSelection(null)
-      setSnapshot(city ? { city, name, area, provider_kind, age_months, program, include_unknown, nearby, data: null, status: 'loading' } : initial)
+      setSnapshot(city ? { city, name, area, provider_kind, nearby, data: null, status: 'loading' } : initial)
     }
     app.ontoolresult = async (result) => {
       if (!active) return
@@ -103,7 +98,7 @@ export function McpLocationApp() {
       try {
         const parsed = await LocationToolResult.fromResult(result)
         if (!active || request !== revision.current) return
-        setSnapshot({ city: parsed.city, name: parsed.name ?? '', area: parsed.area ?? '', provider_kind: parsed.provider_kind ?? null, age_months: parsed.age_months ?? null, program: parsed.program ?? '', include_unknown: parsed.include_unknown ?? true, nearby: parsed.nearby ?? null, data: parsed.locations, status: 'ready' })
+        setSnapshot({ city: parsed.city, name: parsed.name ?? '', area: parsed.area ?? '', provider_kind: parsed.provider_kind ?? null, nearby: parsed.nearby ?? null, data: parsed.locations, status: 'ready' })
       } catch {
         if (active && request === revision.current) setSnapshot((previous) => ({ ...previous, data: null, status: 'error' }))
       }
@@ -127,7 +122,6 @@ export function McpLocationApp() {
     const app = bridge.current
     const city = snapshot.city
     const criteria = { name: snapshot.name ?? '', area: snapshot.area ?? '', provider_kind: snapshot.provider_kind ?? null,
-      age_months: snapshot.age_months ?? null, program: snapshot.program ?? '', include_unknown: snapshot.include_unknown ?? true,
       nearby: nearby ?? null }
     if (!app || !city) { setSnapshot(initial); return }
     const request = ++revision.current
@@ -141,7 +135,7 @@ export function McpLocationApp() {
       if (result.isError) throw new Error('Tool failed')
       const parsed = await LocationToolResult.fromResult(result)
       if (request !== revision.current) return
-      setSnapshot({ city: parsed.city, name: parsed.name ?? '', area: parsed.area ?? '', provider_kind: parsed.provider_kind ?? null, age_months: parsed.age_months ?? null, program: parsed.program ?? '', include_unknown: parsed.include_unknown ?? true, nearby: parsed.nearby ?? null, data: parsed.locations, status: 'ready' })
+      setSnapshot({ city: parsed.city, name: parsed.name ?? '', area: parsed.area ?? '', provider_kind: parsed.provider_kind ?? null, nearby: parsed.nearby ?? null, data: parsed.locations, status: 'ready' })
       // The model did not make this call; tell it so follow-ups keep the point.
       if (changedPoint) void app.updateModelContext({ content: [{ type: 'text', text: parsed.nearby
         ? `Korisnik je na karti odabrao točku [${parsed.nearby.near.join(', ')}] i zračni radijus ${parsed.nearby.radius_m} m; `
@@ -152,8 +146,8 @@ export function McpLocationApp() {
     }
   }
 
-  const emptyNotice = snapshot.name || snapshot.provider_kind || snapshot.area || snapshot.age_months != null || snapshot.program || snapshot.nearby
-    ? `Nema rezultata za grad ${snapshot.city}${snapshot.nearby ? `, zračno do ${formatDistance(snapshot.nearby.radius_m)} od odabrane točke` : ''}${snapshot.name ? `, naziv „${snapshot.name}”` : ''}${snapshot.provider_kind ? `, vrstu „${providerLabels[snapshot.provider_kind]}”` : ''}${snapshot.area ? `, područje „${snapshot.area}”` : ''}${snapshot.age_months != null ? `, dob ${snapshot.age_months} mjeseci` : ''}${snapshot.program ? `, program „${snapshot.program}”` : ''}. Provjerite ili promijenite kriterije u razgovoru.${snapshot.area ? ' Nema zapisa s potvrđenim podudaranjem područja; to ne znači da ondje nema vrtića.' : ''}${snapshot.age_months != null || snapshot.program ? ' Nema podataka koji potvrđuju zadane uvjete; to nije dokaz da program nije dostupan.' : ''}`
+  const emptyNotice = snapshot.name || snapshot.provider_kind || snapshot.area || snapshot.nearby
+    ? `Nema rezultata za grad ${snapshot.city}${snapshot.nearby ? `, zračno do ${formatDistance(snapshot.nearby.radius_m)} od odabrane točke` : ''}${snapshot.name ? `, naziv „${snapshot.name}”` : ''}${snapshot.provider_kind ? `, vrstu „${providerLabels[snapshot.provider_kind]}”` : ''}${snapshot.area ? `, područje „${snapshot.area}”` : ''}. Provjerite ili promijenite kriterije u razgovoru.${snapshot.area ? ' Nema zapisa s potvrđenim podudaranjem područja; to ne znači da ondje nema vrtića.' : ''}`
     : undefined
 
   const hostFullscreen = display.available ? { expanded: display.expanded, request: async (mode: 'inline' | 'fullscreen') => {

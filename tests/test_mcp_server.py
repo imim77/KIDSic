@@ -97,7 +97,7 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
             tool = tools[0]
             self.assertEqual(tool.inputSchema['required'], ['city'])
             self.assertNotIn('default', tool.inputSchema['properties']['city'])
-            self.assertEqual(set(tool.inputSchema['properties']), {'city', 'name', 'provider_kind', 'area', 'age_months', 'program', 'include_unknown',
+            self.assertEqual(set(tool.inputSchema['properties']), {'city', 'name', 'provider_kind', 'area',
                               'near', 'radius_m'})
             self.assertEqual(set(tool.inputSchema['properties']['provider_kind']['anyOf'][0]['enum']),
                              {'municipal', 'private', 'religious', 'childminder', 'other', 'unknown'})
@@ -161,7 +161,7 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result.meta['locations']['encoding'], 'gzip+base64')
             self.assertEqual(decoded_locations(result), payload.model_dump(mode='json'))
             self.assertEqual(result.structuredContent, {
-                'city': 'Rijeka', 'name': '', 'provider_kind': None, 'area': '', 'age_months': None, 'program': '', 'include_unknown': True, 'near': None, 'radius_m': None,
+                'city': 'Rijeka', 'name': '', 'provider_kind': None, 'area': '', 'near': None, 'radius_m': None,
                 'metadata': payload.metadata.model_dump(mode='json'),
             })
             self.assertNotIn('Synthetic', str(result.structuredContent))
@@ -266,41 +266,14 @@ class McpServerTests(unittest.IsolatedAsyncioTestCase):
                 self.assertIn('Područje (area)', result.content[0].text)
         service.list_locations.assert_not_awaited()
 
-    async def test_age_and_program_preserve_full_criteria_and_explicit_confirmed_only_choice(self):
-        service = SimpleNamespace(list_locations=AsyncMock(return_value=empty_collection()))
-        async with connected(service) as (session, _):
-            for age in (0,18,24,30,216,None):
-                arguments = {'city':'Varaždinu','name':'Bajka','area':'Centar',
-                    'provider_kind':'private','age_months':age,'program':' Montessori ','include_unknown':False}
-                result = await session.call_tool('prikazi_vrtice',arguments)
-                self.assertFalse(result.isError)
-                self.assertEqual(result.structuredContent['age_months'],age)
-                self.assertEqual(result.structuredContent['program'],'Montessori')
-                self.assertFalse(result.structuredContent['include_unknown'])
-                query = service.list_locations.await_args.args[0]
-                self.assertEqual((query.city,query.q,query.area,query.provider_kind,query.age_months,query.program,query.include_unknown),
-                                 ('Varaždin','Bajka','Centar','private',age,'Montessori',False))
-                self.assertIn('nije dokaz',result.content[0].text)
-            result = await session.call_tool('prikazi_vrtice',{'city':'Rijeka'})
-            self.assertIsNone(result.structuredContent['age_months'])
-            self.assertEqual(result.structuredContent['program'],'')
-            self.assertTrue(result.structuredContent['include_unknown'])
 
-    async def test_invalid_age_program_unknown_flag_and_missing_city_never_read_database(self):
+
+    async def test_retired_age_and_program_filters_never_read_database(self):
         service = SimpleNamespace(list_locations=AsyncMock())
         async with connected(service) as (session, _):
-            for key, values, message in (
-                ('age_months',(-1,217,24.0,True,'24',[24],{}),'age_months'),
-                ('program',(None,True,['Montessori'],{},'x'*201),'Program'),
-                ('include_unknown',(None,'false',1,[],{}),'include_unknown'),
-            ):
-                for value in values:
-                    result = await session.call_tool('prikazi_vrtice',{'city':'Zagreb',key:value})
-                    self.assertTrue(result.isError)
-                    self.assertIn(message,result.content[0].text)
-            result = await session.call_tool('prikazi_vrtice',{'age_months':24,'program':'Montessori'})
-            self.assertTrue(result.isError)
-            self.assertIn('U kojem gradu',result.content[0].text)
+            for criteria in ({'age_months':24}, {'program':'Montessori'}, {'include_unknown':True}):
+                result = await session.call_tool('prikazi_vrtice', {'city':'Zagreb', **criteria})
+                self.assertTrue(result.isError)
         service.list_locations.assert_not_awaited()
 
     async def test_radius_search_passes_the_point_and_reports_straight_line_scope(self):

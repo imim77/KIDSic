@@ -2,7 +2,7 @@ import { useEffect, useRef, type ComponentType, type CSSProperties, type MouseEv
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import {
-  ArrowRight, BookOpen, Building2, CalendarCheck, Check, Link2, MapPin, Phone, Ruler, Search, Sparkles, Users,
+  ArrowRight, Building2, CalendarCheck, Check, Link2, MapPin, Phone, Ruler, Search, Sparkles, Users,
   Wallet, X,
 } from 'lucide-react'
 import { reducedMotion } from '../motion/reducedMotion'
@@ -10,7 +10,7 @@ import { compareOptions } from './comparison'
 import { currentRound, enrolmentInstant, enrolmentStatusLabels } from './enrolment'
 import { formatDistance } from './distance'
 import { websiteHref } from './links'
-import { providerLabels, type LocationFeature, type LocationProgram } from './types'
+import { providerLabels, type LocationFeature } from './types'
 import { publishedVacancies, vacancyDate, vacancyLabel } from './vacancies'
 
 interface ComparisonViewProps {
@@ -23,12 +23,6 @@ interface ComparisonViewProps {
 type Row = { label: string; icon: ComponentType<{ 'aria-hidden'?: boolean }>; tone: string; cell: (feature: LocationFeature) => ReactNode }
 
 const unknown = (text = 'Nije potvrđeno') => <span className="comparison-unknown">{text}</span>
-
-function ages(program: LocationProgram) {
-  const { min_age_months: min, max_age_months_exclusive: max } = program
-  if (min == null && max == null) return 'dob nije potvrđena'
-  return `${min == null ? '?' : min}–${max == null ? '?' : max} mj.`
-}
 
 // ComparisonView sets up to three options side by side, each one coloured card
 // holding every criterion. Subgrid rows keep the same criterion level across
@@ -66,10 +60,6 @@ export function ComparisonView({ features, onRemove, onClose, openLink }: Compar
       <span className="comparison-address">{feature.properties.address ?? 'Adresa nije poznata'}</span>
       {feature.properties.district && <span className="comparison-sticker">{feature.properties.district}</span>}
     </> },
-    { label: 'Programi i dob', icon: BookOpen, tone: 'lilac', cell: (feature) => (feature.properties.programs ?? []).length
-      ? <ul className="comparison-tags">{feature.properties.programs!.map((program) =>
-        <li key={program.program_id}>{program.name} <small>{ages(program)}</small></li>)}</ul>
-      : unknown() },
     { label: 'Upis', icon: CalendarCheck, tone: 'mint', cell: (feature) => {
       const round = currentRound(feature.properties.enrolment ?? [])
       if (!round) return unknown()

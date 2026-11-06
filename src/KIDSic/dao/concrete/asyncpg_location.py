@@ -20,15 +20,6 @@ class AsyncpgLocationRepository(LocationRepository):
             WHERE r.match_status='accepted' AND s.import_allowed
           ), active_record AS (
             SELECT * FROM approved_record WHERE active_snapshot
-          ), valid_program AS (
-            SELECT p.*,r.location_id AS evidence_location,s.url AS source_url,
-              s.title AS source_title
-            FROM program p JOIN active_record r ON r.record_id=p.source_record_id::text
-            JOIN data_source s ON s.id=r.source_id
-            WHERE r.kindergarten_id=p.kindergarten_id
-              AND p.verified_on<=CURRENT_DATE
-              AND (p.valid_until IS NULL OR p.valid_until>=CURRENT_DATE)
-              AND (s.stale_after_days IS NULL OR p.verified_on>=CURRENT_DATE-s.stale_after_days)
           ), place AS (
             SELECT l.id AS location_id,l.kindergarten_id,l.name AS location_name,
               l.address,l.settlement,l.settlement_key,l.municipality_id,l.district,
@@ -63,13 +54,8 @@ class AsyncpgLocationRepository(LocationRepository):
           SELECT pl.location_id,pl.kindergarten_id,k.name,pl.location_name,
             pl.address,pl.settlement AS city,k.provider_kind,pl.district,
             COALESCE(areas.names,'[]'::jsonb) AS areas,
-            COALESCE(program_data.programs,'[]'::jsonb) AS programs,
             COALESCE(history.records,'[]'::jsonb) AS historical_data,
             COALESCE(rounds.items,'[]'::jsonb) AS enrolment,
-            CASE WHEN $6::int IS NULL AND $7='' THEN 'not_evaluated'
-              WHEN program_data.matches THEN 'confirmed'
-              WHEN program_data.programs IS NULL OR program_data.unknown_age THEN 'unknown'
-              ELSE 'excluded' END AS suitability_status,
             COALESCE(NULLIF(btrim(contact.raw_data->>'Web'),''),NULLIF(btrim(k.website_url),'')) AS website_url,
             COALESCE(NULLIF(btrim(contact.raw_data->>'Email'),''),NULLIF(btrim(k.email),'')) AS email,
             COALESCE(NULLIF(btrim(contact.raw_data->>'Telefon'),''),NULLIF(btrim(pl.facility_phone),''),
@@ -132,20 +118,6 @@ class AsyncpgLocationRepository(LocationRepository):
             JOIN document_applicability a ON a.source_record_id=e.source_record_id
             WHERE a.kindergarten_id=pl.kindergarten_id
           ) rounds ON true
-          LEFT JOIN LATERAL (
-            SELECT jsonb_agg(jsonb_build_object('program_id',p.id,'name',p.name,
-              'min_age_months',p.min_age_months,'max_age_months_exclusive',p.max_age_months_exclusive,
-              'verified_on',p.verified_on,'valid_until',p.valid_until,
-              'source_record_id',p.source_record_id,'source_url',p.source_url,'source_title',p.source_title,
-              'scope',CASE WHEN p.location_id IS NULL AND p.evidence_location IS NULL
-                THEN 'institution' ELSE 'facility' END) ORDER BY p.name,p.id) AS programs,
-              bool_or($6::int IS NULL OR (p.min_age_months<=$6 AND $6<p.max_age_months_exclusive)) AS matches,
-              bool_or(p.min_age_months IS NULL OR p.max_age_months_exclusive IS NULL) AS unknown_age
-            FROM valid_program p WHERE p.kindergarten_id=pl.kindergarten_id
-              AND (p.location_id IS NULL OR p.location_id=pl.location_id)
-              AND (p.evidence_location IS NULL OR p.evidence_location=pl.location_id)
-              AND ($7='' OR strpos(translate(lower(p.name),'čćžšđ','cczsd'),$7)>0)
-          ) program_data ON true
           -- Area filters use current attestation; historical labels stay in district only.
           LEFT JOIN LATERAL (
             SELECT jsonb_agg(DISTINCT btrim(area.value) ORDER BY btrim(area.value)) AS names
@@ -195,40 +167,37 @@ class AsyncpgLocationRepository(LocationRepository):
             AND ($3::text IS NULL OR k.provider_kind=$3)
           )
           SELECT location_id,kindergarten_id,name,location_name,address,city,
-            provider_kind,district,areas,programs,historical_data,enrolment,suitability_status,
+            provider_kind,district,areas,historical_data,enrolment,
             website_url,email,phone,contact_sources,location_role,sources,field_sources,subsidy_policies,
             CASE WHEN geometry_valid THEN longitude END AS longitude,
             CASE WHEN geometry_valid THEN latitude END AS latitude,
-            CASE WHEN $9::float8[] IS NOT NULL AND geometry_valid THEN round(ST_Distance(
+            CASE WHEN $6::float8[] IS NOT NULL AND geometry_valid THEN round(ST_Distance(
               ST_MakePoint(longitude,latitude)::geography,
-              ST_MakePoint($9[1],$9[2])::geography))::int END AS distance_m
+              ST_MakePoint($6[1],$6[2])::geography))::int END AS distance_m
           FROM candidate
           WHERE ($4::float8[] IS NULL OR (
               geometry_valid AND longitude BETWEEN $4[1] AND $4[3]
               AND latitude BETWEEN $4[2] AND $4[4]))
             -- Geography measures metres on the spheroid; NULL points never match.
-            AND ($9::float8[] IS NULL OR (geometry_valid AND ST_DWithin(
+            AND ($6::float8[] IS NULL OR (geometry_valid AND ST_DWithin(
               ST_MakePoint(longitude,latitude)::geography,
-              ST_MakePoint($9[1],$9[2])::geography,$10::float8)))
+              ST_MakePoint($6[1],$6[2])::geography,$7::float8)))
             AND ($5='' OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(areas) area(name)
               WHERE regexp_replace(translate(lower(btrim(area.name)),'čćžšđ','cczsd'),
                 '^mjesni odbor ','')=$5))
-            AND suitability_status<>'excluded'
-            AND ($8::boolean OR suitability_status<>'unknown')
             -- Only the newest snapshot that publishes vacancies counts; an
             -- older positive count must not outlive a newer published zero.
-            AND (NOT $11::boolean OR COALESCE((
+            AND (NOT $8::boolean OR COALESCE((
               SELECT bool_or((v.item->>'free_places')::int>0)
               FROM (SELECT r.item FROM jsonb_array_elements(historical_data) r(item)
                     WHERE jsonb_array_length(r.item->'vacancies')>0
                     ORDER BY r.item->>'reference_date' DESC LIMIT 1) latest,
                 jsonb_array_elements(latest.item->'vacancies') v(item)),false))
-          -- Nearest first within each suitability group; distance is NULL without near.
-          ORDER BY suitability_status='confirmed' DESC,distance_m NULLS LAST,
+          -- Distance is NULL without a radius search.
+          ORDER BY distance_m NULLS LAST,
             name,location_name,kindergarten_id,location_id
         ''', supported_city_key(query.city), normalize(query.q), query.provider_kind,
             list(query.bbox) if query.bbox is not None else None,
             normalize(query.area).removeprefix('mjesni odbor '),
-            query.age_months, normalize(query.program), query.include_unknown,
             list(query.near) if query.near is not None else None, query.radius_m,
             query.has_vacancies)

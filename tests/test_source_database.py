@@ -11,6 +11,8 @@ import httpx
 
 from KIDSic.dao.concrete.asyncpg_source import AsyncpgSourceRepository
 from KIDSic.dao.concrete.asyncpg_kindergarten import AsyncpgKindergartenRepository
+from KIDSic.dao.concrete.asyncpg_location import AsyncpgLocationRepository
+from KIDSic.dto.location import LocationQuery
 from KIDSic.db.database import database_pool
 from KIDSic.db.uow.asyncpg_source import AsyncpgSourceUnitOfWork
 from KIDSic.config.settings import Settings
@@ -66,6 +68,11 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 3)
 
     async def test_city_cleanup_preserves_supported_branches_and_removes_dependent_data(self):
+        legacy = (Path(__file__).resolve().parents[1] / 'src/KIDSic/db/alembic/versions/0001_simple_rag.sql').read_text()
+        for sql in legacy.split('\n-- statement\n'):
+            if sql.startswith(('CREATE TABLE program', 'CREATE INDEX ix_program')):
+                await self.c.execute(sql)
+        await self.c.execute('ALTER TABLE knowledge_chunk ADD COLUMN program_id uuid')
         await self.c.execute('ALTER TABLE enrolment ADD COLUMN municipality_id uuid REFERENCES municipality(id)')
         from uuid import uuid4
         await self.repo.register(self.source)
@@ -148,8 +155,7 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await self.c.fetchval("SELECT provenance->'provider_kind'->>'source_url' "
                 'FROM kindergarten WHERE id=$1', rows[0]['kindergarten_id']),
                 'https://varazdin.hr/djecji-vrtici/')
-        options = await AsyncpgKindergartenRepository(self.c).find_options(
-            city='varazdin', age_months=24, include_unknown=True)
+        options = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='varazdin'))
         self.assertEqual({row['provider_kind'] for row in options},
                          {'municipal', 'private', 'religious'})
 
@@ -235,9 +241,8 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await self.c.fetchval('SELECT count(*) FROM knowledge_chunk'), 0)
             self.assertEqual(await self.c.fetchval("SELECT count(*) FROM kindergarten WHERE provider_kind='childminder'"), 2)
             self.assertEqual(await self.c.fetchval("SELECT seat_address FROM kindergarten WHERE oib='00123456789'"), 'Primjer 99')
-            rows = await AsyncpgKindergartenRepository(self.c).find_options(city='varazdin', age_months=24, include_unknown=True)
-            self.assertEqual({row['scope'] for row in rows}, {'seat'})
-            self.assertEqual({row['age_status'] for row in rows}, {'unknown'})
+            rows = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='varazdin'))
+            self.assertEqual({row['location_role'] for row in rows}, {'seat'})
             before = await self.c.fetchval("SELECT active_batch_id FROM data_source WHERE dataset_key='varazdin-childminders'")
             state['bad'] = True
             with self.assertRaises(SourceImportError):
@@ -294,10 +299,9 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         raw = await self.c.fetchval('SELECT raw_data FROM source_record WHERE batch_id=$1::text::uuid',
                                      second['batch_id'])
         self.assertEqual(raw['Telefon'], '123')
-        search = AsyncpgKindergartenRepository(self.c)
-        result = await search.find_options(city='varazdina', age_months=24, include_unknown=True)
-        self.assertEqual((result[0]['age_status'], result[0]['scope']), ('unknown', 'seat'))
-        self.assertEqual(await search.find_options(city='varazdin', age_months=24), [])
+        search = AsyncpgLocationRepository(self.c)
+        result = await search.list_locations(LocationQuery(city='varazdina'))
+        self.assertEqual(result[0]['location_role'], 'seat')
         self.assertIsNone(await self.c.fetchval('SELECT observed_on FROM data_source'))
 
     def municipal_source(self):
@@ -319,9 +323,8 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([r['match_method'] for r in await self.c.fetch(
             "SELECT match_method FROM source_record WHERE location_id IS NOT NULL ORDER BY source_key")],
             ['name', 'name'])
-        rows = await AsyncpgKindergartenRepository(self.c).find_options(
-            city='zagreb', age_months=24, include_unknown=True)
-        self.assertEqual({r['scope'] for r in rows}, {'location'})
+        rows = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='zagreb'))
+        self.assertEqual({r['location_role'] for r in rows}, {'facility'})
 
     async def test_rijeka_csv_links_national_parents_preserves_contacts_and_reimports(self):
         from KIDSic.dao.concrete.asyncpg_location import AsyncpgLocationRepository
@@ -384,9 +387,9 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         location = await self.c.fetchrow('SELECT settlement,address,m.key FROM location l '
                                          'JOIN municipality m ON m.id=l.municipality_id')
         self.assertEqual(tuple(location), ('Sesvete', 'Ive Tijardovića 9', 'zagreb'))
-        search = AsyncpgKindergartenRepository(self.c)
-        for city in ('zagreba', 'sesvete'):
-            self.assertEqual(len(await search.find_options(city=city, age_months=24, include_unknown=True)), 1)
+        search = AsyncpgLocationRepository(self.c)
+        for city in ('zagreba',):
+            self.assertEqual(len(await search.list_locations(LocationQuery(city=city))), 1)
 
     async def test_oib_links_institution_despite_different_name(self):
         from dataclasses import replace
@@ -404,8 +407,7 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         other = {**NATIONAL, 'Naziv': 'Dječji vrtić Drugi', 'Adresa': 'Druga 2'}
         await self.repo.import_snapshot(self.snapshot([NATIONAL, other]))
         await self.repo.import_snapshot(self.snapshot())
-        result = await AsyncpgKindergartenRepository(self.c).find_options(
-            city='varazdin', age_months=24, include_unknown=True)
+        result = await AsyncpgLocationRepository(self.c).list_locations(LocationQuery(city='varazdin'))
         self.assertEqual([r['name'] for r in result], [NATIONAL['Naziv']])
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM source_record'), 1)
 

@@ -46,85 +46,8 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
                   AND r.match_status='accepted' AND s.import_allowed AND s.active_batch_id=r.batch_id)
         ''', normalize(city))
 
-    async def find_options(self, *, city: str, age_months: int, as_of=None,
-                           include_unknown: bool = False, limit: int = 50, area: str | None = None):
-        if not isinstance(age_months, int) or isinstance(age_months, bool) or not 0 <= age_months <= 216:
-            raise ValueError('Dob mora biti broj mjeseci od 0 do 216.')
-        if not city.strip() or not 1 <= limit <= 100:
-            raise ValueError('Potreban je grad i limit od 1 do 100.')
-        return await self._connection.fetch('''
-          WITH active_record AS (
-            SELECT r.* FROM source_record r JOIN data_source s ON s.id=r.source_id
-            WHERE r.match_status='accepted' AND s.import_allowed AND s.active_batch_id=r.batch_id
-          ), valid_program AS (
-            SELECT p.*,r.location_id AS evidence_location,s.url,s.title AS source_title
-            FROM program p JOIN source_record r ON r.id=p.source_record_id
-            JOIN data_source s ON s.id=r.source_id
-            WHERE r.match_status='accepted' AND r.kindergarten_id=p.kindergarten_id
-              AND s.import_allowed AND s.active_batch_id=r.batch_id
-              AND p.verified_on<=COALESCE($3::date,CURRENT_DATE)
-              AND (p.valid_until IS NULL OR p.valid_until>=COALESCE($3::date,CURRENT_DATE))
-              AND (s.stale_after_days IS NULL OR p.verified_on>=COALESCE($3::date,CURRENT_DATE)-s.stale_after_days)
-          ), place AS (
-            -- An object needs its own active record; without one, the institution seat stands in.
-            SELECT l.id AS location_id,l.kindergarten_id,l.name AS location_name,l.settlement,
-                   l.settlement_key,l.municipality_id,l.address,CASE WHEN NOT (l.provenance ? 'district') OR EXISTS (
-                     SELECT 1 FROM active_record r WHERE r.location_id=l.id
-                       AND r.id::text=l.provenance->'district'->>'source_record_id')
-                     THEN l.district END AS district,
-                   CASE WHEN NOT (l.provenance ? 'quarter') OR EXISTS (
-                     SELECT 1 FROM active_record r WHERE r.location_id=l.id
-                       AND r.id::text=l.provenance->'quarter'->>'source_record_id')
-                     THEN l.attributes->>'quarter' END AS quarter,CASE WHEN NOT (l.provenance ? 'suburb') OR EXISTS (
-                     SELECT 1 FROM active_record r WHERE r.location_id=l.id
-                       AND r.id::text=l.provenance->'suburb'->>'source_record_id')
-                     THEN l.attributes->>'suburb' END AS suburb,
-                   CASE WHEN NOT (l.provenance ? 'neighbourhood') OR EXISTS (
-                     SELECT 1 FROM active_record r WHERE r.location_id=l.id
-                       AND r.id::text=l.provenance->'neighbourhood'->>'source_record_id')
-                     THEN l.attributes->>'neighbourhood' END AS neighbourhood,NULL::text AS geo_settlement,
-                   'location' AS scope
-            FROM location l WHERE EXISTS (SELECT 1 FROM active_record r WHERE r.location_id=l.id)
-            UNION ALL
-            SELECT NULL,k.id,k.name,k.seat_settlement,k.seat_settlement_key,k.seat_municipality_id,
-                   k.seat_address,NULL,sg.quarter,sg.suburb,sg.neighbourhood,sg.geo_settlement,'seat'
-            FROM kindergarten k LEFT JOIN kindergarten_seat_geography sg ON sg.kindergarten_id=k.id
-            WHERE k.seat_settlement_key IS NOT NULL
-              AND EXISTS (SELECT 1 FROM active_record r WHERE r.kindergarten_id=k.id)
-              AND NOT EXISTS (SELECT 1 FROM location l JOIN active_record r ON r.location_id=l.id
-                              WHERE l.kindergarten_id=k.id)
-          ), candidates AS (
-            SELECT pl.location_id,pl.kindergarten_id,k.name,k.provider_kind,pl.location_name,pl.settlement,
-              m.name AS municipality,pl.address,pl.district,pl.quarter,pl.suburb,pl.neighbourhood,pl.geo_settlement,pl.scope,
-              COALESCE((SELECT jsonb_agg(jsonb_build_object(
-                'program_id',p.id,'program_name',p.name,'source_record_id',p.source_record_id,
-                'source_url',p.url,'source_title',p.source_title,'verified_on',p.verified_on,
-                'scope',CASE WHEN p.location_id IS NULL THEN 'institution' ELSE 'location' END))
-                FROM valid_program p WHERE p.kindergarten_id=k.id
-                  AND (p.location_id IS NULL OR p.location_id=pl.location_id)
-                  AND (p.evidence_location IS NULL OR p.evidence_location=pl.location_id)
-                  AND p.min_age_months<=$2 AND $2<p.max_age_months_exclusive),'[]'::jsonb) AS age_evidence,
-              EXISTS (SELECT 1 FROM valid_program p WHERE p.kindergarten_id=k.id
-                  AND (p.location_id IS NULL OR p.location_id=pl.location_id)
-                  AND (p.evidence_location IS NULL OR p.evidence_location=pl.location_id)
-                  AND p.min_age_months IS NOT NULL AND p.max_age_months_exclusive IS NOT NULL
-              ) AS has_known_program
-            FROM place pl JOIN kindergarten k ON k.id=pl.kindergarten_id
-            LEFT JOIN municipality m ON m.id=pl.municipality_id
-            WHERE (pl.settlement_key=$1 OR m.key=$1 OR $1=ANY(m.aliases))
-              AND ($6::text IS NULL OR pl.district=$6 OR pl.quarter=$6 OR pl.suburb=$6
-                   OR pl.neighbourhood=$6 OR pl.geo_settlement=$6)
-          ) SELECT location_id,kindergarten_id,name,provider_kind,location_name,settlement,municipality,address,district,quarter,suburb,neighbourhood,geo_settlement,scope,
-                   age_evidence,
-                   CASE WHEN jsonb_array_length(age_evidence)>0 THEN 'confirmed' ELSE 'unknown' END AS age_status
-            FROM candidates WHERE jsonb_array_length(age_evidence)>0 OR ($4 AND NOT has_known_program)
-            ORDER BY jsonb_array_length(age_evidence)>0 DESC,name,location_id LIMIT $5
-        ''', normalize(city), age_months, as_of, include_unknown, limit, area)
-
-
-    async def retrieve_context(self, *, location_ids, text: str = '', program_ids=(),
-                               kindergarten_ids=(), limit: int | None = 8, all_documents: bool = False):
-        if not (all_documents and limit is None) and (type(limit) is not int or not 1 <= limit <= 30):
+    async def retrieve_context(self, *, location_ids, kindergarten_ids=(), limit: int = 30):
+        if type(limit) is not int or not 1 <= limit <= 30:
             raise ValueError('Limit mora biti od 1 do 30.')
         return await self._connection.fetch('''
           SELECT c.id,a.kindergarten_id,c.location_id,c.content,c.source_url,c.source_record_id,
@@ -148,11 +71,6 @@ class AsyncpgKindergartenRepository(KindergartenRepository):
             AND (EXISTS (SELECT 1 FROM location l WHERE l.id=ANY($1::uuid[])
               AND l.kindergarten_id=a.kindergarten_id AND (c.location_id IS NULL OR c.location_id=l.id))
               -- Seat-only results: institution-wide chunks, never another object's chunks.
-              OR (c.location_id IS NULL AND a.kindergarten_id=ANY($5::uuid[])))
-            AND (c.program_id IS NULL OR (c.program_id=ANY($4::uuid[]) AND EXISTS (
-              SELECT 1 FROM program p WHERE p.id=c.program_id
-                AND (p.location_id IS NULL OR p.location_id=c.location_id))))
-            AND ($6::boolean OR c.search_text @@ websearch_to_tsquery('simple',$2))
-          ORDER BY ts_rank(c.search_text,websearch_to_tsquery('simple',$2)) DESC,c.id LIMIT $3
-        ''', list(location_ids), text, limit, list(program_ids),
-            list(kindergarten_ids), all_documents)
+              OR (c.location_id IS NULL AND a.kindergarten_id=ANY($2::uuid[])))
+          ORDER BY c.id LIMIT $3
+        ''', list(location_ids), list(kindergarten_ids), limit)

@@ -32,12 +32,7 @@ class LocationHttpEndpoint:
                 if not radius.isascii() or not radius.isdecimal():
                     raise ValueError('Radius must be an integer number of metres.')
                 params['radius_m'] = int(radius)
-            if 'age_months' in params:
-                age = params['age_months']
-                if not age.isascii() or not age.isdecimal():
-                    raise ValueError('Age must be an integer number of months.')
-                params['age_months'] = int(age)
-            for flag in ('include_unknown', 'has_vacancies'):
+            for flag in ('has_vacancies',):
                 if flag in params:
                     if params[flag] not in ('true', 'false'):
                         raise ValueError(f'{flag} must be true or false.')

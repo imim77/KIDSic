@@ -3,7 +3,7 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { McpLocationApp } from '../src/views/mcp/McpLocationApp'
-import { collection, deferred, facility, programEvidence } from './fixtures'
+import { collection, deferred, facility } from './fixtures'
 import { LocationToolResult } from '../src/shared/mcp/LocationToolResult'
 import type { LocationCollection } from '../src/shared/locations/types'
 
@@ -189,38 +189,7 @@ it('preserves the area with all filters on retry, replaces it on a follow-up and
   await expectRetry({ city: 'Varaždin' })
 })
 
-it('preserves age, program and confirmed-only choice with other criteria on retry and clears them in a new search', async () => {
-  render(<McpLocationApp />)
-  const criteria = { city: 'Varaždin', name: 'Bajka', area: 'Centar', provider_kind: 'private',
-    age_months: 0, program: 'Montessori', include_unknown: false }
-  await act(async () => host.instance.ontoolinput({ arguments: criteria }))
-  await act(async () => host.instance.ontoolresult({ isError: true }))
-  const locations = collection()
-  host.call.mockResolvedValueOnce({ structuredContent: { ...criteria, metadata: locations.metadata }, _meta: { locations } })
-  await userEvent.click(screen.getByRole('button', { name: 'Pokušaj ponovno' }))
-  expect(host.call).toHaveBeenLastCalledWith({ name: 'prikazi_vrtice', arguments: criteria })
-  expect(screen.getByText(/Nema podataka koji potvrđuju zadane uvjete/)).toBeVisible()
-  await act(async () => host.instance.ontoolinput({ arguments: { city: 'Rijeka' } }))
-  await result('Rijeka', 'new')
-  await expectRetry({ city: 'Rijeka' })
-})
 
-it('shows confirmed badges and sourced program details without unknown-condition labels', async () => {
-  render(<McpLocationApp />)
-  const confirmed = facility('eligible')
-  Object.assign(confirmed.properties, { suitability_status: 'confirmed', programs: [programEvidence()] })
-  const unknown = facility('unconfirmed', false)
-  unknown.properties.suitability_status = 'unknown'
-  const locations = collection(confirmed, unknown)
-  await act(async () => host.instance.ontoolresult({ structuredContent: {
-    city: 'Zagreb', age_months: 24, program: 'Montessori', include_unknown: true, metadata: locations.metadata }, _meta: { locations } }))
-  expect(screen.queryByText('Uvjeti nisu potvrđeni')).toBeNull()
-  await userEvent.click(screen.getByRole('button', { name: /Synthetic facility eligible.*Synthetic address/ }))
-  expect(screen.queryByText('Uvjeti nisu potvrđeni')).toBeNull()
-  expect(screen.getByRole('region', { name: 'Programi i dobni uvjeti' })).toBeVisible()
-  await userEvent.click(screen.getByRole('link', { name: /Synthetic program source/ }))
-  expect(host.link).toHaveBeenLastCalledWith({ url: 'https://example.invalid/program' })
-})
 
 function radiusResult(city: string, nearby: { near: [number, number]; radius_m: number } | null, ...ids: string[]) {
   const locations = collection(...ids.map((id) => facility(id)))

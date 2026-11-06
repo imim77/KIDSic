@@ -39,8 +39,8 @@ class LocationTools:
             description=(
                 'For home-to-work commute recommendations use KIDSic:preporuci_vrtice_usput instead. '
                 'For general city searches, ALWAYS use this tool when the user asks to show or find '
-                'kindergartens by city, optionally name, provider type, area, child age and program. '
-                'Returns a map, cards, all applied criteria and counts of confirmed and unknown suitability. '
+                'kindergartens by city, optionally name, provider type, area. '
+                'Returns a map, cards, all applied criteria and location counts. '
                 'REQUIRES a city supplied explicitly by the user. If no city '
                 'is given, ask "U kojem gradu želiš prikaz vrtića?" first. '
                 'Never assume Zagreb or any other city. '
@@ -58,17 +58,6 @@ class LocationTools:
                 'the optional administrative prefix "Mjesni odbor " is ignored. '
                 'Only attested area fields match, never addresses or facility names. Coverage is incomplete; '
                 'zero matches do not mean there are no kindergartens in that area. Omit area or use "" for all areas. '
-                'Convert one explicit child age to integer age_months (0–216): 2 years=24, '
-                '2 years 6 months=30, 18 months=18. Never guess age from jaslice or kindergarten labels; '
-                'ask for months if age is ambiguous or needed to establish age suitability. '
-                'Age may be omitted/null for a general search or program-only search. '
-                'Extract a requested program name into program (e.g. Montessori), not into name. '
-                'Program matching is a literal substring ignoring case and Croatian diacritics. '
-                'Age and program must match the SAME current sourced program for confirmed suitability. '
-                'include_unknown defaults to true: unknown results are separate, not recommendations '
-                'of suitability. Use false only if the user requests confirmed matches exclusively. '
-                'Missing program data is not proof a program is unavailable. Confirmed suitability '
-                'never guarantees a vacancy or enrolment. Do not infer programs from names, contacts or subsidy rules. '
                 'near ([longitude, latitude] in WGS84) with radius_m (integer metres, 1–50000) limits results '
                 'to a straight-line radius; both or neither. Use only coordinates chosen in the map UI or '
                 'given explicitly by the user as numbers. NEVER estimate coordinates from an address or place '
@@ -102,18 +91,6 @@ class LocationTools:
                                    'Trešnjevka-Jug ili Zamet. Točan naziv, bez razlikovanja slova i dijakritika; '
                                    'Mjesni odbor je opcionalni prefiks. Prazno ili izostavljeno znači sva područja. '
                                    'Samo zapisi s potvrđenim područjem; pokrivenost nije potpuna.',
-                }, 'age_months': {
-                    **filters['age_months'],
-                    'description': 'Izričito navedena dob jednog djeteta u cijelim mjesecima, 0–216; '
-                                   '2 godine = 24, 2 godine i 6 mjeseci = 30. Izostavljeno/null znači bez dobnog filtra.',
-                }, 'program': {
-                    **filters['program'],
-                    'description': 'Naziv ili dio naziva traženog programa, npr. Montessori. '
-                                   'Izostavljeno/prazno znači bez filtra programa. Ne izmišljati program iz naziva vrtića.',
-                }, 'include_unknown': {
-                    **filters['include_unknown'],
-                    'description': 'true uključuje zasebno označene nepoznate uvjete; false vraća samo '
-                                   'potvrđena podudaranja dobi/programa. Bez tih filtara nema učinka.',
                 }, 'near': {
                     'type': 'array', 'items': {'type': 'number'}, 'minItems': 2, 'maxItems': 2,
                     'description': 'Točka [dužina, širina] u WGS84 iz karte ili izričito od korisnika; '
@@ -129,14 +106,10 @@ class LocationTools:
                     'name': {'type': 'string'},
                     'provider_kind': provider_schema,
                     'area': {'type': 'string'},
-                    'age_months': filters['age_months'],
-                    'program': {'type': 'string'},
-                    'include_unknown': {'type': 'boolean'},
                     'near': {'anyOf': [{'type': 'array', 'items': {'type': 'number'}}, {'type': 'null'}]},
                     'radius_m': filters['radius_m'],
                     'metadata': LocationMetadata.model_json_schema(),
-                }, 'required': ['city', 'name', 'provider_kind', 'area', 'age_months', 'program',
-                                'include_unknown', 'near', 'radius_m', 'metadata'], 'additionalProperties': False,
+                }, 'required': ['city', 'name', 'provider_kind', 'area', 'near', 'radius_m', 'metadata'], 'additionalProperties': False,
             },
             annotations=types.ToolAnnotations(
                 readOnlyHint=True, destructiveHint=False, idempotentHint=True,
@@ -152,10 +125,10 @@ class LocationTools:
             return self._error_result('Nepoznat alat.')
         if not isinstance(arguments, dict) or 'city' not in arguments:
             return self._error_result('Grad je obavezan. Pitaj korisnika: U kojem gradu želiš prikaz vrtića?')
-        if set(arguments) - {'city', 'name', 'provider_kind', 'area', 'age_months', 'program', 'include_unknown',
+        if set(arguments) - {'city', 'name', 'provider_kind', 'area',
                              'near', 'radius_m'}:
             return self._error_result('Za pretragu su podržani city (grad), name (naziv), provider_kind (vrsta), '
-                                      'area (područje), age_months (dob), program, include_unknown, '
+                                      'area (područje), '
                                       'near i radius_m. '
                                       'Primjer: {"city":"Zagreb","name":"Bajka"}.')
         near = arguments.get('near')
@@ -167,9 +140,6 @@ class LocationTools:
             query = LocationQuery.model_validate({'city': arguments['city'], 'q': arguments.get('name', ''),
                                                  'provider_kind': arguments.get('provider_kind'),
                                                  'area': arguments.get('area', ''),
-                                                 'age_months': arguments.get('age_months'),
-                                                 'program': arguments.get('program', ''),
-                                                 'include_unknown': arguments.get('include_unknown', True),
                                                  'near': near,
                                                  'radius_m': arguments.get('radius_m')})
         except ValidationError as error:
@@ -178,15 +148,6 @@ class LocationTools:
                     'od 1 do 50000; šalju se zajedno, npr. {"city":"Zagreb","near":[15.9775,45.8131],"radius_m":1000}. '
                     'Ne procjenjuj koordinate iz adrese; zamoli korisnika da odabere točku na karti. '
                     'Za pretragu bez radijusa izostavi oba parametra.')
-            if any(item['loc'][0] == 'age_months' for item in error.errors()):
-                return self._error_result('Dob (age_months) mora biti cijeli broj mjeseci od 0 do 216, '
-                    'npr. 24 za 2 godine. Pitaj dob ako nije jasna. Za pretragu bez dobi izostavi parametar ili pošalji null.')
-            if any(item['loc'][0] == 'program' for item in error.errors()):
-                return self._error_result('Program mora biti jedan tekst do 200 znakova, npr. Montessori. '
-                    'Za pretragu bez programa izostavi program ili pošalji "".')
-            if any(item['loc'][0] == 'include_unknown' for item in error.errors()):
-                return self._error_result('include_unknown mora biti boolean true ili false. '
-                    'Pošalji true za zasebno označene nepoznate uvjete, false samo za potvrđena podudaranja.')
             if any(item['loc'][0] == 'area' for item in error.errors()):
                 return self._error_result('Područje (area) mora biti jedan tekst do 200 znakova, npr. '
                     '{"city":"Varaždin","area":"Banfica"}. Za sva područja izostavi area ili pošalji "". '
@@ -213,22 +174,13 @@ class LocationTools:
                          'samo objekti s potvrđenim koordinatama, poredani od najbližeg. '
                          'Udaljenost nije vrijeme putovanja.'
                          if query.near is not None else '')
-        suitability_notice = ''
-        if query.age_months is not None or query.program:
-            age_notice = f'Dob: {query.age_months} mjeseci.' if query.age_months is not None else 'Dob nije zadana.'
-            suitability_notice = (f' {age_notice}'
-                f' Program: {query.program or "svi programi"}. Potvrđeno podudaranje: {locations.metadata.confirmed}; '
-                f'uvjeti nisu potvrđeni: {locations.metadata.unknown}. '
-                'Nepoznati uvjeti nisu potvrda prikladnosti. Dobna/programska prikladnost nije jamstvo mjesta ni upisa.')
         guidance = ('Provjeri ili skrati naziv. ' if query.q else '')
         guidance += ('Provjeri odabranu vrstu. ' if query.provider_kind else '')
         guidance += ('Provjeri naziv područja; nula rezultata ne znači da ondje nema vrtića. ' if query.area else '')
-        guidance += ('Provjeri dob ili program; izostanak potvrde nije dokaz da program nije dostupan. '
-                     if query.age_months is not None or query.program else '')
         guidance += ('Predloži veći radijus ili drugu točku. ' if query.near is not None else '')
         outcome = (guidance +
                    'Nemoj mijenjati grad ili ukloniti filter bez korisnikova odabira.'
-                   if (query.q or query.provider_kind or query.area or query.age_months is not None or query.program
+                   if (query.q or query.provider_kind or query.area
                        or query.near is not None)
                    and locations.metadata.total == 0
                    else 'Prikaži povezanu kartu i kartice.')
@@ -236,12 +188,10 @@ class LocationTools:
             content=[types.TextContent(type='text', text=(
                 f'Prikaz vrtića za grad {query.city}: {locations.metadata.total} '
                 f'rezultata, {locations.metadata.mapped} s koordinatama. '
-                f'{name_notice}{provider_notice}{area_notice}{radius_notice}{suitability_notice} {outcome}'
+                f'{name_notice}{provider_notice}{area_notice}{radius_notice} {outcome}'
             ))],
             structuredContent={'city': query.city, 'name': query.q, 'provider_kind': query.provider_kind,
                                'area': query.area,
-                               'age_months': query.age_months, 'program': query.program,
-                               'include_unknown': query.include_unknown,
                                'near': list(query.near) if query.near is not None else None,
                                'radius_m': query.radius_m,
                                'metadata': locations.metadata.model_dump(mode='json')},

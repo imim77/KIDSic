@@ -12,13 +12,7 @@ describe('describeCriteria', () => {
       .toEqual(['Gradski vrtić', 'naziv „Bajka”', 'područje „Trnje”', 'do 1,5 km od točke', 'najbliži prvi'])
   })
 
-  it('keeps confirmed suitability ahead of distance, as the API orders it', () => {
-    expect(describeCriteria({ city: 'Zagreb', age_months: 30, program: 'engleski', include_unknown: true,
-      nearby: { near: [15.97, 45.81], radius_m: 500 } }))
-      .toEqual(['dob 30 mj.', 'program „engleski”', 'do 500 m od točke', 'potvrđeni prvi, zatim najbliži prvi'])
-    expect(describeCriteria({ city: 'Zagreb', age_months: 30, include_unknown: false }))
-      .toEqual(['dob 30 mj.', 'samo potvrđeni', 'abecedno'])
-  })
+
 })
 
 describe('results', () => {

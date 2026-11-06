@@ -1,17 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { compareOptions } from '../src/shared/locations/comparison'
-import { enrolmentRound, facility, historicalEvidence, programEvidence } from './fixtures'
+import { enrolmentRound, facility, historicalEvidence } from './fixtures'
 
 describe('compareOptions', () => {
-  it('credits only the nearest option and a program no other option confirms', () => {
+  it('credits only the nearest option', () => {
     const near = facility('near')
     near.properties.distance_m = 320
-    near.properties.programs = [programEvidence({ name: 'Montessori' }), programEvidence({ program_id: 'b', name: 'Engleski' })]
     const far = facility('far')
     far.properties.distance_m = 900
-    far.properties.programs = [programEvidence({ name: 'montessori' })]
     const notes = compareOptions([near, far])
-    expect(notes.get('near')!.strengths).toEqual(['Najbliži odabranoj točki (320 m zračno)', 'Jedini s potvrđenim programom „Engleski”'])
+    expect(notes.get('near')!.strengths).toEqual(['Najbliži odabranoj točki (320 m zračno)'])
     expect(notes.get('far')!.strengths).toEqual([])
   })
 
@@ -19,7 +17,7 @@ describe('compareOptions', () => {
     const unknown = facility('unknown')
     expect(compareOptions([unknown]).get('unknown')).toEqual({
       strengths: [],
-      checks: ['Kanal upisa nije potvrđen', 'Slobodna mjesta nisu objavljena', 'Programi i dobni uvjeti nisu potvrđeni',
+      checks: ['Kanal upisa nije potvrđen', 'Slobodna mjesta nisu objavljena',
         'Gradsko sufinanciranje nije potvrđeno', 'Nema potvrđenog kontakta'],
       next: { label: 'Provjeri kod nadležnog gradskog ureda' },
     })

@@ -60,12 +60,6 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
             VALUES ($1,$2,'{}',$3,$4,'accepted','new','2026-10-01','2026-11-02T10:00Z')''',
             source or self.source, self.batch if active else uuid4(), institution, location)
 
-    async def program(self, owner, location, name='Montessori', minimum=12, maximum=36, record=None):
-        if record is None:
-            record = await self.c.fetchval('SELECT id FROM source_record WHERE kindergarten_id=$1 AND location_id IS NOT DISTINCT FROM $2 LIMIT 1', owner, location)
-        return await self.c.fetchval('''INSERT INTO program(kindergarten_id,location_id,source_record_id,
-            name,min_age_months,max_age_months_exclusive,verified_on)
-            VALUES ($1,$2,$3,$4,$5,$6,CURRENT_DATE) RETURNING id''', owner, location, record, name, minimum, maximum)
 
     async def test_rag_contact_provenance_cannot_cite_a_sibling_or_disabled_record(self):
         owner, location = await self.fixture('Contacts')
@@ -83,90 +77,8 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         rows = await self.repository.list_locations(LocationQuery())
         self.assertTrue(all(r['contact_sources']['email'] is None for r in rows))
 
-    async def test_age_program_matching_uses_same_program_and_preserves_unknown_conditions(self):
-        eligible, loc = await self.fixture('Eligible', provider='private', coords=(None,None))
-        await self.c.execute("UPDATE location SET district='Banfica' WHERE id=$1", loc)
-        await self.program(eligible,loc)
-        older, old_loc = await self.fixture('Older')
-        await self.program(older,old_loc,minimum=36,maximum=84)
-        await self.program(older,old_loc,name='Other program',minimum=12,maximum=36)
-        partial, partial_loc = await self.fixture('Partial')
-        await self.program(partial,partial_loc,minimum=None,maximum=None)
-        unknown, _ = await self.fixture('Unknown')
-        other_program, other_loc = await self.fixture('Other program only')
-        await self.program(other_program,other_loc,name='Sports',minimum=12,maximum=36)
-        other_city, other_city_loc = await self.fixture('Other city',city='Rijeka')
-        await self.program(other_city,other_city_loc)
-        rows = await self.repository.list_locations(LocationQuery(age_months=24,program='MONTESSORI'))
-        self.assertEqual([r['kindergarten_id'] for r in rows if r['suitability_status']=='confirmed'], [eligible])
-        self.assertEqual({r['kindergarten_id'] for r in rows if r['suitability_status']=='unknown'}, {partial,unknown,other_program})
-        self.assertNotIn(older,[r['kindergarten_id'] for r in rows])
-        for age, expected in ((0,[]),(11,[]),(12,[eligible]),(35,[eligible]),(36,[older]),(84,[])):
-            rows = await self.repository.list_locations(LocationQuery(age_months=age,program='Montessori',include_unknown=False))
-            self.assertEqual([r['kindergarten_id'] for r in rows],expected)
-        rows = await self.repository.list_locations(LocationQuery(city='Zagreb',q='Eligible',area='Banfica',provider_kind='private',age_months=24,program='montessori',include_unknown=False))
-        self.assertEqual([r['location_id'] for r in rows],[loc])
-        self.assertIsNone(rows[0]['longitude'])
-        self.assertEqual(rows[0]['programs'][0]['scope'],'facility')
-        self.assertEqual(rows[0]['programs'][0]['source_url'],'https://example.invalid')
-        rows = await self.repository.list_locations(LocationQuery(program='Montessori',include_unknown=False))
-        self.assertEqual({r['kindergarten_id'] for r in rows},{eligible,older,partial})
-        self.assertTrue(all(r['suitability_status']=='not_evaluated' for r in await self.repository.list_locations(LocationQuery())))
 
-    async def test_program_names_match_literal_substrings_with_croatian_letters(self):
-        owner, location = await self.fixture('Program name')
-        await self.program(owner,location,name='100%_Čarobni program')
-        for name in ('ČAROBNI','carobni','100%_','%_'):
-            rows = await self.repository.list_locations(LocationQuery(program=name,include_unknown=False))
-            self.assertEqual([r['location_id'] for r in rows],[location])
-        for name in ('100anything',"%' OR 1=1 --"):
-            self.assertEqual(await self.repository.list_locations(LocationQuery(program=name,include_unknown=False)),[])
 
-    async def test_program_evidence_respects_scope_freshness_and_source_permissions(self):
-        owner, loc = await self.fixture('Target')
-        program = await self.program(owner,loc)
-        record = await self.c.fetchval('SELECT source_record_id FROM program WHERE id=$1',program)
-        alternate = await self.c.fetchval("INSERT INTO data_source(dataset_key,title,publisher,url,import_allowed,active_batch_id) VALUES ($1,'Current','Test','https://example.invalid/current',true,$2) RETURNING id",str(uuid4()),self.batch)
-        await self.record(owner,loc,source=alternate)
-        sibling = await self.c.fetchval("INSERT INTO location(kindergarten_id,name,settlement,settlement_key) VALUES ($1,'Sibling','Zagreb','zagreb') RETURNING id",owner)
-        await self.record(owner,sibling,source=alternate)
-        other, other_loc = await self.fixture('Other owner')
-        other_record = await self.c.fetchval('SELECT id FROM source_record WHERE location_id=$1',other_loc)
-        for change, args in (
-            ("UPDATE program SET verified_on=CURRENT_DATE+1 WHERE id=$1", (program,)),
-            ("UPDATE program SET verified_on=CURRENT_DATE-2,valid_until=CURRENT_DATE-1 WHERE id=$1", (program,)),
-            ("UPDATE data_source SET stale_after_days=1 WHERE id=$1", (self.source,)),
-            ("UPDATE source_record SET batch_id=$2 WHERE id=$1", (record,uuid4())),
-            ("UPDATE source_record SET match_status='rejected' WHERE id=$1", (record,)),
-            ("UPDATE data_source SET import_allowed=false WHERE id=$1", (self.source,)),
-            ("UPDATE program SET source_record_id=$2 WHERE id=$1", (program,other_record)),
-        ):
-            transaction = self.c.transaction()
-            await transaction.start()
-            try:
-                await self.c.execute("UPDATE program SET verified_on=CURRENT_DATE-3 WHERE id=$1", program)
-                await self.c.execute(change,*args)
-                rows = await self.repository.list_locations(LocationQuery(q='Target',age_months=24,program='Montessori'))
-                self.assertTrue(rows)
-                self.assertTrue(all(r['suitability_status']=='unknown' and r['programs']==[] for r in rows))
-            finally:
-                await transaction.rollback()
-        # A branch's record cannot make an institution-wide program apply to siblings.
-        await self.c.execute('UPDATE program SET location_id=NULL WHERE id=$1',program)
-        rows = await self.repository.list_locations(LocationQuery(age_months=24,program='Montessori',include_unknown=False))
-        self.assertEqual([r['location_id'] for r in rows],[loc])
-        self.assertEqual(rows[0]['programs'][0]['scope'],'facility')
-        await self.record(owner,None,source=alternate)
-        institution_record = await self.c.fetchval('SELECT id FROM source_record WHERE kindergarten_id=$1 AND location_id IS NULL',owner)
-        await self.c.execute('UPDATE program SET source_record_id=$2,valid_until=CURRENT_DATE WHERE id=$1',program,institution_record)
-        rows = await self.repository.list_locations(LocationQuery(age_months=24,program='Montessori',include_unknown=False))
-        self.assertEqual({r['location_id'] for r in rows},{loc,sibling})
-        self.assertTrue(all(r['programs'][0]['scope']=='institution' for r in rows))
-        seat, _ = await self.fixture('Seat program',seat=True)
-        await self.program(seat,None)
-        rows = await self.repository.list_locations(LocationQuery(q='Seat program',age_months=24,include_unknown=False))
-        self.assertEqual(rows[0]['location_role'],'seat')
-        self.assertEqual(rows[0]['programs'][0]['scope'],'institution')
 
     async def test_active_snapshots_and_deduplication_keep_source_dates(self):
         institution, location = await self.fixture()
@@ -240,13 +152,7 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(await self.repository.list_locations(LocationQuery(area='banfica'))), 1)
         search = AsyncpgKindergartenRepository(self.c)
         self.assertIn('Banfica', [r['name'] for r in await search.list_areas(city='Zagreb')])
-        from KIDSic.services.concrete.request_parser import parse_request
-        self.assertNotIn('area', await parse_request(search, 'Dijete od 2 godine Zagreb'))
-        self.assertEqual((await parse_request(search, 'Dijete od 2 godine Zagreb na Banfici'))['area'], 'Banfica')
-        options = await search.find_options(city='Zagreb',age_months=24,area='Banfica',include_unknown=True)
-        self.assertEqual([r['kindergarten_id'] for r in options], [owner])
-        self.assertEqual(options[0]['neighbourhood'], 'Synthetic neighbourhood')
-        self.assertEqual(len(await search.retrieve_context(location_ids=[],kindergarten_ids=[owner],text='Banfica')), 1)
+        self.assertEqual(len(await search.retrieve_context(location_ids=[],kindergarten_ids=[owner])), 1)
         await self.c.execute('UPDATE data_source SET import_allowed=false WHERE id=$1', geo_source)
         self.assertIsNone((await self.repository.list_locations(LocationQuery()))[0]['longitude'])
         self.assertEqual(await self.repository.list_locations(LocationQuery(area='Banfica')), [])
@@ -255,8 +161,7 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         await self.c.execute("UPDATE kindergarten SET seat_address='New seat 2' WHERE id=$1", owner)
         self.assertEqual(await self.repository.list_locations(LocationQuery(area='Banfica')), [])
         self.assertIsNone((await self.repository.list_locations(LocationQuery()))[0]['longitude'])
-        self.assertEqual(await search.find_options(city='Zagreb',age_months=24,area='Banfica',include_unknown=True), [])
-        self.assertEqual(await search.retrieve_context(location_ids=[],kindergarten_ids=[owner],text='Banfica'), [])
+        self.assertEqual(await search.retrieve_context(location_ids=[],kindergarten_ids=[owner]), [])
         self.assertEqual(await self.repository.list_locations(LocationQuery(bbox=(15,45,16,46))), [])
         # Evidence linked to another institution never authorizes a pin.
         await self.c.execute("UPDATE kindergarten SET seat_address='Seat 1',provenance=$2 WHERE id=$1", owner,
@@ -335,9 +240,8 @@ class LocationDatabaseTests(unittest.IsolatedAsyncioTestCase):
         for i in range(101):
             await self.fixture(f'Facility {i}')
         self.assertEqual(len(await self.repository.list_locations(LocationQuery())), 101)
-        rows = await self.repository.list_locations(LocationQuery(age_months=24))
+        rows = await self.repository.list_locations(LocationQuery())
         self.assertEqual(len(rows),101)
-        self.assertTrue(all(r['suitability_status']=='unknown' for r in rows))
 
     async def test_all_provider_types_filter_exactly_with_city_name_and_unmapped_locations(self):
         kinds = ('municipal', 'private', 'religious', 'childminder', 'other', 'unknown')

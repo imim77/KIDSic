@@ -2,7 +2,7 @@ import { Blob } from 'node:buffer'
 import { gzipSync } from 'node:zlib'
 import { afterEach, expect, it, vi } from 'vitest'
 import { LocationToolResult } from '../src/shared/mcp/LocationToolResult'
-import { collection, enrolmentRound, facility, historicalEvidence, programEvidence } from './fixtures'
+import { collection, enrolmentRound, facility, historicalEvidence } from './fixtures'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -104,40 +104,7 @@ it('validates attested areas, matching diacritics and the optional administrativ
   expect(() => LocationToolResult.parse({ city: 'Rijeka', locations })).toThrow('Invalid areas')
 })
 
-it('requires one sourced program matching both age and requested program before confirming suitability', () => {
-  const item = facility('confirmed')
-  Object.assign(item.properties, { suitability_status: 'confirmed', programs: [programEvidence()] })
-  const criteria = { city: 'Zagreb', age_months: 24, program: ' montessori ', include_unknown: false }
-  expect(LocationToolResult.parse({ ...criteria, locations: collection(item) }).program).toBe('montessori')
-  item.properties.programs = [programEvidence({ max_age_months_exclusive: 24 })]
-  expect(() => LocationToolResult.parse({ ...criteria, locations: collection(item) })).toThrow('Missing matching program evidence')
-  item.properties.programs = [programEvidence({ name: 'General' }), programEvidence({ min_age_months: 36, max_age_months_exclusive: 84 })]
-  expect(() => LocationToolResult.parse({ ...criteria, locations: collection(item) })).toThrow('Missing matching program evidence')
-  item.properties.programs = [programEvidence({ source_url: '' })]
-  expect(() => LocationToolResult.parse({ ...criteria, locations: collection(item) })).toThrow('Invalid programs')
-  item.properties.programs = [programEvidence({ scope: 'facility' })]
-  item.properties.location_role = 'seat'
-  expect(() => LocationToolResult.parse({ ...criteria, locations: collection(item) })).toThrow('Invalid seat program scope')
-})
 
-it('rejects invalid age and program criteria, missing suitability and misleading counts', () => {
-  for (const age_months of [-1,217,24.5,'24',true,[]]) {
-    expect(() => LocationToolResult.parse({ city: 'Zagreb', age_months, locations: collection() })).toThrow('Invalid child age')
-  }
-  for (const program of [null,[],true,'x'.repeat(201)]) {
-    expect(() => LocationToolResult.parse({ city: 'Zagreb', program, locations: collection() })).toThrow('Invalid search program')
-  }
-  expect(() => LocationToolResult.parse({ city: 'Zagreb', include_unknown: 'false', locations: collection() })).toThrow('Invalid unknown filter')
-  const item = facility('unknown')
-  const criteria = { city: 'Zagreb', age_months: 0 }
-  expect(() => LocationToolResult.parse({ ...criteria, locations: collection(item) })).toThrow('Missing suitability')
-  item.properties.suitability_status = 'unknown'
-  expect(LocationToolResult.parse({ ...criteria, locations: collection(item) }).age_months).toBe(0)
-  expect(() => LocationToolResult.parse({ ...criteria, include_unknown: false, locations: collection(item) })).toThrow('Unexpected unknown result')
-  const locations = collection(item)
-  locations.metadata.confirmed = 1
-  expect(() => LocationToolResult.parse({ ...criteria, locations })).toThrow('Invalid suitability counts')
-})
 
 it('requires a radius scope with in-range distances when the result names a point', () => {
   const locations = collection(facility('near'))
@@ -157,3 +124,12 @@ it('requires a radius scope with in-range distances when the result names a poin
   expect(() => LocationToolResult.parse({ city: 'Zagreb', near: [15.98, 45.81], radius_m: 1000, locations: unlocated })).toThrow('Invalid distance')
 })
 
+
+it('rejects retired filters even when their values were previously valid', async () => {
+  for (const criteria of [{ age_months: 24 }, { program: 'Montessori' }, { include_unknown: true }]) {
+    expect(() => LocationToolResult.parse({ city: 'Zagreb', ...criteria, locations: collection() }))
+      .toThrow('Unsupported search criteria')
+    await expect(LocationToolResult.fromResult({ structuredContent: { city: 'Zagreb', ...criteria,
+      metadata: collection().metadata }, _meta: { locations: collection() } })).rejects.toThrow('Unsupported search criteria')
+  }
+})

@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Building2 } from 'lucide-react'
 import { providerLabels, type LocationFeature, type LocationCollection } from './types'
-import { SuitabilityBadge } from './ProgramDetails'
 import { formatDistance } from './distance'
 import { useEntrance } from '../motion/useEntrance'
 
@@ -46,7 +45,6 @@ export function LocationList({ collection, selectedId, onSelect, criteria, summa
               <span className="location-thumbnail" aria-hidden="true"><Building2 /></span>
               <span className="location-row-text">
                 <span className="location-row-kind">{providerLabels[location.provider_kind]}</span>
-                <SuitabilityBadge status={location.suitability_status} />
                 <span className="location-row-name">{location.location_name}</span>
                 {summary && <span className="location-row-distance">{summary(feature)}</span>}
                 <span className="location-row-address">{location.address ?? 'Adresa nije poznata'}</span>

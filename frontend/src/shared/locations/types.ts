@@ -15,42 +15,20 @@ export function isProviderKind(value: unknown): value is ProviderKind {
   return typeof value === 'string' && Object.hasOwn(providerLabels, value)
 }
 
-export function isAgeMonths(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 216
-}
-
 export interface SearchCriteria {
   city: string
   name?: string
   area?: string
   provider_kind?: ProviderKind | null
-  age_months?: number | null
-  program?: string
-  include_unknown?: boolean
   has_vacancies?: boolean
   nearby?: Nearby | null
 }
 
-export type SuitabilityStatus = 'not_evaluated' | 'confirmed' | 'unknown'
-
-export interface LocationProgram {
-  program_id: string
-  name: string
-  min_age_months: number | null
-  max_age_months_exclusive: number | null
-  verified_on: string
-  valid_until: string | null
-  source_record_id: string
-  source_url: string
-  source_title: string
-  scope: 'institution' | 'facility'
-}
-
 export interface HistoricalEvidence {
+  programs: string[]
   reference_date: string
   date_kind: 'published' | 'observed'
   scope: 'institution' | 'facility'
-  programs: string[]
   vacancies: { age_label: string | null; program: string | null; free_places: number | null }[]
   source_title: string
   source_url: string
@@ -107,15 +85,12 @@ export interface LocationProperties {
   phone?: string | null
   district: string | null
   areas?: string[]
-  suitability_status?: SuitabilityStatus
-  programs?: LocationProgram[]
   historical_data?: HistoricalEvidence[]
   enrolment?: LocationEnrolment[]
   distance_m?: number | null
   location_role: 'facility' | 'seat'
   sources: LocationSource[]
   field_sources?: Record<string, LocationSource & { active_snapshot: boolean }>
-  age_groups: null
   subsidy_policies?: SubsidyPolicy[]
 }
 
