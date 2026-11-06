@@ -19,7 +19,7 @@ class RagTools:
     async def list_tools(self):
         schema = RagQuery.model_json_schema()
         for key, description in {
-            'city': 'Izričito odabran grad: Zagreb, Varaždin ili Rijeka; pitaj ako nedostaje.',
+            'city': 'Izričito odabran grad: Zagreb, Varaždin, Rijeka ili Šibenik; pitaj ako nedostaje.',
             'name': 'Naziv ili dio naziva ustanove/objekta, npr. Bajka; ne cijeli upit roditelja.',
             'topics': 'Neobavezne teme pitanja; izostavi za sve. programs: programi i jezici; '
                       'vacancies: objavljena slobodna mjesta; subsidies: cijena, sufinanciranje, olakšice; '
@@ -58,7 +58,7 @@ class RagTools:
         except ValidationError as error:
             fields = ', '.join(str(item['loc'][0]) for item in error.errors() if item['loc'])
             return self.error('invalid_arguments', f'Provjeri polja: {fields or "argumenti"}. '
-                'Obavezni su city (Zagreb, Varaždin ili Rijeka) i name (naziv); topics je neobavezan popis od '
+                'Obavezni su city (Zagreb, Varaždin, Rijeka ili Šibenik) i name (naziv); topics je neobavezan popis od '
                 'programs, vacancies, subsidies, contacts i document. '
                 'feature_id je neobavezan UUID ili seat:UUID iz prethodnog rezultata. '
                 'Primjer: {"city":"Zagreb","name":"Bajka","topics":["programs"]}. '

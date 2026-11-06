@@ -47,7 +47,7 @@ class EnrolmentDocument(BaseModel):
     url: HttpUrl
     license: str = Field(min_length=1)
     license_url: HttpUrl
-    municipality: Literal['zagreb', 'varazdin', 'rijeka']
+    municipality: Literal['zagreb', 'varazdin', 'rijeka', 'sibenik']
     provider_kinds: tuple[Literal['municipal', 'private', 'religious', 'childminder', 'other'], ...] = Field(min_length=1)
     institutions: tuple[str, ...] = ()
     reference_date: date

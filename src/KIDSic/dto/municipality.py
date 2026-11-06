@@ -16,9 +16,10 @@ MUNICIPALITIES = {m.key: m for m in (
     Municipality('zagreb', 'Zagreb', 'Grad Zagreb', ('zagreba', 'zagrebu')),
     Municipality('varazdin', 'Varaždin', 'Varaždinska županija', ('varazdina', 'varazdinu')),
     Municipality('rijeka', 'Rijeka', 'Primorsko-goranska županija', ('rijeke', 'rijeci')),
+    Municipality('sibenik', 'Šibenik', 'Šibensko-kninska županija', ('sibenika', 'sibeniku')),
 )}
 
-SUPPORTED_CITY_MESSAGE = 'Podržani gradovi su Zagreb, Varaždin i Rijeka.'
+SUPPORTED_CITY_MESSAGE = 'Podržani gradovi su Zagreb, Varaždin, Rijeka i Šibenik.'
 
 
 def supported_city_key(value: str) -> str:
@@ -34,6 +35,9 @@ def resolve_municipality(settlement: str, county: str | None) -> str | None:
     county_key = normalize(county or '')
     if county_key == 'grad zagreb':
         return 'zagreb'
+    # Brodarica is a settlement in Grad Šibenik, not a separate municipality.
+    if normalize(settlement) == 'brodarica' and county_key == normalize(MUNICIPALITIES['sibenik'].county):
+        return 'sibenik'
     candidate = MUNICIPALITIES.get(normalize(settlement))
     if candidate is not None and normalize(candidate.county) == county_key:
         return candidate.key

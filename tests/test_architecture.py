@@ -62,7 +62,7 @@ class LayerDependencyTests(unittest.TestCase):
     def test_request_parser_rejects_unsupported_cities_even_in_a_legacy_catalogue(self):
         parser = RequestParser()
         for city in ('split', 'osijek', 'sesvete'):
-            with self.subTest(city=city), self.assertRaisesRegex(ValueError, 'Zagreb, Varaždin i Rijeka'):
+            with self.subTest(city=city), self.assertRaisesRegex(ValueError, 'Zagreb, Varaždin, Rijeka i Šibenik'):
                 parser.parse_city_age(f'Dijete od 2 godine iz {city}',
                                       [{'city_key': city, 'city_aliases': []}])
         self.assertEqual(parser.parse_city_age('Dijete od 2 godine iz Rijeke',

@@ -1,0 +1,173 @@
+{
+  "type": "FeatureCollection",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors",
+  "osm_snapshot": "2026-11-04T21:21:03Z",
+  "snapshot_sha256": "9accc26fbe487f6200a5dcb19e5ce774c17ac481253c077a24bee43773855745",
+  "retrieved_at": "2026-11-06T12:00:00+00:00",
+  "snapshot_source": "https://download.geofabrik.de/europe/croatia.html",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "node/3010814622",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          15.8942104,
+          43.7503128
+        ]
+      },
+      "properties": {
+        "osm_tags": {
+          "amenity": "kindergarten",
+          "name": "Sunčica"
+        },
+        "osm_url": "https://www.openstreetmap.org/node/3010814622",
+        "review_status": "excluded",
+        "review_note": "Missing a complete OSM address or a verified institution relationship; never infer a routable facility from a label/building alone."
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/6708483990",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          15.8971953,
+          43.7378967
+        ]
+      },
+      "properties": {
+        "osm_tags": {
+          "addr:city": "Šibenik",
+          "addr:housenumber": "2",
+          "addr:street": "Šubićevo šetalište",
+          "amenity": "kindergarten",
+          "name": "Dječji vrtić \"Šibenski tići\"",
+          "source": "survey"
+        },
+        "osm_url": "https://www.openstreetmap.org/node/6708483990",
+        "parent_name": "Dječji vrtić Smilje",
+        "parent_settlement": "Šibenik",
+        "review_status": "matched",
+        "review_note": "OSM surveyed kindergarten with an address; reviewed as a Smilje facility. Parent identity checked at https://www.dv-smilje.hr/vrtici/; descriptions and programmes are not imported."
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/10255673570",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          15.9088223,
+          43.7239061
+        ]
+      },
+      "properties": {
+        "osm_tags": {
+          "addr:city": "Šibenik",
+          "addr:housenumber": "2G",
+          "addr:postcode": "22000",
+          "addr:street": "Ulica branitelja domovinskog rata",
+          "amenity": "kindergarten",
+          "name": "Dječji vrtić „Šibenska maslina” Vidici",
+          "preschool": "yes",
+          "website": "http://dv-simaslina.com/djecji-vrtic-jaslice-vidici/"
+        },
+        "osm_url": "https://www.openstreetmap.org/node/10255673570",
+        "parent_name": "Dječji vrtić Šibenska maslina",
+        "parent_settlement": "Šibenik",
+        "review_status": "matched",
+        "review_note": "OSM names the institution and Vidici facility; address equals the MZOM seat. Physical facility is independently tagged amenity=kindergarten."
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "node/11029749889",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          15.9078577,
+          43.7124694
+        ]
+      },
+      "properties": {
+        "osm_tags": {
+          "addr:city": "Šibenik",
+          "addr:housenumber": "8",
+          "addr:street": "Ulica Velimira Škorpika",
+          "amenity": "kindergarten",
+          "name": "Dječji vrtić Blažena Hozana",
+          "website": "https://dominikanke.org/dv-sibenik/"
+        },
+        "osm_url": "https://www.openstreetmap.org/node/11029749889",
+        "parent_name": "Dječji vrtić Blažena Hozana",
+        "parent_settlement": "Zagreb",
+        "review_status": "matched",
+        "review_note": "OSM names the same national institution; OSM website identifies its Šibenik branch. Preserve the Zagreb legal seat and create only the physical Šibenik facility."
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "way/168961297",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          15.902952653333333,
+          43.72808124
+        ]
+      },
+      "properties": {
+        "osm_tags": {
+          "amenity": "kindergarten",
+          "building": "yes",
+          "fixme": "check kindergarden"
+        },
+        "osm_url": "https://www.openstreetmap.org/way/168961297",
+        "review_status": "excluded",
+        "review_note": "Missing a complete OSM address or a verified institution relationship; never infer a routable facility from a label/building alone."
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "way/585610878",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          15.887830622222221,
+          43.74309002222222
+        ]
+      },
+      "properties": {
+        "osm_tags": {
+          "building": "kindergarten",
+          "roof:material": "roof_tiles",
+          "roof:shape": "hipped"
+        },
+        "osm_url": "https://www.openstreetmap.org/way/585610878",
+        "review_status": "excluded",
+        "review_note": "Missing a complete OSM address or a verified institution relationship; never infer a routable facility from a label/building alone."
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "way/1385190180",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          15.887713042857143,
+          43.7430654
+        ]
+      },
+      "properties": {
+        "osm_tags": {
+          "amenity": "kindergarten",
+          "name": "Dječji vrtić Smilje"
+        },
+        "osm_url": "https://www.openstreetmap.org/way/1385190180",
+        "review_status": "excluded",
+        "review_note": "Missing a complete OSM address or a verified institution relationship; never infer a routable facility from a label/building alone."
+      }
+    }
+  ]
+}

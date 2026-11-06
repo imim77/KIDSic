@@ -44,7 +44,7 @@ class LocationTools:
                 'REQUIRES a city supplied explicitly by the user. If no city '
                 'is given, ask "U kojem gradu želiš prikaz vrtića?" first. '
                 'Never assume Zagreb or any other city. '
-                'Only Zagreb, Varaždin and Rijeka are supported. '
+                'Only Zagreb, Varaždin, Rijeka and Šibenik are supported. '
                 'Extract only the requested name into name, not the entire sentence. '
                 'Name matching is a literal substring, ignoring case and Croatian diacritics. '
                 'Omit name to match all names. '
@@ -86,7 +86,7 @@ class LocationTools:
             inputSchema={
                 'type': 'object', 'properties': {'city': {
                     'type': 'string', 'minLength': 1, 'maxLength': 100,
-                    'description': 'Podržani grad koji je korisnik izričito naveo: Zagreb, Varaždin ili Rijeka.',
+                    'description': 'Podržani grad koji je korisnik izričito naveo: Zagreb, Varaždin, Rijeka ili Šibenik.',
                 }, 'name': {
                     'type': 'string', 'maxLength': 200, 'default': '',
                     'description': 'Naziv ili dio naziva ustanove ili objekta, npr. Bajka. Prazno znači sve objekte u gradu.',
