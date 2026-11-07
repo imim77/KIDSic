@@ -3,10 +3,11 @@ from collections.abc import Mapping
 from KIDSic.dto.source import KindergartenRow
 from KIDSic.dto.municipality import MUNICIPALITIES
 from KIDSic.exceptions import SourceImportError
+from KIDSic.services.interfaces.source_import import RecordNormalizer
 from KIDSic.services.interfaces.source_parser import SourceRowParser
 
 
-class SourceRecordNormalizer:
+class SourceRecordNormalizer(RecordNormalizer):
     def __init__(self, parsers: Mapping[str, SourceRowParser]):
         self._parsers = dict(parsers)
 

@@ -1,8 +1,9 @@
 """SubsidyPolicyPresenter translates curated rules into readable rate evidence."""
 from KIDSic.dto.subsidy import SubsidyPolicy, SubsidyRate
+from KIDSic.services.interfaces.presenters import SubsidyPresenter
 
 
-class SubsidyPolicyPresenter:
+class SubsidyPolicyPresenter(SubsidyPresenter):
     _conditions = {
         'first_child': 'Prvo dijete',
         'second_child_when_two_enrolled': 'Drugo dijete, kada je dvoje istodobno upisano',

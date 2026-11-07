@@ -5,20 +5,17 @@ from KIDSic.db.uow.source import SourceUnitOfWorkFactory
 from KIDSic.integrations.interfaces.ckan import CkanClientInterface
 
 from KIDSic.dto.source import SourceSnapshot, SourceDefinition
-from KIDSic.services.concrete.parsers import default_parsers
-from KIDSic.services.concrete.source_normalizer import SourceRecordNormalizer
-from KIDSic.services.concrete.source_planner import SourceRegistrationPlanner
 from KIDSic.services.interfaces.source import SourceServiceInterface
+from KIDSic.services.interfaces.source_import import RecordNormalizer, SourcePlanner
 
 
 class SourceService(SourceServiceInterface):
     def __init__(self, clients: Mapping[str, CkanClientInterface],
                  definitions: Sequence[SourceDefinition],
                  uow_factory: SourceUnitOfWorkFactory | None = None, *,
-                 normalizer: SourceRecordNormalizer | None = None,
-                 planner: SourceRegistrationPlanner | None = None):
-        self._normalizer = normalizer or SourceRecordNormalizer(default_parsers())
-        self._planner = planner or SourceRegistrationPlanner()
+                 normalizer: RecordNormalizer, planner: SourcePlanner):
+        self._normalizer = normalizer
+        self._planner = planner
         self._clients = dict(clients)
         self._definitions = tuple(definitions)
         self._uow_factory = uow_factory

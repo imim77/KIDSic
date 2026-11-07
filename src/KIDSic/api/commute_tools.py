@@ -10,7 +10,7 @@ from KIDSic.api.apps.map_resource import UI_URI
 from KIDSic.api.tool_results import coded_error, json_result
 from KIDSic.dto.commute import CommuteQuery
 from KIDSic.config.routing import ROUTING_CITIES
-from KIDSic.services.concrete.commute import CommuteService
+from KIDSic.services.interfaces.commute import CommuteServiceInterface
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ def timetables(separator: str = ': ') -> str:
 class CommuteTools:
     name = 'preporuci_vrtice_usput'
 
-    def __init__(self, service: Callable[[str], CommuteService]):
+    def __init__(self, service: Callable[[str], CommuteServiceInterface]):
         self._service = service
 
     async def list_tools(self):
@@ -81,8 +81,8 @@ class CommuteTools:
             annotations=types.ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True))]
 
     @staticmethod
-    def failure_cause(error: BaseException) -> str:
-        """failure_cause names the exception chain by type only, e.g.
+    def _failure_cause(error: BaseException) -> str:
+        """_failure_cause names the exception chain by type only, e.g.
         RoutingUnavailable <- ConnectError, so operators see which dependency
         failed while messages that may hold addresses stay out of the log."""
         names = []
@@ -92,12 +92,12 @@ class CommuteTools:
         return ' <- '.join(names)
 
     @staticmethod
-    def error(code, message):
+    def _error(code, message):
         return coded_error(code, message, COMMUTE_META)
 
     @staticmethod
-    def model_summary(result: dict) -> dict:
-        """model_summary keeps the ranking facts the model needs to answer."""
+    def _model_summary(result: dict) -> dict:
+        """_model_summary keeps the ranking facts the model needs to answer."""
         summary = {key: value for key, value in result.items() if key not in UI_ONLY_KEYS}
         if 'results' in result:
             summary['results'] = [{key: value for key, value in row.items() if key not in UI_ONLY_ROW_KEYS}
@@ -108,7 +108,7 @@ class CommuteTools:
         try:
             query = CommuteQuery.model_validate(arguments)
         except ValidationError:
-            return self.error('invalid_commute', 'Navedi city=Rijeka, Zagreb ili Šibenik, home i work (adrese ili potvrđene '
+            return self._error('invalid_commute', 'Navedi city=Rijeka, Zagreb ili Šibenik, home i work (adrese ili potvrđene '
                 'koordinate unutar odabranog grada), departure s datumom i vremenom unutar voznog reda: '
                 + timetables(' ')
                 + ', te mode=TRANSIT '
@@ -118,7 +118,7 @@ class CommuteTools:
                 result = await self._service(query.city).recommend(query)
         except Exception as error:
             # Address text and home coordinates must not leak through diagnostics.
-            logger.error('Commute recommendation failed: %s', self.failure_cause(error))
-            return self.error('commute_unavailable', 'Izračun ili lokalni podaci trenutačno nisu dostupni. '
+            logger.error('Commute recommendation failed: %s', self._failure_cause(error))
+            return self._error('commute_unavailable', 'Izračun ili lokalni podaci trenutačno nisu dostupni. '
                 'Pokušaj ponovno kasnije; nemoj zamijeniti rezultat procjenom ili oglednim vremenima.')
-        return json_result(self.model_summary(result), {**COMMUTE_META, 'commute': result})
+        return json_result(self._model_summary(result), {**COMMUTE_META, 'commute': result})

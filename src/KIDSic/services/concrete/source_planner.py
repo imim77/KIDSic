@@ -2,9 +2,10 @@
 from KIDSic.dto.source import PlannedSource, SourceDefinition
 from KIDSic.dto.ckan import CkanPackage
 from KIDSic.exceptions import SourceImportError
+from KIDSic.services.interfaces.source_import import SourcePlanner
 
 
-class SourceRegistrationPlanner:
+class SourceRegistrationPlanner(SourcePlanner):
     def select(self, definition: SourceDefinition, package: CkanPackage) -> PlannedSource:
         # A changed/absent licence requires review, not implicit approval.
         if package.license_id != definition.license_id:

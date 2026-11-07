@@ -14,7 +14,10 @@ from KIDSic.dto.ckan import CkanPackage
 from KIDSic.dto.source import SourceDefinition, name_key
 from KIDSic.exceptions import SourceImportError
 from KIDSic.services.concrete.kindergarten_normalizer import normalize_records
+from KIDSic.services.concrete.parsers import default_parsers
 from KIDSic.services.concrete.source import SourceService
+from KIDSic.services.concrete.source_normalizer import SourceRecordNormalizer
+from KIDSic.services.concrete.source_planner import SourceRegistrationPlanner
 
 
 NATIONAL = {'Naziv': 'Dječji vrtić "Primjer"', 'Adresa': 'Primjer 1', 'Mjesto': 'Varaždin',
@@ -23,6 +26,12 @@ MUNICIPAL = {'Id': 1, 'Naziv': 'DV Primjer-matični objekt', 'Adresa': 'Primjer 
              'X': '15,9452', 'Y': '45.8017', 'Web': None, 'Email': 'test@example.invalid',
              'Telefon': '', 'TipVrtica': 'Matični', 'VrstaVrtica': 'Gradski DV',
              'GradskaCetvrt': 'Trešnjevka-Sjever'}
+
+
+def source_service(clients, definitions, work=None, *, normalizer=None):
+    """source_service builds a SourceService with the built-in schemas."""
+    return SourceService(clients, definitions, work, planner=SourceRegistrationPlanner(),
+                         normalizer=normalizer or SourceRecordNormalizer(default_parsers()))
 
 
 def source_client(name='national'):
@@ -129,7 +138,7 @@ class SourceServiceTests(unittest.IsolatedAsyncioTestCase):
         self.client = source_client()
 
     async def test_dry_run_downloads_without_a_uow_and_registration_does_not_download(self):
-        service = SourceService({'national': self.client}, [self.definition])
+        service = source_service({'national': self.client}, [self.definition])
         self.assertEqual(len((await service.preview_sources())['sources']), 1)
         self.client.download_records.assert_not_awaited()
         self.assertEqual((await service.preview_import())['sources'][0]['records'], 1)
@@ -147,7 +156,7 @@ class SourceServiceTests(unittest.IsolatedAsyncioTestCase):
             opened.append(True)
             yield SimpleNamespace(sources=SimpleNamespace(register=AsyncMock()))
 
-        service = SourceService({'national': self.client, 'second': other}, [self.definition, second], work)
+        service = source_service({'national': self.client, 'second': other}, [self.definition, second], work)
         with self.assertRaises(SourceImportError):
             await service.register_sources()
         with self.assertRaises(SourceImportError):
@@ -161,14 +170,14 @@ class SourceServiceTests(unittest.IsolatedAsyncioTestCase):
             self.client.get_package.return_value = package.model_copy(update={
                 'resources': resources, 'license_id': license_id})
             with self.assertRaises(SourceImportError):
-                await SourceService({'national': self.client}, [self.definition]).preview_sources()
+                await source_service({'national': self.client}, [self.definition]).preview_sources()
 
     async def test_cli_dry_run_needs_no_database_environment_or_pool(self):
         @asynccontextmanager
         async def fake_http(*args, **kwargs):
             yield SimpleNamespace()
 
-        service = SourceService({'national': self.client}, [self.definition])
+        service = source_service({'national': self.client}, [self.definition])
         with patch.dict('os.environ', {}, clear=True), patch(
             'KIDSic.services.dependency.database_pool', side_effect=AssertionError('database opened')
         ), patch('KIDSic.services.dependency.httpx.AsyncClient', fake_http), patch(

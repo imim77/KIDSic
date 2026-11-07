@@ -2,8 +2,7 @@
 from KIDSic.db.uow.base import UnitOfWorkFactory
 from KIDSic.dto.location import LocationQuery
 from KIDSic.dto.rag import TOPICS, RagContext, RagMatch, RagQuery
-from KIDSic.services.interfaces.rag import RagServiceInterface
-from KIDSic.services.concrete.rag_evidence import RagEvidenceBuilder
+from KIDSic.services.interfaces.rag import EvidenceBuilder, RagServiceInterface
 
 
 class RagService(RagServiceInterface):
@@ -19,7 +18,7 @@ class RagService(RagServiceInterface):
     _max_documents = 30
     _max_chars = 24_000
 
-    def __init__(self, uow_factory: UnitOfWorkFactory, builder: RagEvidenceBuilder):
+    def __init__(self, uow_factory: UnitOfWorkFactory, builder: EvidenceBuilder):
         self._uow_factory, self._builder = uow_factory, builder
 
     @staticmethod

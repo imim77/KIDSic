@@ -1,13 +1,14 @@
 """CommuteService asks about ambiguous addresses and kindergarten names before
 ranking any journeys."""
+from KIDSic.config.routing import ROUTING_CITIES
 from KIDSic.dto.commute import CommuteQuery
 from KIDSic.dto.day_route import DayJourneyRequest, DayPoint
 from KIDSic.integrations.interfaces.address import AddressLookup
-from KIDSic.services.concrete.day_route import DayRouteService
+from KIDSic.services.interfaces.commute import CommuteServiceInterface, DayRouteServiceInterface
 
 
-class CommuteService:
-    def __init__(self, routes: DayRouteService, addresses: AddressLookup):
+class CommuteService(CommuteServiceInterface):
+    def __init__(self, routes: DayRouteServiceInterface, addresses: AddressLookup):
         self._routes = routes
         self._addresses = addresses
 
@@ -25,8 +26,7 @@ class CommuteService:
             departure=query.departure, mode=query.mode, dropoff_minutes=query.dropoff_minutes, top_k=query.top_k)
         result = await self._routes.recommend(request, facility_ids)
         scope = '' if facility_ids is None else 'Uspoređeni su samo vrtići koje je korisnik naveo. '
-        if query.city == 'Šibenik':
-            scope += 'Usporedba ne obuhvaća sve šibenske objekte vrtića. '
+        scope += ROUTING_CITIES[query.city].coverage_notice
         result.update(status='ok' if result['results'] else 'no_route', resolved_addresses=resolved,
                       notice=scope + 'Najbolje prema dolasku na posao; nije potvrda radnog vremena, '
                              'dobne prikladnosti ni slobodnog mjesta. '

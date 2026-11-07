@@ -9,9 +9,9 @@ class SourceStateWriter:
     # one caller-owned transaction; every import uses the same advisory lock.
     def __init__(self, connection, source_id, fetched_at):
         self._connection = connection
-        self.source_id = source_id
-        self.fetched_at = fetched_at
-        self.keys = set()
+        self._source_id = source_id
+        self._fetched_at = fetched_at
+        self._keys = set()
 
     @staticmethod
     def validate(keys):
@@ -21,9 +21,9 @@ class SourceStateWriter:
 
     async def record(self, key, raw, *, owner=None, location=None, status='accepted',
                      method='manual', note=None, observed_on=None, record_id=None):
-        if key in self.keys or not key:
+        if key in self._keys or not key:
             raise SourceImportError(f'Duplicate or empty source_key: {key!r}.')
-        self.keys.add(key)
+        self._keys.add(key)
         return await self._connection.fetchval('''
             INSERT INTO izvorni_zapisi(id,source_id,source_key,raw_data,fetched_at,
                 observed_on,kindergarten_id,location_id,match_status,match_method,match_note)
@@ -42,7 +42,7 @@ class SourceStateWriter:
                 match_note=CASE WHEN izvorni_zapisi.match_status='candidate'
                     THEN EXCLUDED.match_note ELSE izvorni_zapisi.match_note END
             RETURNING id
-        ''', record_id or uuid4(), self.source_id, key, raw, self.fetched_at,
+        ''', record_id or uuid4(), self._source_id, key, raw, self._fetched_at,
             observed_on, owner, location, status, method, note)
 
     async def clear_derived(self, record_ids):
@@ -54,15 +54,15 @@ class SourceStateWriter:
                 f'DELETE FROM {table} WHERE source_record_id=ANY($1::uuid[])', list(record_ids))
 
     async def finish(self, *, observed_on=None):
-        self.validate(self.keys)
+        self.validate(self._keys)
         missing = await self._connection.fetch('''
             SELECT id FROM izvorni_zapisi WHERE source_id=$1 AND NOT(source_key=ANY($2::text[]))
-        ''', self.source_id, list(self.keys))
+        ''', self._source_id, list(self._keys))
         ids = [r['id'] for r in missing]
         if ids:
             await self._forget_fields(ids)
             await self._connection.execute('DELETE FROM izvorni_zapisi WHERE id=ANY($1::uuid[])', ids)
-        await self.activate(self._connection, self.source_id, self.fetched_at, observed_on)
+        await self.activate(self._connection, self._source_id, self._fetched_at, observed_on)
 
     @staticmethod
     async def activate(connection, source, fetched_at, observed_on=None):

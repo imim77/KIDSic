@@ -14,7 +14,9 @@ from KIDSic.dto.ckan import CkanPackage, CkanResource
 from KIDSic.exceptions import CkanResponseError, SourceImportError
 from KIDSic.integrations.concrete.ckan import CkanClient
 from KIDSic.services.concrete.historical import HistoricalService
+from KIDSic.services.concrete.historical_layouts import default_historical_layouts
 from KIDSic.services.concrete.historical_parser import HistoricalTableParser
+from KIDSic.services.concrete.source_planner import SourceRegistrationPlanner
 
 
 DEFINITIONS = zagreb_historical_sources('https://example.invalid')
@@ -22,6 +24,16 @@ PROGRAMS = [['Name', 'Description', 'VRSTA', 'PROGRAMI'],
             ['DJEČJI VRTIĆ PRIMJER', 'Primjer ulica 1', 'Gradski vrtić', 'Montessori;engleski jezik;Montessori'],
             ['DJEČJI VRTIĆ PRIMJER', 'Druga 2', '', '/']]
 FOOTER = 'PODACI O SLOBODNIM MJESTIMA STANJE NA DAN 1.1.2025.'
+
+
+def historical_parser():
+    return HistoricalTableParser(default_historical_layouts())
+
+
+def historical_service(clients, definitions, work=None):
+    """historical_service builds a HistoricalService with Zagreb's layouts."""
+    return HistoricalService(clients, definitions, work, parser=historical_parser(),
+                             planner=SourceRegistrationPlanner())
 
 
 def municipal_table():
@@ -53,7 +65,7 @@ def package(definition):
 
 class HistoricalParserTests(unittest.TestCase):
     def setUp(self):
-        self.parser = HistoricalTableParser()
+        self.parser = historical_parser()
 
     def test_programs_are_object_scoped_and_slash_is_unknown(self):
         rows = self.parser.parse(PROGRAMS, DEFINITIONS[0])
@@ -107,12 +119,12 @@ class HistoricalServiceTests(unittest.IsolatedAsyncioTestCase):
             events.append('transaction')
             yield SimpleNamespace(sources=SimpleNamespace(register=AsyncMock()),
                 historical=SimpleNamespace(import_snapshot=AsyncMock(return_value={'records': 1})))
-        result = await HistoricalService(clients, DEFINITIONS, work).import_data()
+        result = await historical_service(clients, DEFINITIONS, work).import_data()
         self.assertEqual(result['records'], 3)
         self.assertEqual(events, ['transaction'])
         clients[DEFINITIONS[2].source.key].download_table.return_value = [['invalid']]
         with self.assertRaises(SourceImportError):
-            await HistoricalService(clients, DEFINITIONS, work).import_data()
+            await historical_service(clients, DEFINITIONS, work).import_data()
         self.assertEqual(events, ['transaction'])
 
     async def test_changed_license_and_publication_date_require_review(self):
@@ -125,7 +137,7 @@ class HistoricalServiceTests(unittest.IsolatedAsyncioTestCase):
                 metadata.license_id = value
             client = SimpleNamespace(get_package=AsyncMock(return_value=metadata), download_table=AsyncMock())
             with self.assertRaises(SourceImportError):
-                await HistoricalService({definition.source.key: client}, [definition]).preview_import()
+                await historical_service({definition.source.key: client}, [definition]).preview_import()
             client.download_table.assert_not_awaited()
 
     async def test_http_table_reader_preserves_empty_headers_and_xlsx_cells(self):

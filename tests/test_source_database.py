@@ -19,8 +19,7 @@ from KIDSic.factories.source import SourceServiceFactory
 from KIDSic.dto.source import PlannedSource, SourceDefinition, SourceSnapshot
 from KIDSic.exceptions import SourceImportError, PersistenceError
 from KIDSic.services.concrete.kindergarten_normalizer import normalize_records
-from KIDSic.services.concrete.source import SourceService
-from test_sources import NATIONAL, MUNICIPAL, source_client
+from test_sources import NATIONAL, MUNICIPAL, source_client, source_service
 from legacy_schema import current_table_names
 
 
@@ -531,7 +530,7 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
                                       second_client.get_package.return_value.resources[0])
         await self.repo.register(second_source)
         await self.c.execute("UPDATE izvori_podataka SET import_allowed=false WHERE dataset_key='zagreb-municipal'")
-        service = SourceService({'national': self.client, 'zagreb-municipal': second_client},
+        service = source_service({'national': self.client, 'zagreb-municipal': second_client},
                                 [self.definition, second_definition], work)
         with self.assertRaises(SourceImportError):
             await service.import_data()
@@ -549,7 +548,7 @@ class SourceDatabaseTests(unittest.IsolatedAsyncioTestCase):
         branch = {**MUNICIPAL, 'Id': 2, 'Naziv': 'DV Primjer-PO Druga', 'Adresa': 'Druga 2'}
         other.download_records.return_value = [MUNICIPAL, branch]
         municipal = self.municipal_source()
-        service = SourceService({'national': self.client, municipal.definition.key: other},
+        service = source_service({'national': self.client, municipal.definition.key: other},
                                 [self.definition, municipal.definition], work)
         await service.import_data()
         tables = ('izvori_podataka', 'izvorni_zapisi', 'vrtici', 'sjedista_vrtica', 'objekti')

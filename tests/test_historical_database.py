@@ -16,11 +16,9 @@ from KIDSic.dto.historical import HistoricalSnapshot
 from KIDSic.dto.location import LocationQuery
 from KIDSic.dto.source import PlannedSource, SourceSnapshot
 from KIDSic.services.concrete.kindergarten_normalizer import normalize_records
-from KIDSic.services.concrete.historical_parser import HistoricalTableParser
-from KIDSic.services.concrete.historical import HistoricalService
 from KIDSic.exceptions import SourceImportError
 from test_sources import MUNICIPAL, source_client
-from test_historical import DEFINITIONS, PROGRAMS, municipal_table, package
+from test_historical import DEFINITIONS, PROGRAMS, historical_parser, historical_service, municipal_table, package
 
 
 @unittest.skipUnless(os.getenv('KIDSIC_TEST_DATABASE_URL'), 'Set KIDSIC_TEST_DATABASE_URL')
@@ -51,7 +49,7 @@ class HistoricalDatabaseTests(unittest.IsolatedAsyncioTestCase):
         definition = DEFINITIONS[index]; metadata = package(definition)
         source = PlannedSource(definition.source, metadata, metadata.resources[0])
         await self.directory.register(source)
-        rows = HistoricalTableParser().parse(table or (PROGRAMS if index == 0 else municipal_table()), definition)
+        rows = historical_parser().parse(table or (PROGRAMS if index == 0 else municipal_table()), definition)
         return HistoricalSnapshot(source, rows, datetime.now(timezone.utc), definition.reference_date, definition.date_kind)
 
     async def test_facility_programs_and_institution_counts_keep_separate_scopes(self):
@@ -155,7 +153,7 @@ class HistoricalDatabaseTests(unittest.IsolatedAsyncioTestCase):
             async with self.c.transaction():
                 yield SimpleNamespace(sources=self.directory, historical=self.history)
         with self.assertRaises(SourceImportError):
-            await HistoricalService(clients, definitions, work).import_data()
+            await historical_service(clients, definitions, work).import_data()
         self.assertEqual(await self.c.fetch('SELECT id,fetched_at FROM izvori_podataka ORDER BY id'), before)
         self.assertEqual(await self.c.fetchval('SELECT count(*) FROM povijesni_zapisi'), 0)
 

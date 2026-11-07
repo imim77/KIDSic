@@ -5,19 +5,17 @@ from KIDSic.dto.location import (
     LocationProperties, LocationQuery,
 )
 from KIDSic.services.interfaces.location import LocationServiceInterface
-from KIDSic.services.concrete.subsidy import SubsidyPolicyPresenter
-from KIDSic.services.concrete.enrolment_round import EnrolmentRoundPresenter
+from KIDSic.services.interfaces.presenters import EnrolmentPresenter, SubsidyPresenter
 
 
 class LocationService(LocationServiceInterface):
     _required = ('name', 'location_name', 'address', 'city', 'provider_kind', 'district', 'location_role', 'sources')
     _optional = ('website_url', 'email', 'phone', 'distance_m')
 
-    def __init__(self, uow_factory: UnitOfWorkFactory, subsidies: SubsidyPolicyPresenter,
-                 enrolment: EnrolmentRoundPresenter | None = None):
+    def __init__(self, uow_factory: UnitOfWorkFactory, subsidies: SubsidyPresenter, enrolment: EnrolmentPresenter):
         self._uow_factory = uow_factory
         self._subsidies = subsidies
-        self._enrolment = enrolment or EnrolmentRoundPresenter()
+        self._enrolment = enrolment
 
     async def list_locations(self, query: LocationQuery) -> LocationCollection:
         async with self._uow_factory() as uow:

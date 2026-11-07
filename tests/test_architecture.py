@@ -6,9 +6,8 @@ from unittest.mock import AsyncMock
 
 from KIDSic.dto.source import KindergartenRow, SourceDefinition
 from KIDSic.services.interfaces.source_parser import SourceRowParser
-from KIDSic.services.concrete.source import SourceService
 from KIDSic.services.concrete.source_normalizer import SourceRecordNormalizer
-from test_sources import source_client
+from test_sources import source_client, source_service
 
 ROOT = Path(__file__).resolve().parents[1] / 'src' / 'KIDSic'
 
@@ -46,6 +45,16 @@ class LayerDependencyTests(unittest.TestCase):
                         self.assertFalse(module.startswith(('asyncpg','sqlalchemy','KIDSic.dao','KIDSic.db')),
                                          f'{path.relative_to(ROOT)} imports {module}')
 
+    def test_services_and_presentation_depend_on_service_interfaces(self):
+        # Factories choose implementations; normalize_records is a script entry point.
+        paths = [path for path in (*ROOT.joinpath('services/concrete').glob('*.py'), *ROOT.joinpath('api').rglob('*.py'))
+                 if path.name != 'kindergarten_normalizer.py']
+        for path in paths:
+            for node in ast.walk(ast.parse(path.read_text())):
+                if isinstance(node, ast.ImportFrom):
+                    self.assertFalse((node.module or '').startswith('KIDSic.services.concrete'),
+                                     f'{path.relative_to(ROOT)} imports {node.module}')
+
     def test_legacy_mcp_entry_point_still_uses_the_same_application(self):
         from KIDSic.mcp.server import create_app as legacy
         from KIDSic.api.mcp_server import create_app
@@ -64,7 +73,7 @@ class ExtensibleSourceTests(unittest.IsolatedAsyncioTestCase):
         client = source_client()
         client.download_records = AsyncMock(return_value=[{'id':'one'},{'id':'two'}])
         definition = SourceDefinition('example','https://data.gov.hr/ckan','example','custom-schema')
-        service = SourceService({'example':client}, [definition],
+        service = source_service({'example':client}, [definition],
                                 normalizer=SourceRecordNormalizer({'custom-schema':ExampleParser()}))
         result = await service.preview_import()
         self.assertEqual(result['sources'][0]['records'],2)

@@ -7,10 +7,11 @@ from KIDSic.dto.day_route import DayPoint, DayJourneyRequest, Journey
 from KIDSic.config.routing import ROUTING_CITIES
 from KIDSic.dto.location import LocationQuery, LocationCollection
 from KIDSic.integrations.interfaces.journey import JourneyPlanner
+from KIDSic.services.interfaces.commute import DayRouteServiceInterface
 from KIDSic.services.interfaces.location import LocationServiceInterface
 
 
-class DayRouteService:
+class DayRouteService(DayRouteServiceInterface):
     _concurrent_routes = 4  # bounds routing work even when ranking every city facility
 
     def __init__(self, locations: LocationServiceInterface, planner: JourneyPlanner):

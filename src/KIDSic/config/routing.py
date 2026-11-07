@@ -20,6 +20,10 @@ class RoutingCity:
     gtfs_filename: str
     port: int
     retrieved_on: date
+    # Rijeka was routed first, so its data and settings keep unprefixed names.
+    data_folder: str | None = None  # None uses the key
+    env_suffix: str | None = None  # None uses _<KEY>
+    coverage_notice: str = ''  # Tells parents when ranking misses some facilities.
 
     def contains(self, lat: float, lon: float) -> bool:
         west, south, east, north = self.bbox
@@ -27,11 +31,11 @@ class RoutingCity:
 
     @property
     def directory(self) -> Path:
-        return Path('routing/data') / ('' if self.key == 'rijeka' else self.key)
+        return Path('routing/data') / (self.key if self.data_folder is None else self.data_folder)
 
     @property
     def _env_suffix(self) -> str:
-        return '' if self.key == 'rijeka' else '_' + self.key.upper()  # Rijeka came first
+        return '_' + self.key.upper() if self.env_suffix is None else self.env_suffix
 
     def otp_url(self) -> str:
         """otp_url returns the city's OTP GraphQL endpoint, overridable by
@@ -52,7 +56,7 @@ ROUTING_CITIES = {
         'packages/generic/rijeka-gtfs/latest/autotrolej_gtfs.zip',
         'e2d9357c5f020d6d4081ba114509d89f51a33dd224d09aae09ff6c1e4c0849bd',
         'vekejsn', 'CC-BY-4.0', 'https://transitous.org/sources/#croatia',
-        'autotrolej-gtfs.zip', 18080, date(2026, 11, 5)),
+        'autotrolej-gtfs.zip', 18080, date(2026, 11, 5), data_folder='', env_suffix=''),
     'Zagreb': RoutingCity('Zagreb', 'zagreb', (15.70, 45.60, 16.30, 46.00),
         date(2026, 10, 21), date(2026, 12, 31),
         'https://www.zet.hr/gtfs-scheduled/scheduled-000-000397.zip',
@@ -66,5 +70,6 @@ ROUTING_CITIES = {
         '6fd33879adc8a57e66fab75dbdcebc9136b383be0e7a7274e0accb4561530128',
         'Gradski parking d.o.o. Šibenik', 'Otvorena dozvola RH',
         'https://www.gradski-parking.hr/stranice/datoteke-u-gtfs-formatu/105.html',
-        'sibenik-gtfs.zip', 18082, date(2026, 11, 6)),
+        'sibenik-gtfs.zip', 18082, date(2026, 11, 6),
+        coverage_notice='Usporedba ne obuhvaća sve šibenske objekte vrtića. '),
 }
