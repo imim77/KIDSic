@@ -8,20 +8,19 @@ from KIDSic.exceptions import SourceImportError
 
 
 class HistoricalTableParser:
+    _dated_parsers = {'municipal-vacancies', 'childminder-vacancies'}  # snapshots state their own date
+
     def parse(self, table: list[list[str]], definition: HistoricalSourceDefinition) -> tuple[HistoricalRow, ...]:
         if not table:
             raise SourceImportError('Historical table is empty.')
         parser = definition.source.parser
-        if parser == 'programs':
-            rows = self._programs(table)
-        elif parser == 'municipal-vacancies':
-            self._check_date(table, definition)
-            rows = self._municipal(table)
-        elif parser == 'childminder-vacancies':
-            self._check_date(table, definition)
-            rows = self._childminders(table)
-        else:
+        layouts = {'programs': self._programs, 'municipal-vacancies': self._municipal,
+                   'childminder-vacancies': self._childminders}
+        if parser not in layouts:
             raise SourceImportError(f'Unknown historical parser: {parser}.')
+        if parser in self._dated_parsers:
+            self._check_date(table, definition)
+        rows = layouts[parser](table)
         duplicates = [key for key, count in Counter(r.source_key for r in rows).items() if count > 1]
         if not rows or duplicates:
             raise SourceImportError('Historical table has no records or duplicate identities.')
@@ -34,6 +33,12 @@ class HistoricalTableParser:
         expected = definition.reference_date
         if dates != [(str(expected.day), str(expected.month), str(expected.year))]:
             raise SourceImportError('Historical observation date does not match the configured snapshot.')
+
+    @staticmethod
+    def _is_total_row(values) -> bool:
+        """_is_total_row recognises the published total and footnote rows,
+        which carry no institution name and are not records."""
+        return values[0].strip() == 'UKUPNO' or values[0].lstrip().startswith('PODACI O SLOBODNIM')
 
     @staticmethod
     def _count(value):
@@ -90,7 +95,7 @@ class HistoricalTableParser:
             if len(values) != len(table[0]):
                 raise SourceImportError('Municipal vacancy row width changed.')
             if not values[1].strip():
-                if values[0].strip() == 'UKUPNO' or values[0].lstrip().startswith('PODACI O SLOBODNIM'):
+                if self._is_total_row(values):
                     continue
                 raise SourceImportError('Missing municipal institution name.')
             name = values[1].strip()
@@ -112,7 +117,7 @@ class HistoricalTableParser:
             if len(values) != 4:
                 raise SourceImportError('Childminder vacancy row width changed.')
             if not values[2].strip():
-                if values[0].strip() == 'UKUPNO' or values[0].lstrip().startswith('PODACI O SLOBODNIM'):
+                if self._is_total_row(values):
                     continue
                 raise SourceImportError('Missing childminder name.')
             name, count = values[2].strip(), self._count(values[3])

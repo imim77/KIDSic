@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from KIDSic.db.uow.source import SourceUnitOfWorkFactory
 from KIDSic.integrations.interfaces.ckan import CkanClientInterface
 
-from KIDSic.dto.source import PlannedSource, SourceSnapshot, SourceDefinition
+from KIDSic.dto.source import SourceSnapshot, SourceDefinition
 from KIDSic.services.concrete.parsers import default_parsers
 from KIDSic.services.concrete.source_normalizer import SourceRecordNormalizer
 from KIDSic.services.concrete.source_planner import SourceRegistrationPlanner

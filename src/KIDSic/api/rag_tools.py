@@ -1,9 +1,9 @@
 """RagTools exposes dated excerpts for answers without replacing the map tool."""
-import json
 import logging
 from collections.abc import Callable
 from mcp import types
 from pydantic import ValidationError
+from KIDSic.api.tool_results import coded_error, json_result
 from KIDSic.dto.rag import RagContext, RagQuery
 from KIDSic.services.interfaces.rag import RagServiceInterface
 
@@ -47,17 +47,12 @@ class RagTools:
             inputSchema=schema, outputSchema=RagContext.model_json_schema(),
             annotations=types.ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True))]
 
-    @staticmethod
-    def error(code, message):
-        return types.CallToolResult(isError=True, content=[types.TextContent(type='text',
-            text=json.dumps({'code': code, 'message': message}, ensure_ascii=False))])
-
     async def call_tool(self, name, arguments):
         try:
             query = RagQuery.model_validate(arguments)
         except ValidationError as error:
             fields = ', '.join(str(item['loc'][0]) for item in error.errors() if item['loc'])
-            return self.error('invalid_arguments', f'Provjeri polja: {fields or "argumenti"}. '
+            return coded_error('invalid_arguments', f'Provjeri polja: {fields or "argumenti"}. '
                 'Obavezni su city (Zagreb, Varaždin, Rijeka ili Šibenik) i name (naziv); topics je neobavezan popis od '
                 'programs, vacancies, subsidies, contacts i document. '
                 'feature_id je neobavezan UUID ili seat:UUID iz prethodnog rezultata. '
@@ -67,7 +62,5 @@ class RagTools:
             result = await self._service().retrieve(query)
         except Exception:
             logger.exception('RAG evidence read failed.')
-            return self.error('unavailable', 'Izvori trenutačno nisu dostupni. Pokušaj ponovno kasnije; nemoj izmišljati odgovor.')
-        payload = result.model_dump(mode='json')
-        return types.CallToolResult(structuredContent=payload,
-            content=[types.TextContent(type='text', text=json.dumps(payload, ensure_ascii=False))])
+            return coded_error('unavailable', 'Izvori trenutačno nisu dostupni. Pokušaj ponovno kasnije; nemoj izmišljati odgovor.')
+        return json_result(result.model_dump(mode='json'))

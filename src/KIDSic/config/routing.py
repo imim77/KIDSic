@@ -1,5 +1,6 @@
 """RoutingCity keeps each city's reviewed timetable and street coverage together."""
 from dataclasses import dataclass
+import os
 from datetime import date
 from pathlib import Path
 
@@ -27,6 +28,21 @@ class RoutingCity:
     @property
     def directory(self) -> Path:
         return Path('routing/data') / ('' if self.key == 'rijeka' else self.key)
+
+    @property
+    def _env_suffix(self) -> str:
+        return '' if self.key == 'rijeka' else '_' + self.key.upper()  # Rijeka came first
+
+    def otp_url(self) -> str:
+        """otp_url returns the city's OTP GraphQL endpoint, overridable by
+        OTP_URL or OTP_URL_<CITY>."""
+        return os.getenv('OTP_URL' + self._env_suffix, f'http://127.0.0.1:{self.port}/otp/gtfs/v1')
+
+    def address_index(self) -> Path:
+        """address_index returns the city's offline OSM address database,
+        overridable by KIDSIC_ADDRESS_INDEX or KIDSIC_ADDRESS_INDEX_<CITY>."""
+        return Path(os.getenv('KIDSIC_ADDRESS_INDEX' + self._env_suffix,
+                              str(self.directory / 'addresses.sqlite'))).resolve()
 
 
 ROUTING_CITIES = {

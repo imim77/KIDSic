@@ -1,5 +1,5 @@
 """ToolRegistry installs one MCP dispatch handler for independent tool contracts."""
-from mcp import types
+from KIDSic.api.tool_results import text_error
 
 
 class ToolRegistry:
@@ -26,6 +26,5 @@ class ToolRegistry:
         if not self._routes:
             await self.list_tools()
         if name not in self._routes:
-            return types.CallToolResult(isError=True, content=[types.TextContent(type='text',
-                text='Nepoznat alat. Dohvati tools/list i odaberi objavljeni naziv alata.')])
+            return text_error('Nepoznat alat. Dohvati tools/list i odaberi objavljeni naziv alata.')
         return await self._routes[name].call_tool(name, arguments)

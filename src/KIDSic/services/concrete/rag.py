@@ -22,6 +22,24 @@ class RagService(RagServiceInterface):
     def __init__(self, uow_factory: UnitOfWorkFactory, builder: RagEvidenceBuilder):
         self._uow_factory, self._builder = uow_factory, builder
 
+    @staticmethod
+    def _rank(evidence):
+        """_rank orders by requested topic, then newest dated evidence first."""
+        return (TOPICS.index(evidence.topic), evidence.reference_date is None,
+                -evidence.reference_date.toordinal() if evidence.reference_date else 0, evidence.citation_id)
+
+    def _within_budget(self, relevant):
+        """_within_budget keeps whole excerpts that fit, skipping any that
+        would overflow: a cut excerpt could lose a condition or a date."""
+        chosen, size = [], 0
+        for item in relevant:
+            if size + len(item.content) > self._max_chars:
+                continue
+            item.applies_to = sorted(set(item.applies_to))
+            chosen.append(item)
+            size += len(item.content)
+        return chosen
+
     async def retrieve(self, query: RagQuery) -> RagContext:
         topics = query.topics or TOPICS
         async with self._uow_factory() as work:
@@ -41,15 +59,8 @@ class RagService(RagServiceInterface):
             chunks = await work.search.retrieve_context(**self._builder.context_scope(rows),
                 limit=self._max_documents) if 'document' in topics else []
             evidence = self._builder.collect(rows, [dict(c) for c in chunks])
-        relevant = sorted((e for e in evidence if e.topic in topics), key=lambda e: (TOPICS.index(e.topic),
-            e.reference_date is None, -e.reference_date.toordinal() if e.reference_date else 0, e.citation_id))
-        chosen, size = [], 0
-        for item in relevant:
-            if size + len(item.content) > self._max_chars:
-                continue  # Never cut away a condition or date from an excerpt.
-            item.applies_to = sorted(set(item.applies_to))
-            chosen.append(item)
-            size += len(item.content)
+        relevant = sorted((e for e in evidence if e.topic in topics), key=self._rank)
+        chosen = self._within_budget(relevant)
         return RagContext(**common, status='ok' if chosen else 'no_evidence', evidence=chosen,
             truncated=len(chosen) < len(relevant) or len(chunks) == self._max_documents, notice=self._notice + (
                 ' Za zadane teme nema dokaza; reci da podatak nije potvrđen.' if not chosen else ''))

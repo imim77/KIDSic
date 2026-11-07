@@ -15,50 +15,56 @@ from KIDSic.factories.rag import RagServiceFactory
 from KIDSic.db.uow.asyncpg_source import AsyncpgSourceUnitOfWork
 
 
+USER_AGENT = 'KIDSic/0.1'
+
+
 class DependencyService:
+    """DependencyService opens each resource a service needs and closes it
+    when the caller's block ends. Dry runs pass with_database=False to read
+    sources without a database."""
     def __init__(self, settings: Settings):
         self._settings = settings
 
     @asynccontextmanager
     async def source_service(self, *, with_database: bool = True, source_keys=None):
-        async with httpx.AsyncClient(headers={'User-Agent': 'KIDSic/0.1',
-                                             'Accept': 'application/json'}) as http:
-            factory = SourceServiceFactory(self._settings)
-            if not with_database:
-                yield factory.create(http, source_keys=source_keys)
-            else:
-                async with self._pool() as pool:
-                    yield factory.create(http, lambda: AsyncpgSourceUnitOfWork(pool), source_keys)
+        async with httpx.AsyncClient(headers={'User-Agent': USER_AGENT, 'Accept': 'application/json'}) as http, \
+                self._source_work(with_database) as work:
+            yield SourceServiceFactory(self._settings).create(http, work, source_keys)
 
     @asynccontextmanager
     async def historical_service(self, *, with_database: bool = True, source_keys=None):
-        async with httpx.AsyncClient(headers={'User-Agent': 'KIDSic/0.1'}) as http:
-            factory = HistoricalServiceFactory(self._settings)
-            if not with_database:
-                yield factory.create(http, source_keys=source_keys)
-            else:
-                async with self._pool() as pool:
-                    yield factory.create(http, lambda: AsyncpgSourceUnitOfWork(pool), source_keys)
+        async with httpx.AsyncClient(headers={'User-Agent': USER_AGENT}) as http, \
+                self._source_work(with_database) as work:
+            yield HistoricalServiceFactory(self._settings).create(http, work, source_keys)
 
     @asynccontextmanager
     async def enrolment_service(self, *, with_database: bool = True):
-        if not with_database:
-            yield EnrolmentDocumentServiceFactory().create()
-        else:
-            async with self._pool() as pool:
-                yield EnrolmentDocumentServiceFactory().create(lambda: AsyncpgSourceUnitOfWork(pool))
+        async with self._source_work(with_database) as work:
+            yield EnrolmentDocumentServiceFactory().create(work)
 
     @asynccontextmanager
     async def conversation_services(self):
-        async with self._pool() as pool:
-            def work():
-                return AsyncpgUnitOfWork(pool)
+        async with self._read_work() as work:
             yield LocationServiceFactory().create(work), RagServiceFactory().create(work)
 
     @asynccontextmanager
     async def location_service(self):
+        async with self._read_work() as work:
+            yield LocationServiceFactory().create(work)
+
+    @asynccontextmanager
+    async def _source_work(self, with_database: bool):
+        """_source_work yields an import Unit of Work factory, or None for a dry run."""
+        if not with_database:
+            yield None
+            return
         async with self._pool() as pool:
-            yield LocationServiceFactory().create(lambda: AsyncpgUnitOfWork(pool))
+            yield lambda: AsyncpgSourceUnitOfWork(pool)
+
+    @asynccontextmanager
+    async def _read_work(self):
+        async with self._pool() as pool:
+            yield lambda: AsyncpgUnitOfWork(pool)
 
     @asynccontextmanager
     async def _pool(self):

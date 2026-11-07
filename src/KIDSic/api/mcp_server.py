@@ -7,7 +7,7 @@ from mcp.server.lowlevel import Server
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from starlette.applications import Starlette
 from starlette.routing import Route
-from KIDSic.api.apps.map_resource import MapResource, SERVER_INSTRUCTIONS, UI_URI, UI_MIME
+from KIDSic.api.apps.map_resource import MapResource, SERVER_INSTRUCTIONS, UI_URI, UI_MIME  # noqa: F401 - re-exported
 from KIDSic.api.commute_tools import CommuteTools
 from KIDSic.integrations.concrete.address import LocalAddressLookup
 from KIDSic.integrations.concrete.otp import OtpJourneyPlanner
@@ -49,55 +49,51 @@ class McpServer:
         self.app = Starlette(routes=[Route('/mcp', McpHttpEndpoint(self._manager),
                                           methods=['GET','POST','DELETE'])], lifespan=self._lifespan)
 
+    @staticmethod
+    def _opened(service, name: str):
+        if service is None:
+            raise RuntimeError(f'{name} service is not open.')
+        return service
+
     def _location_service(self) -> LocationServiceInterface:
-        if self._locations is None:
-            raise RuntimeError('Location service is not open.')
-        return self._locations
+        return self._opened(self._locations, 'Location')
+
+    def _rag_service(self) -> RagServiceInterface:
+        return self._opened(self._rag, 'RAG')
+
+    def _commute_service(self, city: str):
+        return self._opened(self._commute, 'Commute')[city]
 
     @asynccontextmanager
     async def _lifespan(self, app):
         try:
             self._resource.load()
-            if self._provided_service is not None:
-                self._locations = self._provided_service
-                self._rag = self._provided_rag
-                async with self._commute_lifetime(), self._manager.run():
-                    yield
-            else:
-                dependencies = DependencyService(Settings.from_env())
-                async with dependencies.conversation_services() as (locations, rag):
-                    self._locations, self._rag = locations, rag
-                    async with self._commute_lifetime(), self._manager.run():
-                        yield
+            async with self._conversation_services() as (self._locations, self._rag), \
+                    self._commute_lifetime(), self._manager.run():
+                yield
         finally:
             self._locations = None
             self._rag = None
             self._commute = None
             self._resource.close()
 
+    @asynccontextmanager
+    async def _conversation_services(self):
+        """_conversation_services prefers caller-supplied services, so tests
+        and embedders run without opening a database pool."""
+        if self._provided_service is not None:
+            yield self._provided_service, self._provided_rag
+        else:
+            async with DependencyService(Settings.from_env()).conversation_services() as services:
+                yield services
 
     @asynccontextmanager
     async def _commute_lifetime(self):
         async with httpx.AsyncClient(timeout=20, trust_env=False) as http:
-            self._commute = {}
-            for city in ROUTING_CITIES.values():
-                suffix = '' if city.key == 'rijeka' else '_' + city.key.upper()
-                self._commute[city.name] = self._provided_commute or CommuteService(
-                    DayRouteService(self._locations, OtpJourneyPlanner(http,
-                        os.getenv('OTP_URL' + suffix, f'http://127.0.0.1:{city.port}/otp/gtfs/v1'))),
-                    LocalAddressLookup(Path(os.getenv('KIDSIC_ADDRESS_INDEX' + suffix,
-                        str(city.directory / 'addresses.sqlite'))).resolve(), city.name))
+            self._commute = {city.name: self._provided_commute or CommuteService(
+                DayRouteService(self._locations, OtpJourneyPlanner(http, city.otp_url())),
+                LocalAddressLookup(city.address_index(), city.name)) for city in ROUTING_CITIES.values()}
             yield
-
-    def _commute_service(self, city: str):
-        if self._commute is None:
-            raise RuntimeError('Commute service is not open.')
-        return self._commute[city]
-
-    def _rag_service(self) -> RagServiceInterface:
-        if self._rag is None:
-            raise RuntimeError('RAG service is not open.')
-        return self._rag
 
 
 def create_app(service: LocationServiceInterface | None = None,

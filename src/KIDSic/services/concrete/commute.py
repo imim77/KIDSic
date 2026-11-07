@@ -12,18 +12,7 @@ class CommuteService:
         self._addresses = addresses
 
     async def recommend(self, query: CommuteQuery):
-        points, unresolved, resolved = {}, {}, {}
-        for role in ('home', 'work'):
-            value = getattr(query, role)
-            if isinstance(value, DayPoint):
-                points[role] = value
-                continue
-            candidates = self._addresses.find(value)
-            if len(candidates) != 1 or candidates[0]['match'] != 'exact':
-                unresolved[role] = {'query': value, 'candidates': candidates}
-            else:
-                points[role] = DayPoint(**candidates[0]['point'])
-                resolved[role] = candidates[0]
+        points, unresolved, resolved = self._resolve_addresses(query)
         facility_ids, names = await self._kindergartens(query.kindergartens, query.city)
         if names:
             unresolved['kindergartens'] = names
@@ -43,6 +32,23 @@ class CommuteService:
                              'dobne prikladnosti ni slobodnog mjesta. '
                              f'Za predaju djeteta uračunato je {query.dropoff_minutes} minuta.')
         return result
+
+    def _resolve_addresses(self, query: CommuteQuery):
+        """_resolve_addresses accepts a point as given and an address only on
+        one exact match; anything else is returned for the user to settle."""
+        points, unresolved, resolved = {}, {}, {}
+        for role in ('home', 'work'):
+            value = getattr(query, role)
+            if isinstance(value, DayPoint):
+                points[role] = value
+                continue
+            candidates = self._addresses.find(value)
+            if len(candidates) != 1 or candidates[0]['match'] != 'exact':
+                unresolved[role] = {'query': value, 'candidates': candidates}
+            else:
+                points[role] = DayPoint(**candidates[0]['point'])
+                resolved[role] = candidates[0]
+        return points, unresolved, resolved
 
     async def _kindergartens(self, names: list[str] | None, city: str):
         """_kindergartens maps each named kindergarten to one facility. A name
