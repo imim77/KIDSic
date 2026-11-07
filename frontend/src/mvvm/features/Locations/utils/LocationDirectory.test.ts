@@ -1,8 +1,7 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { LocationDirectory } from '@/mvvm/features/Locations/utils/LocationDirectory'
 import { collection, facility } from '@test-support/fixtures'
 
-afterEach(() => vi.unstubAllGlobals())
 
 describe('complete location directory', () => {
   it('sends literal city/name/provider filters and preserves null geometry for the list', async () => {
@@ -34,11 +33,13 @@ describe('complete location directory', () => {
   })
 
   it.each([
-    { ...collection(facility('one')), metadata: { ...collection(facility('one')).metadata, complete: false } },
-    { ...collection(facility('one')), metadata: { ...collection(facility('one')).metadata, scope: 'bbox' } },
-    { ...collection(facility('one')), metadata: { ...collection(facility('one')).metadata, total: 2 } },
-    { ...collection(facility('one')), metadata: { ...collection(facility('one')).metadata, mapped: 0 } },
-  ])('rejects partial or inconsistent responses instead of claiming complete coverage', async (payload) => {
+    ['incomplete coverage', { complete: false }],
+    ['unexpected scope', { scope: 'bbox' }],
+    ['wrong total', { total: 2 }],
+    ['wrong mapped count', { mapped: 0 }],
+  ])('rejects %s instead of claiming complete coverage', async (_, metadata) => {
+    const payload = collection(facility('one'))
+    Object.assign(payload.metadata, metadata)
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => payload }))
     await expect(new LocationDirectory().find({ city: 'Zagreb', q: '', provider_kind: '' }, new AbortController().signal))
       .rejects.toThrow('Incomplete location response')

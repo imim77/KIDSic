@@ -1,14 +1,10 @@
+import { finishAnimations, preferReducedMotion } from '@test-support/motion'
 import { render, screen } from '@testing-library/react'
-import gsap from 'gsap'
-import { afterEach, expect, it, vi } from 'vitest'
+import { expect, it } from 'vitest'
 import { LocationDetails } from '@/mvvm/features/Locations/components/LocationDetails'
 import { facility } from '@test-support/fixtures'
 
-afterEach(() => vi.unstubAllGlobals())
 
-function preferReducedMotion(reduce: boolean) {
-  vi.stubGlobal('matchMedia', vi.fn((query: string) => ({ matches: query.includes('reduce') && reduce })))
-}
 
 it('fades details in and leaves no inline styles that would block hover or focus', () => {
   preferReducedMotion(false)
@@ -16,7 +12,7 @@ it('fades details in and leaves no inline styles that would block hover or focus
   const panel = screen.getByRole('region', { name: /Detalji/ })
   expect(panel.style.opacity).toBe('0')
   expect(panel).toHaveFocus()  // opacity, not visibility, keeps the panel focusable
-  gsap.globalTimeline.getChildren().forEach((animation) => animation.progress(1))
+  finishAnimations()
   expect(panel.getAttribute('style') ?? '').toBe('')
   expect(screen.getByRole('heading', { level: 2 }).getAttribute('style') ?? '').toBe('')
 })

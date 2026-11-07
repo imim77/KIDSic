@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { beforeEach, expect, it, vi } from 'vitest'
 import { McpLocationApp } from '@/mvvm/features/Locations/screens/McpLocation/McpLocationApp'
 import { collection, deferred, facility } from '@test-support/fixtures'
 import { LocationToolResult } from '@/mvvm/features/Locations/utils/LocationToolResult'
@@ -44,12 +44,12 @@ vi.mock('@/mvvm/features/Locations/components/map/KindergartenMap', () => ({
 }))
 
 beforeEach(() => {
-  Element.prototype.scrollTo = vi.fn()
+  host.call.mockReset()
+  host.model.mockReset().mockResolvedValue({})
   vi.stubGlobal('fetch', vi.fn())
   host.context.displayMode = 'inline'
   host.display.mockImplementation(async ({ mode }) => ({ mode }))
 })
-afterEach(() => { vi.unstubAllGlobals(); Reflect.deleteProperty(Element.prototype, 'scrollTo') })
 
 async function result(city: string, id?: string, name?: string) {
   const locations = collection(...(id ? [facility(id)] : []))

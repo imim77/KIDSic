@@ -7,6 +7,8 @@ import { collection, facility } from '@test-support/fixtures'
 
 let maps: L.Map[]
 let observers: { callback: ResizeObserverCallback; disconnect: ReturnType<typeof vi.fn> }[]
+const originalSvgSupport = Object.getOwnPropertyDescriptor(L.Browser, 'svg')!
+afterEach(() => Object.defineProperty(L.Browser, 'svg', originalSvgSupport))
 
 beforeEach(() => {
   maps = []
@@ -18,7 +20,7 @@ beforeEach(() => {
     return map
   })
   // jsdom supports SVG elements but does not expose createSVGRect for detection.
-  L.Browser.svg = true
+  Object.defineProperty(L.Browser, 'svg', { configurable: true, value: true })
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(900)
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(700)
   vi.stubGlobal('ResizeObserver', class {
@@ -29,7 +31,6 @@ beforeEach(() => {
   })
 })
 
-afterEach(() => vi.unstubAllGlobals())
 
 async function ready() {
   await waitFor(() => expect(maps).toHaveLength(1))

@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import type { LocationCollection, LocationFeature, Nearby } from '@/mvvm/features/Locations/types'
 import { CityMapApp as App } from '@/mvvm/features/Locations/screens/CityMap/CityMapApp'
@@ -26,12 +26,6 @@ vi.mock('@/mvvm/features/Locations/components/map/KindergartenMap', () => ({
   </div>,
 }))
 
-beforeEach(() => { Element.prototype.scrollIntoView = vi.fn(); Element.prototype.scrollTo = vi.fn() })
-afterEach(() => {
-  vi.unstubAllGlobals()
-  Reflect.deleteProperty(Element.prototype, 'scrollIntoView')
-  Reflect.deleteProperty(Element.prototype, 'scrollTo')
-})
 
 describe('directory interactions', () => {
   it('expands a chosen card into list, details and map that share one selection', async () => {

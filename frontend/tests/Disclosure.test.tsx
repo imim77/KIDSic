@@ -1,16 +1,11 @@
+import { finishAnimations, preferReducedMotion } from '@test-support/motion'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import gsap from 'gsap'
-import { afterEach, expect, it, vi } from 'vitest'
+import { expect, it } from 'vitest'
 import { Disclosure } from '@/mvvm/components/Disclosure'
 
-afterEach(() => vi.unstubAllGlobals())
 
-const finish = () => gsap.globalTimeline.getChildren().forEach((animation) => animation.progress(1))
 
-function preferReducedMotion(reduce: boolean) {
-  vi.stubGlobal('matchMedia', vi.fn((query: string) => ({ matches: query.includes('reduce') && reduce })))
-}
 
 it('slides the body open, keeps it visible until closing ends and leaves no inline styles', async () => {
   preferReducedMotion(false)
@@ -20,11 +15,11 @@ it('slides the body open, keeps it visible until closing ends and leaves no inli
   await userEvent.click(screen.getByText('Tarife'))
   expect(details.open).toBe(true)
   expect(body.style.overflow).toBe('hidden')
-  finish()
+  finishAnimations()
   expect(body.getAttribute('style') ?? '').toBe('')
   await userEvent.click(screen.getByText('Tarife'))
   expect(details.open).toBe(true)  // still animating closed
-  finish()
+  finishAnimations()
   expect(details.open).toBe(false)
   expect(body.getAttribute('style') ?? '').toBe('')
 })
@@ -33,10 +28,10 @@ it('reopens a body that is still closing instead of losing the click', async () 
   preferReducedMotion(false)
   const { container } = render(<Disclosure summary="Tarife"><p>Sadržaj</p></Disclosure>)
   const details = container.querySelector('details')!
-  await userEvent.click(screen.getByText('Tarife')); finish()
+  await userEvent.click(screen.getByText('Tarife')); finishAnimations()
   await userEvent.click(screen.getByText('Tarife'))
   await userEvent.click(screen.getByText('Tarife'))
-  finish()
+  finishAnimations()
   expect(details.open).toBe(true)
 })
 
