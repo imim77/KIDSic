@@ -79,7 +79,7 @@ kartu klijent mora podržavati MCP Apps; klijent koji podržava samo MCP alate
 može koristiti rezultate alata bez prikaza karte. Mogu se koristiti i drugi
 kompatibilni MCP klijenti, uključujući lokalne razvojne klijente. Njihov
 postupak povezivanja i podrška za interaktivni prikaz ovise o klijentu.
-Detaljnije informacije i primjeri nalaze se u [MCP.md](MCP.md).
+
 
 ## Struktura
 
@@ -326,7 +326,7 @@ npm run dev
 
 Karta koristi Leaflet i OpenStreetMap pločice bez API tokena. Potrebna je internetska veza za dohvat podloge; atribucija OpenStreetMap suradnika prikazana je na karti.
 
-Vite služi `src/pages/index.html`, učitava env iz mape `frontend/` i prosljeđuje `/api` lokalnom API-ju na portu 8000. Produkcijski samostalni hosting mora usmjeriti `/api` na isti backend; razvojni proxy nije dio statičkog builda. Kod prikaza je u `src/mvvm` (Container → ViewModel → View). MCP prikaz koristi zaseban samostalni HTML build i rezultate alata preko host bridgea, bez HTTP dohvata iz iframea; [upute za MCP povezivanje](MCP.md).
+Vite služi `src/pages/index.html`, učitava env iz mape `frontend/` i prosljeđuje `/api` lokalnom API-ju na portu 8000. Produkcijski samostalni hosting mora usmjeriti `/api` na isti backend; razvojni proxy nije dio statičkog builda. Kod prikaza je u `src/mvvm` (Container → ViewModel → View). MCP prikaz koristi zaseban samostalni HTML build i rezultate alata preko host bridgea, bez HTTP dohvata iz iframea.
 
 Ako je port 8000 zauzet, API pokrenuti s `--port 18000`, a frontend naredbom `KIDSIC_API_TARGET=http://127.0.0.1:18000 npm run dev`. `KIDSIC_API_TARGET` je varijabla procesa koji pokreće Vite, ne javna varijabla aplikacije iz `.env.local`.
 
@@ -352,7 +352,7 @@ Lokalno istraživanje u `docs/`, dokumentacija baze u `database/`, `scripts/expo
 MCP alat `preporuci_vrtice_usput` uspoređuje dom → vrtić → posao za sva tri grada.
 Zagreb koristi službeni ZET GTFS pod Otvorenom dozvolom RH, zaseban lokalni
 OpenTripPlanner i OSM adresni indeks. Raspored za Zagreb: 21. 10. – 31. 12. 2026.
-[Ugovor alata](MCP.md#vrtić-na-putu-od-doma-do-posla-rijeka-zagreb-i-šibenik).
+
 
 Šibenik koristi službeni GTFS Gradskog parkinga pod Otvorenom dozvolom RH,
 sa zasebnim OTP-om i adresnim indeksom. Raspored: 7. 9. 2026. – 7. 6. 2027.
