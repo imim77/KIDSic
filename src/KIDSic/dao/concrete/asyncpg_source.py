@@ -1,5 +1,6 @@
 """SQL persistence for CKAN registration and atomic, repeatable snapshots."""
 from dataclasses import asdict
+from KIDSic.dao.concrete.columns import database_column, domain_projection
 from uuid import uuid4
 
 from KIDSic.dao.interfaces.source import SourceRepository
@@ -23,32 +24,32 @@ class AsyncpgSourceRepository(SourceRepository):
         self._connection = connection
 
     async def register(self, source: PlannedSource) -> str:
-        collision = await self._connection.fetchval('''
-            SELECT dataset_key FROM izvori_podataka WHERE dataset_key<>$1 AND (
-                metadata->>'resource_url'=$3 OR
-                (metadata->>'ckan_base_url'=$2 AND metadata->>'ckan_resource_id'=$4)) LIMIT 1
-        ''', source.definition.key, source.definition.base_url.rstrip('/'),
+        collision = await self._connection.fetchval("""
+            SELECT kljuc_skupa_podataka  AS dataset_key FROM izvori_podataka WHERE kljuc_skupa_podataka<>$1 AND (
+                metapodaci->>'resource_url'=$3 OR
+                (metapodaci->>'ckan_base_url'=$2 AND metapodaci->>'ckan_resource_id'=$4)) LIMIT 1
+        """, source.definition.key, source.definition.base_url.rstrip('/'),
             str(source.resource.url), source.resource.id)
         if collision is not None:
             raise SourceImportError(f'This CKAN resource is already registered as {collision}.')
         old = await self._connection.fetchrow(
-            'SELECT * FROM izvori_podataka WHERE dataset_key=$1 FOR UPDATE', source.definition.key)
+            'SELECT id,kljuc_skupa_podataka AS dataset_key,naslov AS title,izdavac AS publisher,poveznica AS url,licenca AS license,uvoz_dopusten AS import_allowed,dohvaceno_u AS fetched_at,datum_opazanja AS observed_on,metapodaci AS metadata,vrsta AS kind FROM izvori_podataka WHERE kljuc_skupa_podataka=$1 FOR UPDATE', source.definition.key)
         values = (source.package.title, source.publisher, source.catalogue_url,
                   source.package.license_title or source.package.license_id)
         if old is None:
-            await self._connection.execute('''
-                INSERT INTO izvori_podataka(dataset_key,title,publisher,url,license,import_allowed,metadata)
+            await self._connection.execute("""
+                INSERT INTO izvori_podataka(kljuc_skupa_podataka,naslov,izdavac,poveznica,licenca,uvoz_dopusten,metapodaci)
                 VALUES ($1,$2,$3,$4,$5,true,$6)
-            ''', source.definition.key, *values, source.metadata)
+            """, source.definition.key, *values, source.metadata)
             return 'added'
         unchanged = tuple(old[field] for field in ('title', 'publisher', 'url', 'license')) == values
         unchanged = unchanged and all(old['metadata'].get(k) == v for k, v in source.metadata.items())
         if unchanged:
             return 'unchanged'
-        await self._connection.execute('''
-            UPDATE izvori_podataka SET title=$2,publisher=$3,url=$4,license=$5,metadata=metadata || $6
-            WHERE dataset_key=$1
-        ''', source.definition.key, *values, source.metadata)
+        await self._connection.execute("""
+            UPDATE izvori_podataka SET naslov=$2,izdavac=$3,poveznica=$4,licenca=$5,metapodaci=metapodaci || $6
+            WHERE kljuc_skupa_podataka=$1
+        """, source.definition.key, *values, source.metadata)
         return 'updated'
 
     async def import_snapshot(self, snapshot: SourceSnapshot, *, allow_removals: bool = False) -> dict:
@@ -58,12 +59,12 @@ class AsyncpgSourceRepository(SourceRepository):
             if not allow_removals:
                 # A valid file can still be partial; compare identities rather
                 # than counts, before touching metadata or canonical fields.
-                missing = await self._connection.fetch('''
-                    SELECT r.source_key FROM izvorni_zapisi r
-                    JOIN izvori_podataka s ON s.id=r.source_id
-                    WHERE s.dataset_key=$1 AND NOT(r.source_key=ANY($2::text[]))
-                    ORDER BY r.source_key
-                ''', snapshot.source.definition.key, [row.source_key for row in snapshot.rows])
+                missing = await self._connection.fetch("""
+                    SELECT r.kljuc_izvornog_zapisa  AS source_key FROM izvorni_zapisi r
+                    JOIN izvori_podataka s ON s.id=r.id_izvora
+                    WHERE s.kljuc_skupa_podataka=$1 AND NOT(r.kljuc_izvornog_zapisa=ANY($2::text[]))
+                    ORDER BY r.kljuc_izvornog_zapisa
+                """, snapshot.source.definition.key, [row.source_key for row in snapshot.rows])
                 if missing:
                     sample = ', '.join(repr(row['source_key']) for row in missing[:10])
                     raise SourceImportError(
@@ -78,29 +79,29 @@ class AsyncpgSourceRepository(SourceRepository):
         source = snapshot.source
         registered = await self.register(source)
         stored = await self._connection.fetchrow(
-            'SELECT id,import_allowed FROM izvori_podataka WHERE dataset_key=$1', source.definition.key)
+            'SELECT id,uvoz_dopusten  AS import_allowed FROM izvori_podataka WHERE kljuc_skupa_podataka=$1', source.definition.key)
         if not stored['import_allowed']:
             raise SourceImportError(f'Import is disabled for {source.definition.key}.')
         source_id = stored['id']
         self._state = SourceStateWriter(self._connection, source_id, snapshot.fetched_at)
         self._municipalities = {}
-        previous = {r['source_key']: r for r in await self._connection.fetch('''
-            SELECT * FROM izvorni_zapisi WHERE source_id=$1
-        ''', source_id)}
+        previous = {r['source_key']: r for r in await self._connection.fetch("""
+            SELECT id,id_izvora AS source_id,kljuc_izvornog_zapisa AS source_key,izvorni_podaci AS raw_data,dohvaceno_u AS fetched_at,datum_opazanja AS observed_on,id_vrtica AS kindergarten_id,id_objekta AS location_id,status_povezivanja AS match_status,napomena_povezivanja AS match_note,metoda_povezivanja AS match_method FROM izvorni_zapisi WHERE id_izvora=$1
+        """, source_id)}
         owners = {r['id']: {**dict(r), 'name_key': name_key(r['name']), 'areas': set()}
-                  for r in await self._connection.fetch('''
-            SELECT k.id,k.name,k.provider_kind,k.oib,ks.settlement_key AS seat_settlement_key,m.key AS municipality
-            FROM vrtici k LEFT JOIN sjedista_vrtica ks ON ks.kindergarten_id=k.id
-            LEFT JOIN jedinice_lokalne_samouprave m ON m.id=ks.municipality_id
-        ''')}
+                  for r in await self._connection.fetch("""
+            SELECT k.id,k.naziv AS name,k.vrsta_pruzatelja AS provider_kind,k.oib,ks.kljuc_naselja AS seat_settlement_key,m.kljuc AS municipality
+            FROM vrtici k LEFT JOIN sjedista_vrtica ks ON ks.id_vrtica=k.id
+            LEFT JOIN jedinice_lokalne_samouprave m ON m.id=ks.id_jedinice_lokalne_samouprave
+        """)}
         for item in owners.values():
             if item['seat_settlement_key']:
                 item['areas'].add((item['seat_settlement_key'], item['municipality']))
-        locations = [dict(r) for r in await self._connection.fetch('''
-            SELECT l.id,l.kindergarten_id,l.settlement_key,l.address,m.key AS municipality
-            FROM objekti l LEFT JOIN jedinice_lokalne_samouprave m ON m.id=l.municipality_id
-            WHERE l.kindergarten_id IS NOT NULL
-        ''')]
+        locations = [dict(r) for r in await self._connection.fetch("""
+            SELECT l.id,l.id_vrtica AS kindergarten_id,l.kljuc_naselja AS settlement_key,l.adresa AS address,m.kljuc AS municipality
+            FROM objekti l LEFT JOIN jedinice_lokalne_samouprave m ON m.id=l.id_jedinice_lokalne_samouprave
+            WHERE l.id_vrtica IS NOT NULL
+        """)]
         for item in locations:
             item['area'] = (item['settlement_key'], item['municipality'])
             item['address_key'] = name_key(item['address'] or '')
@@ -152,10 +153,10 @@ class AsyncpgSourceRepository(SourceRepository):
             record_id = prior['id'] if prior is not None else uuid4()
             evidence = {'dataset_key': source.definition.key, 'source_record_id': str(record_id)}
             if owner is None:
-                owner = await self._connection.fetchval('''
-                    INSERT INTO vrtici(name,provider_kind,provenance)
+                owner = await self._connection.fetchval("""
+                    INSERT INTO vrtici(naziv,vrsta_pruzatelja,podrijetlo)
                     VALUES ($1,$2,$3) RETURNING id
-                ''', row.name, row.provider_kind, {'name': evidence, 'provider_kind': evidence})
+                """, row.name, row.provider_kind, {'name': evidence, 'provider_kind': evidence})
                 owners[owner] = {'id': owner, 'oib': None, 'areas': set()}
                 counts['kindergartens_added'] += 1
             owner_provenance = {key: evidence for key in ('email', 'phone', 'website_url', 'oib')
@@ -165,7 +166,7 @@ class AsyncpgSourceRepository(SourceRepository):
                 if row.provider_kind_source_url:
                     owner_provenance['provider_kind'] = {
                         **evidence, 'source_url': row.provider_kind_source_url}
-            existing = await self._connection.fetchrow('SELECT * FROM vrtici WHERE id=$1', owner)
+            existing = await self._connection.fetchrow('SELECT id,naziv AS name,vrsta_pruzatelja AS provider_kind,e_posta AS email,telefon AS phone,mrezna_stranica AS website_url,podrijetlo AS provenance,oib FROM vrtici WHERE id=$1', owner)
             proof = existing['provenance'].get('provider_kind', {})
             # A stable ID cannot preserve a classification after its source
             # stops attesting it; only another active source can do that.
@@ -183,13 +184,13 @@ class AsyncpgSourceRepository(SourceRepository):
             await self._write_fields('vrtici', owner, values, owner_provenance,
                                      source.definition.key, replace_fields=('name',) if replace_name else ())
             owner_values = await self._connection.fetchrow(
-                'SELECT name,provider_kind,oib FROM vrtici WHERE id=$1', owner)
+                'SELECT naziv AS name,vrsta_pruzatelja AS provider_kind,oib FROM vrtici WHERE id=$1', owner)
             owners[owner].update(owner_values, name_key=name_key(owner_values['name']))
             municipality_id = await self._municipality_id(row.municipality)
             data = asdict(row)
             if institution:
-                await self._connection.execute('''INSERT INTO sjedista_vrtica(kindergarten_id)
-                    VALUES ($1) ON CONFLICT(kindergarten_id) DO NOTHING''', owner)
+                await self._connection.execute("""INSERT INTO sjedista_vrtica(id_vrtica)
+                    VALUES ($1) ON CONFLICT(id_vrtica) DO NOTHING""", owner)
                 seat_values = {key: data[key] for key in ('address', 'postal_code', 'settlement')}
                 seat_values.update(settlement_key=settlement_key, municipality_id=municipality_id)
                 await self._write_fields('sjedista_vrtica', owner, seat_values,
@@ -204,21 +205,21 @@ class AsyncpgSourceRepository(SourceRepository):
                 if row.kind != 'unknown':
                     location_provenance['kind'] = evidence
                 if location is None:
-                    location = await self._connection.fetchval('''
-                        INSERT INTO objekti(kindergarten_id,name,settlement,settlement_key,address)
+                    location = await self._connection.fetchval("""
+                        INSERT INTO objekti(id_vrtica,naziv,naselje,kljuc_naselja,adresa)
                         VALUES ($1,$2,$3,$4,$5) RETURNING id
-                    ''', owner, row.location_name, row.settlement, settlement_key, row.address)
+                    """, owner, row.location_name, row.settlement, settlement_key, row.address)
                     counts['locations_added'] += 1
                     locations.append({'id': location, 'kindergarten_id': owner})
                 # Reviewed address geography cannot follow a moved facility.
                 # Demotion also removes its area/RAG evidence from active reads.
-                await self._connection.execute('''
-                    UPDATE izvorni_zapisi SET match_status='candidate',
-                        match_note='Address changed; geography requires another review.'
-                    WHERE location_id=$1 AND match_status='accepted'
-                      AND raw_data ? 'reviewed_address'
-                      AND raw_data->>'reviewed_address' IS DISTINCT FROM $2
-                ''', location, row.address)
+                await self._connection.execute("""
+                    UPDATE izvorni_zapisi SET status_povezivanja='candidate',
+                        napomena_povezivanja='Address changed; geography requires another review.'
+                    WHERE id_objekta=$1 AND status_povezivanja='accepted'
+                      AND izvorni_podaci ? 'reviewed_address'
+                      AND izvorni_podaci->>'reviewed_address' IS DISTINCT FROM $2
+                """, location, row.address)
                 location_values = {key: data[key] for key in
                                    ('settlement', 'address', 'postal_code', 'district', 'longitude', 'latitude')}
                 location_values.update(name=row.location_name, settlement_key=settlement_key,
@@ -244,11 +245,11 @@ class AsyncpgSourceRepository(SourceRepository):
             return None
         if key not in self._municipalities:
             item = MUNICIPALITIES[key]
-            self._municipalities[key] = await self._connection.fetchval('''
-                INSERT INTO jedinice_lokalne_samouprave(key,name,county,aliases) VALUES ($1,$2,$3,$4)
-                ON CONFLICT (key) DO UPDATE SET name=EXCLUDED.name,county=EXCLUDED.county,
-                    aliases=EXCLUDED.aliases RETURNING id
-            ''', item.key, item.name, item.county, list(item.aliases))
+            self._municipalities[key] = await self._connection.fetchval("""
+                INSERT INTO jedinice_lokalne_samouprave(kljuc,naziv,zupanija,alternativni_nazivi) VALUES ($1,$2,$3,$4)
+                ON CONFLICT (kljuc) DO UPDATE SET naziv=EXCLUDED.naziv,zupanija=EXCLUDED.zupanija,
+                    alternativni_nazivi=EXCLUDED.alternativni_nazivi RETURNING id
+            """, item.key, item.name, item.county, list(item.aliases))
         return self._municipalities[key]
 
     async def _record(self, row, *, owner=None, location=None,
@@ -258,18 +259,20 @@ class AsyncpgSourceRepository(SourceRepository):
             note=note, record_id=record_id)
 
     async def _active_proof(self, proof, owner, excluding_source):
-        return await self._connection.fetchval('''SELECT EXISTS (
-            SELECT 1 FROM izvorni_zapisi r JOIN izvori_podataka s ON s.id=r.source_id
-            WHERE r.id::text=$1 AND r.kindergarten_id=$2 AND r.source_id<>$3
-              AND r.match_status='accepted' AND s.import_allowed)
-        ''', proof.get('source_record_id'), owner, excluding_source)
+        return await self._connection.fetchval("""SELECT EXISTS (
+            SELECT 1 FROM izvorni_zapisi r JOIN izvori_podataka s ON s.id=r.id_izvora
+            WHERE r.id::text=$1 AND r.id_vrtica=$2 AND r.id_izvora<>$3
+              AND r.status_povezivanja='accepted' AND s.uvoz_dopusten)
+        """, proof.get('source_record_id'), owner, excluding_source)
 
     async def _write_fields(self, table, identity, values, evidence, dataset, *, replace_fields=()):
         seat = table == 'sjedista_vrtica'
-        identity_column = 'kindergarten_id' if seat else 'id'
+        identity_column = 'id_vrtica' if seat else 'id'
         stored = await self._connection.fetchrow(
-            'SELECT ks.*,k.provenance FROM sjedista_vrtica ks JOIN vrtici k ON k.id=ks.kindergarten_id WHERE k.id=$1'
-            if seat else f'SELECT * FROM {table} WHERE id=$1', identity)
+            f'SELECT {domain_projection(table, qualifier=table)},k.podrijetlo AS provenance '
+            'FROM sjedista_vrtica JOIN vrtici k ON k.id=sjedista_vrtica.id_vrtica '
+            'WHERE k.id=$1' if seat else
+            f'SELECT {domain_projection(table)} FROM {table} WHERE id=$1', identity)
         provenance = dict(stored['provenance'])
         updates = {}
         for field, value in values.items():
@@ -277,8 +280,7 @@ class AsyncpgSourceRepository(SourceRepository):
                          'location_name' if table == 'objekti' and field == 'name' else field)
             old = provenance.get(proof_key, {})
             owned = old.get('dataset_key') == dataset or await self._connection.fetchval(
-                'SELECT EXISTS(SELECT 1 FROM izvorni_zapisi r JOIN izvori_podataka s ON s.id=r.source_id '
-                'WHERE r.id::text=$1 AND s.dataset_key=$2)', old.get('source_record_id'), dataset)
+                'SELECT EXISTS(SELECT 1 FROM izvorni_zapisi r JOIN izvori_podataka s ON s.id=r.id_izvora WHERE r.id::text=$1 AND s.kljuc_skupa_podataka=$2)', old.get('source_record_id'), dataset)
             if (old and not owned and field not in replace_fields
                     and not (field == 'provider_kind' and stored[field] == 'unknown')):
                 continue
@@ -290,10 +292,10 @@ class AsyncpgSourceRepository(SourceRepository):
                 updates[field] = None
                 provenance.pop(proof_key, None)
         if seat:
-            await self._connection.execute('UPDATE vrtici SET provenance=$2 WHERE id=$1', identity, provenance)
+            await self._connection.execute('UPDATE vrtici SET podrijetlo=$2 WHERE id=$1', identity, provenance)
         else:
             updates['provenance'] = provenance
         if not updates:
             return
-        columns = ','.join(f'{field}=${index}' for index, field in enumerate(updates, 2))
+        columns = ','.join(f'{database_column(field)}=${index}' for index, field in enumerate(updates, 2))
         await self._connection.execute(f'UPDATE {table} SET {columns} WHERE {identity_column}=$1', identity, *updates.values())

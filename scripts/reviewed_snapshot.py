@@ -67,14 +67,14 @@ class Batch:
 
     async def source(self, key, title, publisher, url, license, metadata):
         """source registers a data source; finish activates it after all records are written."""
-        stored = await self._connection.fetchrow('''
-            INSERT INTO izvori_podataka(dataset_key,title,publisher,url,license,import_allowed,
-                                    fetched_at,metadata)
+        stored = await self._connection.fetchrow("""
+            INSERT INTO izvori_podataka(kljuc_skupa_podataka,naslov,izdavac,poveznica,licenca,uvoz_dopusten,
+                                    dohvaceno_u,metapodaci)
             VALUES ($1,$2,$3,$4,$5,true,$6,$7)
-            ON CONFLICT(dataset_key) DO UPDATE SET
-                metadata=izvori_podataka.metadata || EXCLUDED.metadata
-            RETURNING id,import_allowed
-        ''', key, title, publisher, url, license, self.fetched_at, metadata)
+            ON CONFLICT(kljuc_skupa_podataka) DO UPDATE SET
+                metapodaci=izvori_podataka.metapodaci || EXCLUDED.metapodaci
+            RETURNING id,uvoz_dopusten
+         AS import_allowed""", key, title, publisher, url, license, self.fetched_at, metadata)
         if not stored['import_allowed']:
             raise ValueError(f'Import is disabled for {key}.')
         self._states[stored['id']] = SourceStateWriter(
@@ -93,23 +93,23 @@ class Batch:
 
     async def evidence(self, location, record, fields, manual=()):
         """evidence links location fields to a record; user-corrected fields keep their own."""
-        await self._connection.execute('UPDATE objekti SET provenance=provenance || $2 WHERE id=$1',
+        await self._connection.execute('UPDATE objekti SET podrijetlo=podrijetlo || $2 WHERE id=$1',
             location, {field: {'source_record_id': str(record)} for field in fields if field not in manual})
 
     async def chunk(self, owner, location, record, content, url):
-        await self._connection.execute('''
-            INSERT INTO odlomci_znanja(kindergarten_id,location_id,source_record_id,ordinal,content,source_url)
+        await self._connection.execute("""
+            INSERT INTO odlomci_znanja(id_vrtica,id_objekta,id_izvornog_zapisa,redni_broj,sadrzaj,poveznica_izvora)
             VALUES ($1,$2,$3,0,$4,$5)
-        ''', owner, location, record, content, url)
+        """, owner, location, record, content, url)
 
     async def location(self, location, owner, name, address, settlement, municipality, lon, lat, attributes):
         """location upserts a reviewed facility under a stable ID, merging attributes."""
-        await self._connection.execute('''
-            INSERT INTO objekti(id,kindergarten_id,name,address,settlement,settlement_key,
-                                 municipality_id,longitude,latitude,attributes)
+        await self._connection.execute("""
+            INSERT INTO objekti(id,id_vrtica,naziv,adresa,naselje,kljuc_naselja,
+                                 id_jedinice_lokalne_samouprave,geografska_duzina,geografska_sirina,obiljezja)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-            ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,address=EXCLUDED.address,
-                settlement=EXCLUDED.settlement,settlement_key=EXCLUDED.settlement_key,
-                municipality_id=EXCLUDED.municipality_id,longitude=EXCLUDED.longitude,
-                latitude=EXCLUDED.latitude,attributes=objekti.attributes || EXCLUDED.attributes
-        ''', location, owner, name, address, settlement, normalize(settlement), municipality, lon, lat, attributes)
+            ON CONFLICT(id) DO UPDATE SET naziv=EXCLUDED.naziv,adresa=EXCLUDED.adresa,
+                naselje=EXCLUDED.naselje,kljuc_naselja=EXCLUDED.kljuc_naselja,
+                id_jedinice_lokalne_samouprave=EXCLUDED.id_jedinice_lokalne_samouprave,geografska_duzina=EXCLUDED.geografska_duzina,
+                geografska_sirina=EXCLUDED.geografska_sirina,obiljezja=objekti.obiljezja || EXCLUDED.obiljezja
+        """, location, owner, name, address, settlement, normalize(settlement), municipality, lon, lat, attributes)
