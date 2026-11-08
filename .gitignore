@@ -180,6 +180,7 @@ tags
 
 # make setup marker
 .setup-done
+/snapshots/.kidsic-snapshot.*
 
 # Local agent configuration and working documents
 /.agents/skills/

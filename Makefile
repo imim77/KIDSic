@@ -14,7 +14,7 @@ start: ## Set up on first run, then start API, MCP server and frontend
 	@echo "API: http://127.0.0.1:8000  MCP: http://127.0.0.1:8001/mcp  Frontend: http://127.0.0.1:5173"
 	$(MAKE) -j3 run-api run-mcp run-frontend
 
-setup: sync install-frontend up migrate register-sources sync-kindergartens build-mcp ## First-time setup: dependencies, database, data import, MCP build
+setup: sync install-frontend up migrate build-mcp ## First-time setup: dependencies, database snapshot, migrations, MCP build
 	@touch $(SETUP_STAMP)
 
 stop: down ## Stop the database container
@@ -34,7 +34,11 @@ install-frontend: ## Install frontend dependencies
 	npm --prefix frontend install
 
 up: ## Start all containers
+	@test -s snapshots/10-kidsic.sql.gz || { echo "Missing database snapshot: snapshots/10-kidsic.sql.gz"; exit 1; }
 	docker compose up -d --wait
+
+snapshot-db: ## Export the current Compose database for new installations
+	bash scripts/snapshot_database.sh
 
 down: ## Stop all containers
 	docker compose down

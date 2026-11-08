@@ -8,7 +8,7 @@ KIDSic je projekt za Datathon Portala otvorenih podataka 2026. Aplikacija korist
 - Docker s uključenim Docker Composeom
 - Node.js 24 i npm
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) za Python. Projekt zahtijeva Python 3.14 ili noviji, koji `uv` može preuzeti.
-- Internetska veza za instalaciju, početni uvoz podataka i kartu
+- Internetska veza za instalaciju i kartu
 
 Na Windowsu koristite WSL2.
 
@@ -23,7 +23,9 @@ make up
 make start
 ```
 
-Pri prvom pokretanju Makefile instalira ovisnosti, priprema bazu i uvozi podatke s otvorenih portala. Uvoz ovisi o dostupnosti tih portala. Repozitorij ne sadrži potpunu snimku naše lokalne baze, pa neke ručno pregledane lokacije neće biti dostupne.
+Pri prvom `make up` PostgreSQL u novi Docker volumen automatski učitava snimku `snapshots/10-kidsic.sql.gz`. Ona sadrži strukturu i podatke naše baze, uključujući ručno pregledane lokacije, izvore, dokumente i stanje migracija. Za taj uvoz nije potreban pristup portalima otvorenih podataka. `make start` instalira ovisnosti, primjenjuje eventualne novije migracije i pokreće aplikaciju.
+
+Snimka se učitava samo pri inicijalizaciji novog volumena. Postojeća baza ostaje sačuvana; promjena snimke u repozitoriju ne zamjenjuje lokalne podatke. Ako početni uvoz ne uspije, provjerite `docker compose logs database` prije nastavka; djelomično inicijaliziran volumen ne pokreće uvoz ponovno.
 
 Otvorite [http://localhost:5173](http://localhost:5173) za pregled karte. MCP server dostupan je na `http://127.0.0.1:8001/mcp`.
 
@@ -34,6 +36,20 @@ make stop
 ```
 
 Podaci ostaju u Docker volumenu. Za ponovno pokretanje upotrijebite `make up` i `make start`.
+
+## Ažuriranje snimke baze
+
+Dok lokalna Compose baza radi, izvezite njezino trenutačno stanje:
+
+```sh
+make snapshot-db
+```
+
+Naredba koristi `pg_dump` iz kontejnera i atomarno zamjenjuje komprimiranu snimku tek nakon uspješnog izvoza. Izvozi Compose bazu `kidsic`, ne bazu iz varijable `DATABASE_URL`. Datoteku `snapshots/10-kidsic.sql.gz` uključite u sljedeći Git commit kako bi je dobili i drugi korisnici. Snimka ne sadrži PostgreSQL uloge ni njihove lozinke. Podaci zadržavaju licence i atribucije svojih izvora; prije dijeljenja nove snimke provjerite sadržaj koji ste dodali.
+
+Za namjerno osvježavanje kataloga s portala ostaju dostupne naredbe `make register-sources` i `make sync-kindergartens`, te `make sync-historical` i `make sync-enrolment` za dodatne podatke.
+
+Snimka PostgreSQL baze ne uključuje OTP grafove putovanja ni lokalne adresne indekse iz `routing/data/`. Za preporuke puta njih i dalje treba zasebno pripremiti i pokrenuti odgovarajuće servise iz `routing/compose.yaml`.
 
 ## Povezivanje s AI klijentom
 

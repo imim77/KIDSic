@@ -13,8 +13,10 @@ services:
       - "127.0.0.1:55432:5432"
     volumes:
       - kidsic_database:/var/lib/postgresql/data
+      - ./snapshots:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kidsic -d kidsic"]
+      # The initialization server only uses a socket; TCP is ready after import.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U kidsic -d kidsic"]
       interval: 5s
       timeout: 3s
       retries: 20
