@@ -56,3 +56,9 @@ make test-frontend
 ```
 
 Integracijski testovi baze zahtijevaju zasebnu migriranu PostgreSQL bazu naziva `kidsic_test_*` i varijablu `KIDSIC_TEST_DATABASE_URL`. Bez nje se preskaču.
+
+## Licenca
+
+Izvorni programski kod ovog rješenja objavljen je pod licencom **Apache License 2.0**, koja dopušta besplatno korištenje, izmjenu i distribuciju, uključujući komercijalnu uporabu, uz poštovanje uvjeta licence.
+
+Puni tekst licence dostupan je u datoteci [LICENSE](LICENSE). Vanjske programske komponente zadržavaju svoje izvorne licence, koje su zasebno navedene u dokumentaciji.
