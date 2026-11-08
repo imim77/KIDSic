@@ -37,7 +37,7 @@ dostupnosti. Repozitorij zasad **ne sadrži automatski obnovljivu snimku naše
 popunjene baze**, pa dio ručno pregledanih geografskih dopuna neće biti
 prisutan. Za upisne dokumente nakon uvoza imenika u drugom terminalu uz isti
 `DATABASE_URL` pokrenite `uv run kidsic-sync-enrolment`. Za rute je potrebna
-[dodatna priprema](routing/README.md).
+zasebna priprema OpenTripPlannera i adresnih indeksa.
 
 Ako samo želite pregledati kartu u pregledniku, slijedite korake pod
 [Lokalni pregled MCP sučelja](#lokalni-pregled-mcp-sučelja). Za zaustavljanje
@@ -113,8 +113,8 @@ src/KIDSic/
   main.py                   # ulazna točka
 frontend/src/
   pages/                    # HTML ulazi
-  mvvm/                     # React MVVM: zajednički UI, hookovi i značajke (frontend/README.md)
-scripts/                    # uvoz ručno pregledane geografije (scripts/README.md)
+  mvvm/                     # React MVVM: zajednički UI, hookovi i značajke
+scripts/                    # uvoz ručno pregledane geografije
 tests/                      # provjere servisa, infrastrukture i upita
 database/                   # lokalni ERA model i generirani rječnik (ignorirano)
 ```
@@ -291,7 +291,7 @@ Skup ima starije objekte; datum izmjene resursa ne potvrđuje aktualnost
 svakog retka. Uvoz ne provodi geokodiranje.
 
 Jednokratno pregledana geografija za 27 riječkih objekata nalazi se u
-lokalnoj snimci opisanoj u [scripts/README.md](scripts/README.md#riječki-objekti-vrtića).
+lokalnoj snimci koju uvozi `scripts/import_rijeka_geography.py`.
 Za ostala 23 objekta nije prihvaćeno dovoljno precizno OSM podudaranje.
 Upis čuva postojeće identitete i kontakte, a promjena CSV adrese poništava
 primjenjivost starog geografskog dokaza do novog pregleda.
@@ -352,7 +352,7 @@ Lokalno istraživanje u `docs/`, dokumentacija baze u `database/`, `scripts/expo
 MCP alat `preporuci_vrtice_usput` uspoređuje dom → vrtić → posao za sva tri grada.
 Zagreb koristi službeni ZET GTFS pod Otvorenom dozvolom RH, zaseban lokalni
 OpenTripPlanner i OSM adresni indeks. Raspored za Zagreb: 21. 10. – 31. 12. 2026.
-[Priprema i izvori](routing/README.md#zagreb), [ugovor alata](MCP.md#vrtić-na-putu-od-doma-do-posla-rijeka-zagreb-i-šibenik).
+[Ugovor alata](MCP.md#vrtić-na-putu-od-doma-do-posla-rijeka-zagreb-i-šibenik).
 
 Šibenik koristi službeni GTFS Gradskog parkinga pod Otvorenom dozvolom RH,
 sa zasebnim OTP-om i adresnim indeksom. Raspored: 7. 9. 2026. – 7. 6. 2027.
@@ -361,8 +361,7 @@ povezana je sa zagrebačkim sjedištem. Za rute su trenutačno provjerena **tri
 OSM objekta**: Šibenski tići, Vidici i Blažena Hozana. To nije potpun popis
 objekata. Sjedišta bez potvrđenog objekta ne ulaze u rangiranje. Programi,
 radno vrijeme, cijene i slobodna mjesta nisu preuzeti s nelicenciranih stranica.
-[Šibenski uvoz](scripts/README.md#šibenik),
-[priprema prometa](routing/README.md#šibenik).
+Šibenske podatke obrađuje `scripts/import_sibenik.py`.
 
 Rekonstrukcija sheme: prije migracija 0009–0013 spremiti `pg_dump -Fc`.
 Migracija 0010 uklanja stare snimke izvora i čuva ID postojećeg zapisa pri

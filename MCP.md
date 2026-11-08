@@ -264,11 +264,11 @@ Za Zagreb isti alat prima `city="Zagreb"`, primjerice `home="Ilica 10"`,
 Pretražuje se zagrebački katalog; adrese i prometni graf odvojeni su po gradu.
 Prikvačeni ZET raspored pokriva 21. 10. – 31. 12. 2026.; riječki ostaje
 9. 10. – 8. 11. 2026. Alat odbija koordinate drugog grada i datume izvan
-rasporeda odabranog grada. Postupak pripreme Zagreba je u [routing/README.md](routing/README.md#zagreb).
+rasporeda odabranog grada. Za Zagreb su potrebni pripremljeni prometni graf i adresni indeks.
 
 Adrese se razrješavaju u lokalnom OSM indeksu; ne šalju se vanjskom geokoderu.
 Za indeks treba izvorni Geofabrik PBF, jer mali cestovni isječak ne sadrži
-sve kućne brojeve i zgrade. Nakon pripreme [rutera](routing/README.md) pokrenuti:
+sve kućne brojeve i zgrade. Nakon pripreme rutera pokrenuti:
 
 ```sh
 uv run --with osmium==4.3.2 python routing/index_addresses.py \
