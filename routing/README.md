@@ -77,8 +77,8 @@ i Docker i Java ruter na istom portu. Ruter je dostupan samo lokalno.
 ## Aplikacija
 
 Postojeća razvojna baza mora biti pokrenuta i sadržavati riječke objekte.
-Postavi DATABASE_URL u `.env`, kao u `.env.example`. Opcionalni `OTP_URL`
-ima zadanu vrijednost `http://127.0.0.1:18080/otp/gtfs/v1`.
+Postavi DATABASE_URL u `.env`, kao u `.env.example`. Aplikacija koristi
+fiksni OTP `http://127.0.0.1:18080/otp/gtfs/v1`.
 Pripremi adresni indeks prema uputama na kraju dokumenta, zatim:
 
 ```sh
@@ -201,12 +201,8 @@ docker compose -f routing/compose.yaml --profile zagreb run --rm otp-zagreb --bu
 docker compose -f routing/compose.yaml --profile zagreb up -d otp-zagreb
 ```
 
-Opcionalne varijable u aplikaciji:
-
-```dotenv
-OTP_URL_ZAGREB=http://127.0.0.1:18081/otp/gtfs/v1
-KIDSIC_ADDRESS_INDEX_ZAGREB=routing/data/zagreb/addresses.sqlite
-```
+Aplikacija fiksno koristi `http://127.0.0.1:18081/otp/gtfs/v1` i
+`routing/data/zagreb/addresses.sqlite`.
 
 Nakon promjene izvora pregledati kalendar i licencu, ažurirati pin u postavkama
 te ponoviti pripremu i izgradnju. `prepare.py` zapisuje zasebni `provenance.json`;
@@ -263,9 +259,9 @@ java -Xmx3G -jar routing/data/otp.jar --load --serve \
   --bindAddress 127.0.0.1 --port 18082 routing/data/sibenik
 ```
 
-Docker alternativa je profil `sibenik`, servis `otp-sibenik`. Aplikacijske
-varijable su `OTP_URL_SIBENIK=http://127.0.0.1:18082/otp/gtfs/v1` i
-`KIDSIC_ADDRESS_INDEX_SIBENIK=routing/data/sibenik/addresses.sqlite`.
+Docker alternativa je profil `sibenik`, servis `otp-sibenik`. Aplikacija fiksno
+koristi `http://127.0.0.1:18082/otp/gtfs/v1` i
+`routing/data/sibenik/addresses.sqlite`.
 Nakon pripreme treba uvesti [pregledane objekte](../scripts/README.md#šibenik).
 
 Graf OTP 2.8.1 uspješno je izgrađen sa 227 stajališta i 32 obrasca vožnje.

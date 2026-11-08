@@ -8,6 +8,79 @@ potvrđenoj općini, pa zagrebačka naselja poput Sesveta ostaju uključena.
 HTTP API odbija nepodržani grad statusom 422, a MCP alat vraća popis podržanih
 gradova. Razgovorna pretraga koristi isti obuhvat.
 
+## Brzi početak i povezivanje s AI klijentom
+
+### 1. Priprema i lokalno pokretanje
+
+Potrebni su Git, Docker s Composeom i pokrenutim Docker servisom, `uv`,
+Node.js i npm te internetska veza. Projekt zahtijeva Python 3.14 ili noviji;
+`uv` može preuzeti odgovarajuću verziju. Na Windowsu je preporučen WSL2.
+
+Klonirajte repozitorij, uđite u njegov direktorij i izvršite:
+
+```sh
+uv sync --locked
+npm --prefix frontend ci
+docker compose up -d --build --wait database
+export DATABASE_URL=postgresql://kidsic:kidsic_local@localhost:55432/kidsic
+uv run alembic -c src/KIDSic/db/alembic/alembic.ini upgrade head
+uv run kidsic-register-sources
+uv run kidsic-sync-kindergartens
+npm --prefix frontend run build:mcp
+uv run uvicorn KIDSic.api.mcp_server:create_app --factory --host 127.0.0.1 --port 8001
+```
+
+Ostavite terminal otvoren. MCP server dostupan je na
+`http://127.0.0.1:8001/mcp`; `DATABASE_URL` vrijedi u tom terminalu.
+Prvi uvoz dohvaća stvarne podatke s CKAN portala i ovisi o njihovoj
+dostupnosti. Repozitorij zasad **ne sadrži automatski obnovljivu snimku naše
+popunjene baze**, pa dio ručno pregledanih geografskih dopuna neće biti
+prisutan. Za upisne dokumente nakon uvoza imenika u drugom terminalu uz isti
+`DATABASE_URL` pokrenite `uv run kidsic-sync-enrolment`. Za rute je potrebna
+[dodatna priprema](routing/README.md).
+
+Ako samo želite pregledati kartu u pregledniku, slijedite korake pod
+[Lokalni pregled MCP sučelja](#lokalni-pregled-mcp-sučelja). Za zaustavljanje
+MCP servera pritisnite `Ctrl+C`, a bazu zaustavite s `docker compose down`;
+podaci ostaju u Docker volumenu.
+
+### 2. Omogućite pristup MCP serveru
+
+ChatGPT i Claudeovi udaljeni konektori ne pristupaju adresi `127.0.0.1` na
+vašem računalu. Dok je lokalni server pokrenut, upotrijebite HTTPS razvojni
+tunel ili postavite server na javno dostupan HTTPS hosting. U konektor se
+unosi puna adresa s putanjom `/mcp`, primjerice
+`https://vasa-adresa.example/mcp`. ChatGPT nudi i
+[Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels)
+za podržane račune i okruženja.
+
+KIDSic trenutačno nema ugrađenu autentikaciju za javni endpoint. Prije javnog
+izlaganja postavite odgovarajuću zaštitu pristupa i provjerite postavke tunela
+ili hostinga. Render deployment i automatsko obnavljanje snimke zasad su plan,
+a ne dio postojećeg postupka.
+
+### 3. Povežite ChatGPT ili Claude
+
+**ChatGPT:** otvorite [Plugins](https://chatgpt.com/plugins), odaberite `+` i
+`Add custom MCP server`. Unesite naziv i HTTPS adresu koja završava s `/mcp`
+(ili odaberite podržani Secure MCP Tunnel), konfigurirajte autentikaciju i
+izradite plugin. Instalirajte ga, započnite novi razgovor i odaberite ga s
+`@`. Dostupnost i dopuštenja ovise o računu i radnom prostoru. Detalji su u
+[OpenAI uputama](https://developers.openai.com/plugins/build/app-quickstart).
+
+**Claude:** u `Customize → Connectors` odaberite `+ Add → Add custom connector`,
+unesite naziv i javnu HTTPS adresu s `/mcp`, pregledajte autentikaciju i
+dodajte konektor. U razgovoru ga uključite kroz izbornik konektora. Za Team i
+Enterprise konektor može trebati dodati administrator. Detalji su u
+[Claudeovim uputama](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
+
+Zatim pokušajte: **„Prikaži mi vrtiće u Zagrebu na karti.”** Za interaktivnu
+kartu klijent mora podržavati MCP Apps; klijent koji podržava samo MCP alate
+može koristiti rezultate alata bez prikaza karte. Mogu se koristiti i drugi
+kompatibilni MCP klijenti, uključujući lokalne razvojne klijente. Njihov
+postupak povezivanja i podrška za interaktivni prikaz ovise o klijentu.
+Detaljnije informacije i primjeri nalaze se u [MCP.md](MCP.md).
+
 ## Struktura
 
 Organizacija prati [FOIHireloom](https://github.com/imim77/FOIHireloom), pregledan na reviziji `8ba897db799e993aa43c7d488879efb3870218f2`:
@@ -69,7 +142,7 @@ uv run kidsic-register-sources
 uv run kidsic-sync-kindergartens
 ```
 
-Uvoz razlikuje mjesto (npr. Sesvete) od grada/općine (Zagreb) i dodaje kurirane padežne aliase za Zagreb, Varaždin, Rijeku i Šibenik. Upit za grad uključuje i njegova mjesta. `.env.example` je predložak, a `.env` se ne učitava automatski. Postavke `DATABASE_POOL_MIN_SIZE` i `DATABASE_POOL_MAX_SIZE` upravljaju poolom.
+Uvoz razlikuje mjesto (npr. Sesvete) od grada/općine (Zagreb) i dodaje kurirane padežne aliase za Zagreb, Varaždin, Rijeku i Šibenik. Upit za grad uključuje i njegova mjesta. `.env.example` je predložak, a `.env` se ne učitava automatski. Pool baze ima fiksno 1–10 veza.
 
 Migracija `0005_supported_cities` uklanja postojeće ustanove izvan obuhvata,
 njihove objekte, izvorne zapise i ovisne podatke. Ustanova s barem jednim
@@ -77,13 +150,19 @@ objektom u podržanom gradu ostaje, zajedno s potrebnim identitetom i dokazima,
 čak i ako joj je sjedište drugdje. Prije migracije napraviti `pg_dump` baze;
 izbrisani podaci mogu se vratiti iz sigurnosne kopije, a downgrade ih ne obnavlja.
 
+Migracija `0020_croatian_columns` preimenuje stupce aplikacijskih tablica i
+pogleda na hrvatski bez zamjene podataka. Primjenjuje se naredbom
+`uv run alembic -c src/KIDSic/db/alembic/alembic.ini upgrade head`.
+DAO upiti koriste hrvatske nazive, a izlaznim aliasima zadržavaju postojeće
+DTO i API ugovore. JSON ključevi izvornih podataka ostaju nepromijenjeni.
+
 ## CKAN registracija i uvoz
 
-Vrsta pružatelja obavezno je pohranjena u `vrtici.provider_kind`:
+Vrsta pružatelja obavezno je pohranjena u `vrtici.vrsta_pruzatelja`:
 `municipal` (gradski), `private` (privatni), `childminder` (dadilje),
 `religious` (vjerski) i `other` (ostali programi/ustanove). `unknown` ostaje
 za nove ustanove čiji tip još nije potvrđen. Objekti preuzimaju tip povezane
-ustanove; `objekti.kind` zasebno razlikuje matični i područni objekt.
+ustanove; `objekti.vrsta` zasebno razlikuje matični i područni objekt.
 API lokacija i razgovorna pretraga vraćaju `provider_kind` uz svaki rezultat.
 Nacionalni uvoz dopunjava pregledane vrtiće u Varaždinu i Zagrebu prema
 potvrđenom gradu i točnom normaliziranom nazivu, uz poveznicu na izvor
@@ -119,7 +198,7 @@ uv run kidsic-sync-kindergartens --source national --allow-removals
 
 Registracija poziva `package_show`, traži aktivan resurs zadanog formata (JSON ili CSV) i provjerava očekivanu licencu po izvoru: `open-license` (Otvorena dozvola), odnosno `cc-by` za Rijeku. Metapodatke sprema u `izvori_podataka`; ponovljena registracija čuva `import_allowed` i trenutačno stanje. Ne uvozi sadržaj. Sync registrira izvore po potrebi i zasebno preuzima njihove JSON/CSV datoteke; ne pretpostavlja uključen DataStore. Nazivi portala, ID-jevi skupova, timeout i ograničenje veličine odgovora konfiguriraju se `CKAN_*` varijablama iz `.env.example`. Mapiranja su namijenjena ovim pet shemama. Za varaždinske dadilje i riječke objekte dodatno se provjerava točan ID CSV resursa; drugi CSV nije automatska zamjena.
 
-Sync provjerava sve odabrane resurse prije transakcije. Sprema izvorne retke u `izvorni_zapisi`, normalizirane ustanove i objekte te podrijetlo polja. MZOM-ov redak opisuje pravnu osobu: njegova adresa sprema se kao sjedište ustanove, a ne kao objekt. Objekte daju zagrebački i riječki skupovi; ustanova bez poznatog objekta u pretrazi se prikazuje sa sjedištem (`location_role=seat`). Spajanje koristi prethodni identitet izvora, OIB kada postoji te normalizirane nazive, grad/mjesto i adresu; ne koristi neprovjerene približne podudarnosti. Način odluke sprema se u `izvorni_zapisi.match_method`. Višeznačni zapisi ostaju `candidate` za pregled. Trenutačno stanje svih odabranih izvora zamjenjuje se atomarno, a neuspjeh čuva prethodne podatke. Ponovljeni uvoz istih identiteta čuva ID-jeve izvornih zapisa, ustanova i lokacija; pisci se serijaliziraju transakcijskim advisory lockom.
+Sync provjerava sve odabrane resurse prije transakcije. Sprema izvorne retke u `izvorni_zapisi`, normalizirane ustanove i objekte te podrijetlo polja. MZOM-ov redak opisuje pravnu osobu: njegova adresa sprema se kao sjedište ustanove, a ne kao objekt. Objekte daju zagrebački i riječki skupovi; ustanova bez poznatog objekta u pretrazi se prikazuje sa sjedištem (`location_role=seat`). Spajanje koristi prethodni identitet izvora, OIB kada postoji te normalizirane nazive, grad/mjesto i adresu; ne koristi neprovjerene približne podudarnosti. Način odluke sprema se u `izvorni_zapisi.metoda_povezivanja`. Višeznačni zapisi ostaju `candidate` za pregled. Trenutačno stanje svih odabranih izvora zamjenjuje se atomarno, a neuspjeh čuva prethodne podatke. Ponovljeni uvoz istih identiteta čuva ID-jeve izvornih zapisa, ustanova i lokacija; pisci se serijaliziraju transakcijskim advisory lockom.
 
 Ako nedostaje ijedan prethodni `source_key`, sync odbija cijeli uvoz uz naziv
 izvora, broj i uzorak nestalih ključeva. Provjerite potpunost datoteke i razlog
@@ -191,13 +270,13 @@ Uvoz ide nakon imenika. Ne stvara ustanove ni objekte i ne šalje mrežne zahtje
 Primarni katalog Grada Rijeke daje CSV resurs
 `7fe927d4-16e5-4255-b255-249f7ced3c2c` pod licencom CC-BY. CSV koristi
 Windows-1250 i `;`; kodiranje je izričito zadano samo ovom izvoru, bez
-nagađanja ili promjene UTF-8 pravila varaždinskog izvora. Konfiguracija je u
-`CKAN_RIJEKA_BASE_URL`, `CKAN_RIJEKA_DATASET_ID` i `CKAN_RIJEKA_RESOURCE_ID`.
+nagađanja ili promjene UTF-8 pravila varaždinskog izvora. Katalog `https://data.rijeka.hr`, skup `djecji-vrtici` i resurs su fiksni u
+kodu.
 
 Stupci `Vrtić` i `Adresa` opisuju objekt, a `Centar` njegovu ustanovu.
 `Osnivač` određuje pregledani tip pružatelja: gradski, privatni ili vjerski;
 novi nepoznati osnivač ostaje `unknown`. Cijeli redak, uključujući adresu
-centra, ostaje u `izvorni_zapisi.raw_data`; uvoz objekta ne mijenja sjedište
+centra, ostaje u `izvorni_zapisi.izvorni_podaci`; uvoz objekta ne mijenja sjedište
 iz MZOM-a. Lokalni naziv Mala vila povezuje se s punim MZOM nazivom
 `Dječji vrtić "Mala Vila", waldorfski`. KBC Rijeka povezuje se s Dječjim
 vrtićem Rijeka prema [službenom opisu Grada](https://www.rijeka.hr/gradska-uprava/ustanove/ustanove-odgoju-skolstvu/djecji-vrtici/),
@@ -221,7 +300,7 @@ primjenjivost starog geografskog dokaza do novog pregleda.
 
 Skup iz CKAN API-ja (`package_show`) vodi do CSV datoteke: DataStore nije uključen. CSV se čita kao UTF-8 s mogućim BOM-om, razdjelnikom `;` i navodnicima. Prazni retci se preskaču, a neispravan broj stupaca, kodiranje ili obvezna polja prekidaju uvoz prije upisa. Vrijede isto ograničenje veličine odgovora i obrada HTTP pogrešaka kao za JSON izvore.
 
-Spremaju se naziv, adresa sjedišta, mjesto i poštanski broj, vrsta `childminder`, kontaktni telefon, e-mail, web/Facebook poveznica i jednoznačan OIB. `Matični broj` obrta je stabilan `izvorni_zapisi.source_key`, pa promjena adrese ili kontakta ne stvara novi obrt. Cijeli izvorni redak ostaje u `izvorni_zapisi.raw_data`, zajedno s vezom na izvor, licencijom i datumom preuzimanja. Imena odgovornih osoba ne dodaju se kao zasebna polja ustanove. Ako redak navodi više OIB-a, svi ostaju u izvornom retku, a jedinstveni `vrtici.oib` ostaje prazan.
+Spremaju se naziv, adresa sjedišta, mjesto i poštanski broj, vrsta `childminder`, kontaktni telefon, e-mail, web/Facebook poveznica i jednoznačan OIB. `Matični broj` obrta je stabilan `izvorni_zapisi.kljuc_izvornog_zapisa`, pa promjena adrese ili kontakta ne stvara novi obrt. Cijeli izvorni redak ostaje u `izvorni_zapisi.izvorni_podaci`, zajedno s vezom na izvor, licencijom i datumom preuzimanja. Imena odgovornih osoba ne dodaju se kao zasebna polja ustanove. Ako redak navodi više OIB-a, svi ostaju u izvornom retku, a jedinstveni `vrtici.oib` ostaje prazan.
 
 Stupci su označeni kao adrese sjedišta; ne proglašavaju se fizičkim objektima za čuvanje djece. Skup nema koordinate, kvartove, dobne uvjete ni podatke o slobodnim mjestima. Uvoz ne stvara takve podatke ni RAG dokumente iz kontakata. Obrti su dostupni u imeniku i pretrazi kao `childminder`, sa sjedištem i nepoznatom dobnom prikladnošću. API lokacija podržava `provider_kind=childminder`; bez koordinata nema oznake na karti.
 

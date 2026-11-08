@@ -32,7 +32,7 @@ uv run python scripts/import_varazdin.py --apply
 Uvoz povezuje devet objekata s postojećom ustanovom, koristi stabilne ID-eve
 objekata i izvornih zapisa pri svakom pokretanju. Ne šalje nove
 zahtjeve Nominatimu. `quarter`, `suburb` i `neighbourhood` čuvaju se u
-`objekti.attributes`; `district` se ne zamjenjuje drugim geografskim pojmom.
+`objekti.obiljezja`; `district` se ne zamjenjuje drugim geografskim pojmom.
 Svih devet objekata ima geokodirane koordinate. Hrašćica koristi točno
 podudaranje adresne točke Ruđera Boškovića 9A. Za Kućan službeni pročišćeni
 statut navodi Varaždinsku 131b; ta je zgrada korištena umjesto škole na broju
@@ -122,7 +122,7 @@ broj 17, dok izvorna adresa sjedišta ostaje sačuvana. Izvori su u
 `address_evidence_urls`, a puna adresa geokodiranja u atributima sjedišta.
 
 Geografija se sprema u `sjedista_vrtica`: `longitude`, `latitude` i
-`attributes`, uz FK `geography_source_record_id` prema izvornom zapisu.
+`obiljezja`, uz FK `id_zapisa_geografskog_izvora` prema izvornom zapisu.
 Uvoz ne stvara retke u `objekti`, čuva postojeće ID-eve i zahtijeva
 nepromijenjenu pregledanu adresu. Ponavljanje ažurira trenutačno stanje
 izvora. Redoviti CKAN uvoz čuva geografiju, a SQL pogled i RAG

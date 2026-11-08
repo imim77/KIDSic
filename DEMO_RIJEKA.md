@@ -14,28 +14,25 @@ Nazive vrtića uvodimo tek kad se pojave na karti. Ne počinjemo unaprijed
 pripremljenim popisom ustanova koje novodoseljeni roditelji još ne poznaju.
 Dob djeteta nije zadana; aplikaciji ne pripisujemo potvrdu dobne prikladnosti.
 
-## Točni promptovi za kopiranje
+## Promptovi
 
 Šalji ih pojedinačno, ovim redom, u istom razgovoru. Koristi jezik roditelja,
 a nazive alata i tehničke parametre ostavi izvan promptova.
 
 ### 1. Novi smo u gradu — gdje početi?
 
-> Nedavno smo se doselili u Rijeku i tražimo vrtić za dijete. Ne poznajemo
-> vrtiće u gradu i koristimo javni prijevoz. Za početak nam pokaži vrtiće
-> u Rijeci na karti da vidimo gdje se nalaze i koje opcije imamo.
+```text
+Nedavno smo se doselili u Rijeku i tražimo vrtić za dijete. Ne poznajemo vrtiće u gradu i koristimo javni prijevoz. Za početak nam pokaži vrtiće u Rijeci na karti da vidimo gdje se nalaze i koje opcije imamo.
+```
 
 Proširi kartu. Otvori nekoliko objekata, uključujući Malu vilu, tako da
 sljedeće pitanje prirodno proizlazi iz onoga što smo upravo vidjeli.
 
 ### 2. Što sufinanciranje znači za nas?
 
-> Na karti smo primijetili Malu Vilu u Rijeci. Ne znamo kako funkcionira
-> gradsko sufinanciranje vrtića. Možeš li nam na tom primjeru jednostavno
-> objasniti koja su pravila i iznosi navedeni u dostupnim izvorima te što
-> trebamo provjeriti kao obitelj koja se tek doselila? Navedi izvore i
-> datume podataka. Ako se na temelju njih ne može utvrditi naše pravo ili
-> konačna cijena, jasno nam to reci.
+```text
+Na karti smo primijetili Malu Vilu u Rijeci. Ne znamo kako funkcionira gradsko sufinanciranje vrtića. Možeš li nam na tom primjeru jednostavno objasniti koja su pravila i iznosi navedeni u dostupnim izvorima te što trebamo provjeriti kao obitelj koja se tek doselila? Navedi izvore i datume podataka. Ako se na temelju njih ne može utvrditi naše pravo ili konačna cijena, jasno nam to reci.
+```
 
 Nakon odgovora vrati prethodnu kartu. Gumbima **Usporedi** dodaj:
 
@@ -48,22 +45,18 @@ s kartom. Usporedba se popunjava klikovima; ne treba dodatni prompt.
 
 ### 3. Kako ćemo s djetetom na posao?
 
-> Za naš probni dan u Rijeci polazimo sa Zametske 6 prema poslu na Korzu 16,
-> 6. studenoga 2026. u 07:00. Koristimo javni prijevoz i za predaju djeteta
-> trebamo 10 minuta. Koja su nam tri vrtića najbolja opcija prema najranijem
-> dolasku na posao? Usporedi sve dostupne objekte s potvrđenim lokacijama,
-> a ne samo one koje smo dosad gledali. Pokaži rute i plan puta.
+```text
+Za naš probni dan u Rijeci polazimo sa Zametske 6 prema poslu na Korzu 16, 6. studenoga 2026. u 07:00. Koristimo javni prijevoz i za predaju djeteta trebamo 10 minuta. Koja su nam tri vrtića najbolja opcija prema najranijem dolasku na posao? Usporedi sve dostupne objekte s potvrđenim lokacijama, a ne samo one koje smo dosad gledali. Pokaži rute i plan puta.
+```
 
 Proširi rezultat. Pokaži tab **Put**, vrijeme dolaska, predaju djeteta i
 prelazak između alternativa. Zatim pokaži tab **Vrtić** za odabranu opciju.
 
 ### 4. Koga kontaktirati i što još pitati?
 
-> Za Malu Vilu u Rijeci daj nam kontakt i sastavi kratak popis pitanja
-> koja trebamo postaviti prije odluke: prima li dijete njegove dobi,
-> ima li slobodnih mjesta, koje je radno vrijeme, kako se upisuje i kolika
-> bi bila cijena za našu obitelj. Odvoji ono što već znamo iz izvora od
-> onoga što tek trebamo potvrditi s vrtićem.
+```text
+Za Malu Vilu u Rijeci daj nam kontakt i sastavi kratak popis pitanja koja trebamo postaviti prije odluke: prima li dijete njegove dobi, ima li slobodnih mjesta, koje je radno vrijeme, kako se upisuje i kolika bi bila cijena za našu obitelj. Odvoji ono što već znamo iz izvora od onoga što tek trebamo potvrditi s vrtićem.
+```
 
 Ovaj prompt ne šalje poruku vrtiću; traži kontakt i pripremu pitanja.
 Za završni kadar vrati prikaz karte s rutom, bez novog upita za opću kartu.
