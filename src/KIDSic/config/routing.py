@@ -1,6 +1,5 @@
 """RoutingCity keeps each city's reviewed timetable and street coverage together."""
 from dataclasses import dataclass
-import os
 from datetime import date
 from pathlib import Path
 
@@ -20,9 +19,8 @@ class RoutingCity:
     gtfs_filename: str
     port: int
     retrieved_on: date
-    # Rijeka was routed first, so its data and settings keep unprefixed names.
+    # Rijeka was routed first, so its data keeps the unprefixed folder.
     data_folder: str | None = None  # None uses the key
-    env_suffix: str | None = None  # None uses _<KEY>
     coverage_notice: str = ''  # Tells parents when ranking misses some facilities.
 
     def contains(self, lat: float, lon: float) -> bool:
@@ -33,20 +31,13 @@ class RoutingCity:
     def directory(self) -> Path:
         return Path('routing/data') / (self.key if self.data_folder is None else self.data_folder)
 
-    @property
-    def _env_suffix(self) -> str:
-        return '_' + self.key.upper() if self.env_suffix is None else self.env_suffix
-
     def otp_url(self) -> str:
-        """otp_url returns the city's OTP GraphQL endpoint, overridable by
-        OTP_URL or OTP_URL_<CITY>."""
-        return os.getenv('OTP_URL' + self._env_suffix, f'http://127.0.0.1:{self.port}/otp/gtfs/v1')
+        """otp_url returns the city's local OTP GraphQL endpoint."""
+        return f'http://127.0.0.1:{self.port}/otp/gtfs/v1'
 
     def address_index(self) -> Path:
-        """address_index returns the city's offline OSM address database,
-        overridable by KIDSIC_ADDRESS_INDEX or KIDSIC_ADDRESS_INDEX_<CITY>."""
-        return Path(os.getenv('KIDSIC_ADDRESS_INDEX' + self._env_suffix,
-                              str(self.directory / 'addresses.sqlite'))).resolve()
+        """address_index returns the city's offline OSM address database."""
+        return (self.directory / 'addresses.sqlite').resolve()
 
 
 ROUTING_CITIES = {
@@ -56,7 +47,7 @@ ROUTING_CITIES = {
         'packages/generic/rijeka-gtfs/latest/autotrolej_gtfs.zip',
         'e2d9357c5f020d6d4081ba114509d89f51a33dd224d09aae09ff6c1e4c0849bd',
         'vekejsn', 'CC-BY-4.0', 'https://transitous.org/sources/#croatia',
-        'autotrolej-gtfs.zip', 18080, date(2026, 11, 5), data_folder='', env_suffix=''),
+        'autotrolej-gtfs.zip', 18080, date(2026, 11, 5), data_folder=''),
     'Zagreb': RoutingCity('Zagreb', 'zagreb', (15.70, 45.60, 16.30, 46.00),
         date(2026, 10, 21), date(2026, 12, 31),
         'https://www.zet.hr/gtfs-scheduled/scheduled-000-000397.zip',

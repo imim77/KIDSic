@@ -1,6 +1,5 @@
 """McpServer owns transport lifetime; tools and resources own protocol presentation."""
 from contextlib import asynccontextmanager
-import os
 import httpx
 from pathlib import Path
 from mcp.server.lowlevel import Server
@@ -38,7 +37,7 @@ class McpServer:
         self._provided_service = service
         self._locations = None
         self._provided_rag, self._rag = rag_service, None
-        asset = Path(ui_path) if ui_path is not None else Path(os.environ.get('KIDSIC_UI_PATH', 'frontend/dist/mcp.html'))
+        asset = Path(ui_path) if ui_path is not None else Path('frontend/dist/mcp.html')
         self._resource = MapResource(asset)
         self._server = Server('KIDSic', version='0.1.0', instructions=SERVER_INSTRUCTIONS)
         self._resource.register(self._server)
