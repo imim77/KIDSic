@@ -1,7 +1,7 @@
 CKAN metadata fixtures were fetched on 2026-11-01 from the three `package_show`
 endpoints configured in `SourceServiceFactory`. Only fields used by the client
 and planner are retained. Resource IDs, URLs, formats and catalogue metadata are
-real; row examples in `test_sources.py` are synthetic.
+real; row examples in `support/sources.py` are synthetic.
 
 Implementation reference: imim77/FOIHireloom at
 `8ba897db799e993aa43c7d488879efb3870218f2`, especially
