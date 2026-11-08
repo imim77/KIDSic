@@ -26,8 +26,6 @@ ALTER TABLE knowledge_chunk RENAME TO odlomci_znanja;
 -- statement
 ALTER TABLE historical_record RENAME TO povijesni_zapisi;
 -- statement
--- Deferred checks allow the source, scope and chunks to be inserted in any order
--- within one import, but reject accepted ownerless evidence at commit.
 CREATE OR REPLACE FUNCTION check_document_scope() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE record_id uuid; record_ids uuid[];
 BEGIN

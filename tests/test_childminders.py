@@ -19,7 +19,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 class ChildminderTests(unittest.IsolatedAsyncioTestCase):
     async def test_api_selects_pinned_csv_and_parses_bom_quotes_and_contacts(self):
         package = json.loads((FIXTURES / "ckan_childminders.json").read_text())
-        # Another CSV must never be substituted for the resource selected by the user.
+
         package["result"]["resources"].append(
             {
                 "id": "other-csv",
@@ -66,7 +66,7 @@ class ChildminderTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(rows[1].oib)
         self.assertEqual(rows[1].address, "Hrašćica, Primjer 2")
         self.assertEqual(rows[1].raw_data["OIB"], "00987654321   00987654322")
-        # Contact/address edits do not change the trade's source identity.
+
         changed = normalize_records(
             [{**records[0], "Adresa sjedišta": "Primjer 99"}], "varazdin-childminders"
         )[0]

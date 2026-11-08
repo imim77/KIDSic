@@ -64,7 +64,7 @@ class SibenikLocationImporter:
         source = await batch.source(SOURCE_KEY, 'OpenStreetMap — šibenski objekti vrtića',
                                     'OpenStreetMap contributors', OSM_COPYRIGHT, 'ODbL-1.0',
                                     {k: data[k] for k in ('attribution', 'osm_snapshot', 'snapshot_sha256')})
-        # The national import registers Šibenik before any parent above can exist.
+
         municipality = await db.fetchval("SELECT id FROM jedinice_lokalne_samouprave WHERE kljuc='sibenik'")
         for feature, owner in resolved:
             p, osm_id = feature['properties'], feature['id']

@@ -1,8 +1,6 @@
--- ValidKnowledgeChunk keeps evidence checks independent of request selection.
 CREATE VIEW valid_knowledge_chunk AS
  SELECT c.id,a.kindergarten_id,c.location_id,c.content,c.source_url,c.source_record_id,
         r.observed_on,r.fetched_at,s.title AS source_title,s.license,
-        -- Reviewed documents carry their own scope and governed period.
         CASE WHEN r.raw_data->>'kind'='enrolment_document'
           THEN r.raw_data->>'scope' END AS document_scope,
         CASE WHEN r.raw_data->>'kind'='enrolment_document'

@@ -30,7 +30,7 @@ class AsyncpgHistoricalRepository(HistoricalRepository):
             raise SourceImportError('Historical source must be registered and approved.')
         if not snapshot.rows:
             raise SourceImportError('Historical snapshot must not be empty.')
-        # Only active, approved directory records can anchor a historical match.
+
         places = await self._connection.fetch("""
           WITH active AS (
             SELECT r.id_vrtica,r.id_objekta FROM izvorni_zapisi r

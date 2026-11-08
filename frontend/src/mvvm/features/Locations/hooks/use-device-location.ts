@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
-// useDeviceLocation asks the browser once for an approximate position. The
-// position stays in the browser and reaches `onLocate` as [longitude, latitude];
-// failures become a message that points parents to picking on the map.
+
+
+
 export function useDeviceLocation(onLocate: (near: [number, number]) => void) {
   const [locating, setLocating] = useState(false)
   const [error, setError] = useState('')

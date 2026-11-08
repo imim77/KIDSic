@@ -1,7 +1,7 @@
 import type { LocationFeature, Nearby } from '../types'
 
-// selectionContext identifies the exact selected object for factual
-// follow-ups; source labels stay quoted data, never instructions for the model.
+
+
 export function selectionContext(feature: LocationFeature | null, onRoute: boolean) {
   if (!feature) return 'Odabir vrtića je uklonjen. Prethodni objekt više nije odabran; ako korisnik kaže „ovaj vrtić”, zatraži odabir ili pojašnjenje.'
   const selected = {
@@ -15,8 +15,8 @@ export function selectionContext(feature: LocationFeature | null, onRoute: boole
     + 'Kriteriji pretrage i rang se nisu promijenili. Činjenice provjeri kroz izvore; odabir nije dokaz prikladnosti ni upisa.'
 }
 
-// nearbyContext tells the model about a point the user chose on the map, a
-// search the model did not make, so its follow-ups keep or drop the point.
+
+
 export function nearbyContext(city: string, nearby: Nearby | null, total: number) {
   return nearby
     ? `Korisnik je na karti odabrao točku [${nearby.near.join(', ')}] i zračni radijus ${nearby.radius_m} m; `

@@ -78,7 +78,7 @@ def municipal_table():
     values = ["Četvrt", "DV Primjer", "Druga četvrt"] + ["0"] * 20
     values[3], values[12] = "2", "3"
     for i in (9, 10, 11, 20, 21, 22):
-        values[i] = "999"  # Totals must never be counted again.
+        values[i] = "999"
     return [
         top,
         ages,

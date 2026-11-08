@@ -15,7 +15,7 @@ def upgrade():
 
 
 def downgrade():
-    # One synthetic batch restores the old contract, not discarded versions.
+
     for statement in (
         'DROP VIEW valid_knowledge_chunk',
         'DROP VIEW document_applicability',

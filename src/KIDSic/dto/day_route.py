@@ -42,7 +42,7 @@ class DayJourneyRequest(BaseModel):
     def city_coverage(self):
         city = ROUTING_CITIES[self.city]
         for point in (self.home, self.work):
-            # CommuteQuery also accepts unresolved address strings.
+
             if isinstance(point, DayPoint) and not city.contains(point.lat, point.lon):
                 raise ValueError(f'Coordinates are outside {city.name} routing coverage.')
         if not city.service_start <= self.departure.date() <= city.service_end:

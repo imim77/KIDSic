@@ -7,7 +7,7 @@ from KIDSic.services.interfaces.source_import import SourcePlanner
 
 class SourceRegistrationPlanner(SourcePlanner):
     def select(self, definition: SourceDefinition, package: CkanPackage) -> PlannedSource:
-        # A changed/absent licence requires review, not implicit approval.
+
         if package.license_id != definition.license_id:
             raise SourceImportError(f'{definition.key}: expected license {definition.license_id}.')
         formats = {'json': {'json', 'application/json'}, 'csv': {'csv', 'text/csv'},

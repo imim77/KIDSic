@@ -20,7 +20,7 @@ interface KindergartenExplorerProps extends Omit<ExplorerInput, 'comparable'> {
   status: 'loading' | 'ready' | 'error'
   route?: MapRoute | null
   summary?: (feature: LocationFeature) => string
-  // details replaces the kindergarten details, e.g. with a route.
+
   details?: ReactNode
   mapNotice?: ReactNode
   hostFullscreen?: HostFullscreen
@@ -28,16 +28,16 @@ interface KindergartenExplorerProps extends Omit<ExplorerInput, 'comparable'> {
   openLink?: OpenLink
 }
 
-// KindergartenExplorer keeps every map overlay in the same fullscreen frame.
-// Choosing a card expands it into list, details and map columns; narrow
-// screens keep the card deck and show details over the map instead.
+
+
+
 export function KindergartenExplorer({ hostFullscreen, ...props }: KindergartenExplorerProps) {
   return <FullscreenFrame className="kindergarten-explorer" hostFullscreen={hostFullscreen}>
     <ExplorerLayout {...props} />
   </FullscreenFrame>
 }
 
-// ExplorerLayout arranges list, details and map for the frame's current state.
+
 function ExplorerLayout({ status, route, summary, details, mapNotice, notice, openLink, ...input }: Omit<KindergartenExplorerProps, 'hostFullscreen'>) {
   const { data, selectedId, onSelect, district } = input
   const explorer = useKindergartenExplorer({ ...input, comparable: !route })
@@ -46,7 +46,7 @@ function ExplorerLayout({ status, route, summary, details, mapNotice, notice, op
   const layoutRef = useRef<HTMLDivElement>(null)
   const roomy = useMediaQuery('(min-width: 700px)', true)
   const closeDetails = () => {
-    // Return focus to the result that opened the details before they unmount.
+
     const origin = Array.from(layoutRef.current?.querySelectorAll<HTMLElement>('[data-location-row], [data-location-card]') ?? [])
       .find((element) => (element.dataset.locationRow ?? element.dataset.locationCard) === selectedId)
     origin?.focus({ preventScroll: true })
@@ -54,10 +54,10 @@ function ExplorerLayout({ status, route, summary, details, mapNotice, notice, op
   }
 
   const panels = expanded && roomy && !!data?.features.length
-  // The comparison covers the explorer; what lies beneath must not take focus.
+
   const covered = comparison.open
   return <div ref={layoutRef} className="explorer-layout" data-layout={panels ? 'panels' : 'map'} data-details={expanded && selected ? '' : undefined} data-comparing={covered ? '' : undefined}>
-    {/* display: contents keeps list and details as grid items of the layout. */}
+
     <div className="contents" inert={covered}>
     {panels && <LocationList collection={data!} selectedId={selectedId} onSelect={onSelect} criteria={explorer.criteria} summary={summary} />}
     {expanded && selected && (details ?? <LocationDetails key={selected.id} feature={selected} onClose={closeDetails} openLink={openLink} compare={comparison.choice(selected)} />)}

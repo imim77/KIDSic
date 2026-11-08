@@ -10,7 +10,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
-    // Feature suites live beside their code; tests/ holds app-wide ones.
+
     include: ['src/**/*.test.{ts,tsx}', 'tests/**/*.test.{ts,tsx}'],
     clearMocks: true,
     restoreMocks: true,

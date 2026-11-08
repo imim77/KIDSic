@@ -5,8 +5,8 @@ export const enrolmentStatusLabels: Record<EnrolmentStatus, string> = {
   dates_unknown: 'Rok nije objavljen',
 }
 
-// currentRound picks the round a parent can act on: an open or upcoming one
-// first, otherwise the newest main call. Rounds arrive newest year first.
+
+
 export function currentRound(rounds: LocationEnrolment[]) {
   return rounds.find((round) => round.status === 'open')
     ?? rounds.find((round) => round.status === 'upcoming')

@@ -5,7 +5,6 @@ ALTER TABLE data_source ADD COLUMN kind text NOT NULL DEFAULT 'general'
 -- statement
 UPDATE data_source SET kind=COALESCE(metadata->>'kind','general');
 -- statement
--- Stop rather than discard conflicting application metadata.
 DO $$ BEGIN
  IF EXISTS (
    SELECT 1 FROM source_record r JOIN data_source s ON s.id=r.source_id
@@ -64,7 +63,6 @@ CREATE VIEW document_applicability AS
      WHERE l.kindergarten_id=k.id AND l.municipality_id=d.municipality_id));
 
 -- statement
--- ValidKnowledgeChunk keeps evidence checks independent of request selection.
 CREATE VIEW valid_knowledge_chunk AS
  SELECT c.id,a.kindergarten_id,c.location_id,c.content,c.source_url,c.source_record_id,
         CASE WHEN s.kind='enrolment_document' THEN

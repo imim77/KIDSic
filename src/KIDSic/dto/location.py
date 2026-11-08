@@ -17,13 +17,13 @@ class LocationQuery(BaseModel):
     city: str = Field(default='Zagreb', min_length=1, max_length=100)
     q: str = Field(default='', max_length=200)
     area: str = Field(default='', max_length=200)
-    # has_vacancies keeps objects whose latest published vacancy snapshot lists
-    # at least one free place; unpublished counts never match.
+
+
     has_vacancies: bool = Field(default=False, strict=True)
     provider_kind: ProviderKind | None = None
     bbox: tuple[float, float, float, float] | None = None
-    # near and radius_m select points within a straight-line radius; objects
-    # without verified coordinates cannot be asserted inside it.
+
+
     near: tuple[float, float] | None = None
     radius_m: int | None = Field(default=None, strict=True, ge=1, le=50_000)
 
@@ -60,7 +60,7 @@ class LocationQuery(BaseModel):
                 raise ValueError('near must be longitude,latitude within WGS84 bounds.')
         return value
 
-    # One spatial scope keeps metadata.scope unambiguous.
+
     @model_validator(mode='after')
     def validate_radius(self):
         if (self.near is None) != (self.radius_m is None):
@@ -79,9 +79,9 @@ class LocationSource(BaseModel):
 
 
 class LocationEnrolment(BaseModel):
-    # LocationEnrolment is one published round with its official channel. The
-    # status compares the round's own times with one clock reading; it never
-    # promises a place. Steps and documents are read from the cited source.
+
+
+
     round: Literal['main', 'rolling']
     academic_year: str
     channel: Literal['e_upisi', 'city_system', 'kindergarten']
@@ -116,7 +116,7 @@ class LocationProperties(BaseModel):
     subsidy_policies: list[SubsidyPolicy] = Field(default_factory=list)
     historical_data: list[HistoricalEvidence] = Field(default_factory=list)
     enrolment: list[LocationEnrolment] = Field(default_factory=list)
-    distance_m: int | None = None  # Straight-line metres from near; null without it.
+    distance_m: int | None = None
 
 
 class LocationPoint(BaseModel):

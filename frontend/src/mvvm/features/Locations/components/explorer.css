@@ -3,7 +3,7 @@
 .explorer-map { grid-area: map; position: relative; min-width: 0; min-height: 0; }
 .explorer-layout[data-layout="panels"] { grid-template: "list map" 100% / minmax(300px, 360px) 1fr; }
 .location-carousel { position: absolute; z-index: 2; bottom: calc(38px + env(safe-area-inset-bottom)); left: 0; width: 100%; pointer-events: none; }
-/* Floats above the deck so the arrows keep centring on the cards. */
+
 .location-carousel-caption { position: absolute; bottom: calc(100% + 4px); left: 58px; max-width: calc(100% - 116px); overflow: hidden; padding: 4px 10px; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 999px; box-shadow: var(--shadow-sm); font-size: 11px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; pointer-events: auto; }
 .carousel-controls { position: absolute; inset: 5px 10px 12px; display: flex; align-items: center; justify-content: space-between; pointer-events: none; z-index: 1; }
 .carousel-controls button { pointer-events: auto; border: 0; background: var(--mint); color: var(--ink); box-shadow: var(--shadow-sm); transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
@@ -15,11 +15,11 @@
 .location-slide { flex: 0 0 min(272px, calc(100% - 20px)); min-width: 0; scroll-snap-align: start; }
 .location-card { height: var(--card-height); border: 2px solid var(--ink); box-shadow: var(--shadow-md); transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
 .location-card > button:hover { background: transparent; }
-/* Selection lifts the sticker instead of recolouring it, keeping text contrast. */
+
 .location-card[data-selected="true"] { transform: translate(2px, -2px); box-shadow: var(--shadow-lg); }
 .location-thumbnail { flex: 0 0 48px; height: 64px; border-radius: var(--radius); display: grid; place-items: center; color: var(--ink); background: var(--lemon); }
 .location-thumbnail svg { width: 26px; height: 26px; stroke-width: 2; }
-/* Neighbouring cards never share a fill, as on the reference site. */
+
 .location-slide:nth-child(5n + 2) .location-thumbnail { background: var(--sky); }
 .location-slide:nth-child(5n + 3) .location-thumbnail { background: var(--blush); }
 .location-slide:nth-child(5n + 4) .location-thumbnail { background: var(--lilac); }
@@ -28,7 +28,7 @@
 .text-button { border: 0; background: var(--lemon); color: var(--ink); border-radius: 100px; padding: 10px 18px; font-family: var(--display); font-size: 13px; letter-spacing: .5px; text-transform: uppercase; box-shadow: var(--shadow-sm); transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
 .explorer-notice { width: 100%; background: var(--cream); color: var(--ink); padding: 18px; border: 2px solid var(--ink); border-radius: 20px; font-size: 13px; line-height: 1.5; box-shadow: var(--shadow-md); }
 .explorer-notice button { margin-top: 12px; }
-/* Expanded list column, after the reference's results rail. */
+
 .location-list { grid-area: list; display: flex; flex-direction: column; min-height: 0; background: var(--cream); border-right: 2px solid var(--ink); }
 .location-list-header { padding: 22px 20px 14px; border-bottom: 2px solid var(--ink-wash); }
 .location-list-header h2 { font-family: var(--display); font-size: 26px; font-weight: 400; line-height: 1; letter-spacing: .01em; }
@@ -54,8 +54,7 @@
 .location-list li:nth-child(5n + 5) .location-thumbnail { background: var(--apricot); }
 .location-list .location-row[aria-pressed="true"] .location-thumbnail { background: var(--violet); }
 
-/* Details: a column on wide screens, over the list on medium ones and over
-   the whole map on narrow ones. */
+
 .location-details { grid-area: list; z-index: 3; min-width: 0; min-height: 0; background: var(--surface); color: var(--ink); border-right: 2px solid var(--ink); outline: none; }
 .explorer-layout[data-layout="map"] .location-details { position: absolute; inset: 0; z-index: 9; border: 0; }
 .location-details-scroll { height: 100%; overflow-y: auto; overscroll-behavior: contain; }
@@ -97,7 +96,7 @@
 .historical-details summary { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .historical-details details ul { padding-top: 8px; }
 
-/* Comparison: add buttons, tray and side-by-side table. */
+
 .location-card-compare { position: absolute; top: 6px; right: 6px; z-index: 1; }
 .location-card:has(.location-card-compare) .location-card-text { padding-right: 26px; }
 .compare-toggle { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 12px; color: var(--ink); background: var(--mint); border: 2px solid var(--ink); border-radius: 100px; box-shadow: var(--shadow-sm); font-size: 12px; font-weight: 700; cursor: pointer; }
@@ -116,8 +115,7 @@
 .compare-tray-clear { width: 30px; background: var(--cream); }
 .compare-tray-clear svg { width: 14px; height: 14px; }
 .compare-tray button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
-/* Comparison: one card per kindergarten in its colour. Subgrid rows keep the
-   same criterion at the same height across cards. */
+
 .comparison-view { --col-0: var(--lemon); --col-1: var(--sky); --col-2: var(--blush); position: absolute; inset: 0; z-index: 12; display: flex; flex-direction: column; min-height: 0; color: var(--ink); background: var(--mint); }
 .comparison-close.location-details-close { position: absolute; top: 14px; right: 14px; z-index: 2; }
 .comparison-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 64px 22px 26px 26px; }
@@ -132,9 +130,9 @@
 .comparison-option-icon svg { width: 24px; height: 24px; stroke-width: 2; }
 .comparison-option-text { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
 .comparison-option-name { font-family: var(--display); font-size: 18px; font-weight: 400; line-height: 1.15; overflow-wrap: anywhere; }
-/* Same mint sticker as the provider kind in kindergarten details. */
+
 .comparison-kind { display: inline-block; margin-left: 3px; padding: 4px 10px; font-family: var(--display); font-size: 11px; letter-spacing: .5px; text-transform: uppercase; background: var(--mint); border: 2px solid var(--ink); border-radius: 100px; box-shadow: var(--shadow-sm); }
-/* Same sticker as the enrolment status, e.g. "Otvoreno". */
+
 .comparison-sticker { display: inline-block; margin-left: 3px; padding: 4px 10px; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 999px; box-shadow: var(--shadow-sm); font-family: var(--display); font-size: 11px; letter-spacing: .5px; text-transform: uppercase; }
 .comparison-remove { position: absolute; top: 12px; right: -6px; display: grid; place-items: center; width: 30px; height: 30px; color: var(--ink); background: var(--cream); border: 2px solid var(--ink); border-radius: 50%; cursor: pointer; }
 .comparison-remove:hover { color: var(--rose); }
@@ -170,16 +168,16 @@ a.comparison-next:hover { background: var(--mint); }
 .comparison-view a { text-underline-offset: 3px; text-decoration-thickness: 1.5px; overflow-wrap: anywhere; }
 .comparison-view .enrolment-status { margin-left: 3px; font-size: 12px; }
 .comparison-unknown { display: inline-block; padding: 3px 12px; color: var(--ink); background: var(--cream); border: 1.5px dashed var(--ink); border-radius: 100px; font-size: 14px; font-style: italic; }
-/* Phones: swipe between full-height cards; criteria still line up. */
+
 @media (max-width: 650px) {
   .comparison-scroll { padding: 62px 16px 18px 19px; scroll-snap-type: x mandatory; scroll-padding-left: 19px; }
-  .comparison-grid { grid-template-columns: repeat(var(--options), 76vw); column-gap: 12px; } /* the next card peeks in */
+  .comparison-grid { grid-template-columns: repeat(var(--options), 76vw); column-gap: 12px; }
   .comparison-card { scroll-snap-align: start; padding: 4px 14px 6px; }
   .comparison-option-name { font-size: 16px; }
   .comparison-field { font-size: 15px; }
 }
 
-/* Published vacancies: the count leads, its date and scope sit right under it. */
+
 .vacancy-details { display: flex; flex-direction: column; gap: 10px; }
 .vacancy-card { display: flex; flex-direction: column; gap: 10px; padding: 16px; background: var(--sky); border: 2px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow-sm); overflow-wrap: anywhere; }
 .vacancy-card[data-state="zero"] { background: var(--blush); }

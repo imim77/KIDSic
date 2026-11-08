@@ -7,7 +7,7 @@ import type { CommuteLeg, CommuteOption, CommuteResult } from '../types'
 
 const minutes = (from: string, to: string) => Math.max(0, Math.ceil((Date.parse(to) - Date.parse(from)) / 60_000))
 
-// Step is one timetable row: a time, a marker on the rail and what happens.
+
 function Step({ at, kind, icon, title, children }: {
   at: string; kind: string; icon: ReactNode; title: ReactNode; children?: ReactNode
 }) {
@@ -18,15 +18,15 @@ function Step({ at, kind, icon, title, children }: {
   </li>
 }
 
-// RouteDetails lays the selected journey out as a timetable, with the
-// figures a parent decides on (arrival, total time, transfers) up front.
+
+
 export function RouteDetails({ result, option, rank }: { result: CommuteResult; option: CommuteOption; rank: number }) {
   const body = useRef<HTMLDivElement>(null)
-  // Replays per option; the panel stays mounted while the map arrows step.
+
   useEntrance(body, [option.facility_id], { selector: '.route-details > *, .route-step', limit: 18 })
   const [toKindergarten, toWork] = option.journeys
-  // OTP names the journey ends Origin and Destination; name them for people.
-  // The kindergarten is the heading already, so steps just call it Vrtić.
+
+
   const place = (name: string, leg: number) => name === 'Origin' ? (leg === 0 ? 'Dom' : 'Vrtić')
     : name === 'Destination' ? (leg === 0 ? 'Vrtić' : 'Posao') : name
   const legs = (legs: CommuteLeg[], journey: number) => legs.map((leg, i) => {

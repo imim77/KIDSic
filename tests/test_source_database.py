@@ -288,7 +288,7 @@ class SourceDatabaseTests(DatabaseTestCase):
         await self.connection.execute(
             "UPDATE vrtici k SET seat_settlement=ks.naselje,seat_settlement_key=ks.kljuc_naselja,seat_municipality_id=ks.id_jedinice_lokalne_samouprave,seat_county=m.zupanija FROM sjedista_vrtica ks LEFT JOIN jedinice_lokalne_samouprave m ON m.id=ks.id_jedinice_lokalne_samouprave WHERE k.id=ks.id_vrtica"
         )
-        # Simulate a legacy row without passing through the now city-limited import.
+
         await self.connection.execute(
             "INSERT INTO vrtici(naziv,seat_settlement,seat_settlement_key) VALUES ('DV Bajka','Drugi grad','drugi grad')"
         )
@@ -497,7 +497,7 @@ class SourceDatabaseTests(DatabaseTestCase):
         second = await self.repo.import_snapshot(
             self.snapshot([{**NATIONAL, "Telefon": "123"}])
         )
-        # The national directory describes institutions: its address is a seat, not an object.
+
         self.assertEqual((first["locations_added"], second["locations_added"]), (0, 0))
         self.assertEqual(second["kindergartens_added"], 0)
         self.assertEqual(
@@ -686,7 +686,7 @@ class SourceDatabaseTests(DatabaseTestCase):
             ),
             1,
         )
-        # The national refresh must preserve the facility category and parent identity.
+
         await self.repo.import_snapshot(self.snapshot(national))
         self.assertEqual(
             await self.connection.fetchval("SELECT count(*) FROM vrtici"), 4

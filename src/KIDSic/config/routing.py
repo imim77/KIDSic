@@ -19,9 +19,9 @@ class RoutingCity:
     gtfs_filename: str
     port: int
     retrieved_on: date
-    # Rijeka was routed first, so its data keeps the unprefixed folder.
-    data_folder: str | None = None  # None uses the key
-    coverage_notice: str = ''  # Tells parents when ranking misses some facilities.
+
+    data_folder: str | None = None
+    coverage_notice: str = ''
 
     def contains(self, lat: float, lon: float) -> bool:
         west, south, east, north = self.bbox

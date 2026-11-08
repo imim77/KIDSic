@@ -3,7 +3,7 @@ import type { Nearby } from '../../types'
 
 type Coordinates = [number, number]
 
-// NearbyLayer draws the search radius below pins and handles point picking.
+
 export class NearbyLayer {
   private map: L.Map
   private layer: L.LayerGroup
@@ -21,7 +21,7 @@ export class NearbyLayer {
     this.layer.clearLayers()
     if (!nearby) return
     const [lng, lat] = nearby.near
-    // Leaflet measures metres on a sphere; the API uses the spheroid.
+
     L.circle([lat, lng], {
       radius: nearby.radius_m, color: '#03594d', weight: 2, dashArray: '4 4',
       fillColor: '#ffff94', fillOpacity: .18, interactive: false,

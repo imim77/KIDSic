@@ -1,7 +1,7 @@
 import { KindergartenExplorer } from '../../components/KindergartenExplorer'
 import { useCityMap } from '../../hooks/use-city-map'
 
-// CityMapApp shows the standalone city map, fed by the location API.
+
 export function CityMapApp() {
   const { select, ...map } = useCityMap()
   return (

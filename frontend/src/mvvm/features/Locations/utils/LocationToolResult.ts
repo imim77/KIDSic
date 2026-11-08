@@ -7,7 +7,7 @@ function textKey(value: string): string {
 
 const areaKey = (value: string) => textKey(value).replace(/^mjesni odbor /, '')
 
-// nearby reads the tool's near/radius_m pair; null or absent means a city search.
+
 function nearby(near: unknown, radius: unknown): Nearby | null {
   if (near == null && radius == null) return null
   if (!Array.isArray(near) || near.length !== 2 || !near.every((n) => typeof n === 'number' && Number.isFinite(n))
@@ -57,7 +57,7 @@ function validEnrolment(value: unknown): boolean {
     && ['published', 'observed', 'unknown'].includes(String(value.date_kind))
 }
 
-// LocationToolResult validates host data before it reaches map and card components.
+
 export class LocationToolResult {
   static async fromResult(result: { structuredContent?: unknown; _meta?: Record<string, unknown> }) {
     const summary = result.structuredContent
@@ -110,7 +110,7 @@ export class LocationToolResult {
       if (area && (!Array.isArray(p.areas) || !p.areas.some((name: string) => areaKey(name) === areaKey(area)))) throw new Error('Mismatched area')
       if (['website_url', 'email', 'phone'].some((field) =>
         p[field] != null && typeof p[field] !== 'string')) throw new Error('Invalid contact')
-      // A radius result asserts a verified point no further than the radius.
+
       if (around && (feature.geometry === null || typeof p.distance_m !== 'number' || !Number.isInteger(p.distance_m)
         || p.distance_m < 0 || p.distance_m > around.radius_m)) throw new Error('Invalid distance')
       if (feature.geometry !== null) {

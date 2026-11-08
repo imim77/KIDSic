@@ -1,7 +1,3 @@
--- Reviewed snapshot of official municipal rules on 2026-11-04.
--- Apply after Alembic upgrade head and after the three municipalities exist.
--- Monetary *_cents values are integer EUR cents, per child per month.
--- One transaction; replay updates this snapshot only and preserves its row IDs.
 BEGIN;
 WITH policies AS (
  SELECT value AS p FROM jsonb_array_elements($subsidy_snapshot$

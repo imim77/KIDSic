@@ -129,8 +129,8 @@ class LocationTools:
             _meta=TOOL_META,
         )]
 
-    # Validation here provides the same actionable missing-city response for all
-    # clients, including those which do not enforce the advertised input schema.
+
+
     async def call_tool(self, name, arguments):
         if name != self.name:
             return text_error('Nepoznat alat.', TOOL_META)
@@ -160,7 +160,7 @@ class LocationTools:
         """_query maps tool arguments onto the shared search query, naming the
         supported city as the catalogue spells it."""
         near = arguments.get('near')
-        # HTTP passes text, but MCP arguments must already be JSON numbers.
+
         if near is not None and (not isinstance(near, list) or not all(
                 isinstance(value, (int, float)) and not isinstance(value, bool) for value in near)):
             near = 'invalid'
@@ -216,8 +216,8 @@ class LocationTools:
                 'area': query.area, 'near': list(query.near) if query.near is not None else None,
                 'radius_m': query.radius_m, 'metadata': locations.metadata.model_dump(mode='json')}
 
-    # Host size limits also apply to UI-only metadata. Keep provenance
-    # lossless while fitting large cities into the tool-result budget.
+
+
     @staticmethod
     def _encoded(locations: LocationCollection) -> dict:
         data = gzip.compress(locations.model_dump_json().encode('utf-8'), mtime=0)

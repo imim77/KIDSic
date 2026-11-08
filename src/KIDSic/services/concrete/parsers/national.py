@@ -6,7 +6,7 @@ from KIDSic.dto.text import normalize
 from KIDSic.services.interfaces.source_parser import SourceRowParser
 from .fields import text
 
-# These three directory entries were explicitly excluded from the kindergarten product.
+
 _EXCLUDED_VARAZDIN_ASSOCIATIONS = {
     'udruga drustvo nasa djeca',
     'udruga drustvo sportske rekreacije sportska abeceda',
@@ -18,7 +18,7 @@ _VARAZDIN_BUDGET = ('https://varazdin.hr/upload/2024/11/'
                    'obrazlozenje_nacrta_proracuna_2025-2027_-_672b9864ddddb.pdf')
 _ZAGREB_DIRECTORY = ('https://www.zagreb.hr/UserDocsImages/arhiva/odgoj_obrazovanje_spot/'
                     'POPIS%20VJERSKIH%20I%20PRIVATNIH%20DV_ZA%20WEB_kris.pdf')
-# Ownership comes from reviewed founders, never from a generic kindergarten name.
+
 _REVIEWED_PROVIDERS = {
     'varazdin': {
         'dv varazdin': ('municipal', _VARAZDIN_DIRECTORY),
@@ -75,7 +75,7 @@ class NationalDirectoryParser(SourceRowParser):
             provider = 'other'
         identity = '|'.join((name_key(name), normalize(settlement), name_key(address)))
         key = hashlib.sha256(identity.encode()).hexdigest()
-        # The MZOM directory lists legal entities; its address is the seat, not an object.
+
         return KindergartenRow(
             source_key=key, raw_data=record, name=name, location_name=name,
             settlement=settlement, address=address, scope='institution',

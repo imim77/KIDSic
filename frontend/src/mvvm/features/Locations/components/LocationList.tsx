@@ -12,11 +12,11 @@ interface LocationListProps {
   criteria?: string[]
 }
 
-// LocationList shows every result as a scrollable column in the expanded
-// explorer, where the horizontal card deck would hide most of them.
+
+
 export function LocationList({ collection, selectedId, onSelect, criteria, summary }: LocationListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  // Items, not rows: rows keep CSS transform transitions for hover and press.
+
   useEntrance(scrollRef, [collection], { selector: 'li', limit: 14 })
   const city = collection.features[0]?.properties.city
   useEffect(() => {
@@ -24,7 +24,7 @@ export function LocationList({ collection, selectedId, onSelect, criteria, summa
     const row = Array.from(scroller?.querySelectorAll<HTMLElement>('[data-location-row]') ?? [])
       .find((element) => element.dataset.locationRow === selectedId)
     if (!scroller || !row) return
-    // Scroll only this column; scrollIntoView could also move the host page.
+
     if (row.offsetTop < scroller.scrollTop || row.offsetTop + row.offsetHeight > scroller.scrollTop + scroller.clientHeight) {
       scroller.scrollTop = row.offsetTop - 16
     }

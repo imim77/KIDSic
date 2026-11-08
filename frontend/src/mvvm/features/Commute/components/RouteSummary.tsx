@@ -1,9 +1,9 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { rankLabel } from '../utils/rank'
 
-// RouteSummary names the option whose route the map draws and steps through
-// the ranked options right beside it, in every layout. The route itself is
-// told in the details column, so this card stays a one-line label.
+
+
+
 export function RouteSummary({ name, rank, count, onStep }: {
   name: string; rank: number; count: number; onStep: (by: number) => void
 }) {

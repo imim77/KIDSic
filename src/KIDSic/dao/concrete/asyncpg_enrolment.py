@@ -7,7 +7,7 @@ from KIDSic.dto.enrolment import EnrolmentDocument
 from KIDSic.dto.source import name_key
 from KIDSic.exceptions import SourceImportError
 
-KIND = 'enrolment_document'  # Marks these sources; they never prove an object is active.
+KIND = 'enrolment_document'
 
 
 class AsyncpgEnrolmentDocumentRepository(EnrolmentDocumentRepository):
@@ -32,8 +32,8 @@ class AsyncpgEnrolmentDocumentRepository(EnrolmentDocumentRepository):
              'snapshot_key': snapshot_key}, KIND)
         if not stored['import_allowed']:
             raise SourceImportError(f'Import is disabled for {document.dataset_key}.')
-        # Only directory records anchor the targets; enrolment chunks cannot keep
-        # a kindergarten alive after the directory drops it.
+
+
         owners = await self._connection.fetch("""
             WITH active AS (
               SELECT r.id_vrtica,r.id_objekta FROM izvorni_zapisi r
@@ -52,8 +52,8 @@ class AsyncpgEnrolmentDocumentRepository(EnrolmentDocumentRepository):
             raise SourceImportError(f'No active institutions for {document.dataset_key}; retain the previous state.')
 
         def resolve(name):
-            # A reviewed snapshot names institutions exactly; guessing would attach
-            # another kindergarten's rules.
+
+
             found = [o['id'] for o in owners if name_key(o['name']) == name_key(name)]
             if len(found) != 1:
                 raise SourceImportError(f'{document.dataset_key}: {len(found)} active institutions match {name!r}.')

@@ -179,7 +179,7 @@ class LocationDatabaseTests(DatabaseTestCase):
             tuple(rows[branch][key] for key in ("website_url", "email", "phone")),
             ("https://example.invalid/owner", "owner@example.invalid", "01/333-3333"),
         )
-        # A rejected contact cannot override the currently available fallback.
+
         await self.connection.execute(
             "UPDATE izvorni_zapisi SET status_povezivanja='rejected' WHERE id_objekta=$1",
             location,
@@ -284,8 +284,8 @@ class LocationDatabaseTests(DatabaseTestCase):
             await self.repository.list_locations(LocationQuery(bbox=(15, 45, 16, 46))),
             [],
         )
-        # The FK rejects missing records; an existing sibling owner's proof is
-        # also excluded by the geography view's ownership check.
+
+
         import asyncpg
 
         with self.assertRaises(asyncpg.ForeignKeyViolationError):
@@ -371,7 +371,7 @@ class LocationDatabaseTests(DatabaseTestCase):
         zero, _ = await self.fixture("Zero")
         await self.vacancies(zero, date(2025, 1, 1), 0)
         await self.fixture("Unpublished")
-        # A newer published zero replaces an older positive count.
+
         filled, _ = await self.fixture("Filled")
         await self.vacancies(filled, date(2024, 1, 1), 5)
         await self.vacancies(filled, date(2025, 1, 1), 0)
@@ -382,10 +382,10 @@ class LocationDatabaseTests(DatabaseTestCase):
         self.assertEqual(len(await self.repository.list_locations(LocationQuery())), 5)
 
     async def test_radius_keeps_only_verified_points_and_reports_metres(self):
-        # 0.01° latitude is about 1112 m on the spheroid.
+
         _, centre = await self.fixture("Centre", coords=(15.98, 45.81))
         _, near = await self.fixture("Near", coords=(15.98, 45.82))
-        # Alphabetically first but farther than Centre: distance must win over name.
+
         _, alpha = await self.fixture("Alpha", coords=(15.98, 45.817))
         await self.fixture("Far", coords=(15.98, 45.85))
         await self.fixture("Unlocated", coords=(None, None))

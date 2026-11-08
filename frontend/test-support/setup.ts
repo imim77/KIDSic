@@ -7,7 +7,7 @@ const originalScrollMethods = new Map(scrollMethods.map(name =>
   [name, Object.getOwnPropertyDescriptor(Element.prototype, name)]))
 
 beforeEach(() => {
-  // jsdom has no layout engine; suites can override these for scroll behavior.
+
   for (const name of scrollMethods) {
     Object.defineProperty(Element.prototype, name, { configurable: true, writable: true, value: vi.fn() })
   }

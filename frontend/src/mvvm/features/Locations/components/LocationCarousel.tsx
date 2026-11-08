@@ -13,7 +13,7 @@ interface LocationCarouselProps {
   selectedId: string | null
   reveal: { id: string; revision: number } | null
   onSelect: (id: string) => void
-  // caption names the active criteria and order above the deck.
+
   caption?: string
   compare?: (feature: LocationFeature) => CompareChoice | undefined
 }
@@ -27,11 +27,11 @@ function anchor(track: HTMLElement, card: HTMLElement) {
   return Math.max(0, Math.min(track.scrollWidth - track.clientWidth, card.getBoundingClientRect().left - track.getBoundingClientRect().left + track.scrollLeft - padding))
 }
 
-// LocationCarousel scrolls its own viewport without changing the map selection.
+
 export function LocationCarousel({ features, selectedId, reveal, onSelect, caption, compare, summary }: LocationCarouselProps) {
   const trackRef = useRef<HTMLUListElement>(null)
   const [edges, setEdges] = useState({ start: true, end: features.length < 2 })
-  // Slides, not cards: cards keep CSS transform transitions for hover and press.
+
   useEntrance(trackRef, [features], { selector: '.location-slide', limit: 8 })
   useEffect(() => {
     const track = trackRef.current

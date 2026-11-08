@@ -22,7 +22,7 @@ class AsyncpgSourceUnitOfWork(SourceUnitOfWork):
         try:
             self._transaction = self._connection.transaction()
             await self._transaction.start()
-            # Serialize all source writers, including cross-source object matching.
+
             await self._connection.execute('SELECT pg_advisory_xact_lock(194733, 1)')
             self.sources = AsyncpgSourceRepository(self._connection)
             self.historical = AsyncpgHistoricalRepository(self._connection)

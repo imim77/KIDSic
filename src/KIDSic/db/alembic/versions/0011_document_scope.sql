@@ -1,4 +1,3 @@
--- Reviewed enrolment seeds are reimported after this destructive conversion.
 CREATE TEMP TABLE replaced_document ON COMMIT DROP AS
  SELECT r.id FROM source_record r JOIN data_source s ON s.id=r.source_id
  WHERE s.metadata->>'kind'='enrolment_document';
@@ -41,8 +40,6 @@ ALTER TABLE knowledge_chunk ALTER COLUMN kindergarten_id DROP NOT NULL,
 ALTER TABLE enrolment DROP CONSTRAINT enrolment_scope_check,
  DROP COLUMN municipality_id, DROP COLUMN accepting;
 -- statement
--- Document applicability is shared by cards and RAG. Only directory evidence
--- anchors a municipality rule, so documents cannot keep removed owners alive.
 CREATE VIEW document_applicability AS
  WITH active AS (
    SELECT r.* FROM source_record r JOIN data_source s ON s.id=r.source_id
@@ -63,8 +60,6 @@ CREATE VIEW document_applicability AS
      SELECT 1 FROM location l JOIN active a ON a.location_id=l.id AND a.kindergarten_id=k.id
      WHERE l.kindergarten_id=k.id AND l.municipality_id=d.municipality_id));
 -- statement
--- Deferred checks allow the source, scope and chunks to be inserted in any order
--- within one import, but reject accepted ownerless evidence at commit.
 CREATE FUNCTION check_document_scope() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE record_id uuid; record_ids uuid[];
 BEGIN

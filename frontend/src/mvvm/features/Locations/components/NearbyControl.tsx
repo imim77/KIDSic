@@ -19,19 +19,19 @@ interface NearbyControlProps {
   onClear: () => void
 }
 
-// NearbyControl lets parents choose a point by device location or map click and
-// a radius. It starts folded into one pill so the map stays clear; the pill
-// shows the active radius, so a folded control still tells parents a filter is on.
+
+
+
 export function NearbyControl({ value, radius, picking, canPick, onLocate, onRadius, onPicking, onClear }: NearbyControlProps) {
   const [open, setOpen] = useState(false)
-  const [mounted, setMounted] = useState(false) // keeps the body until it has slid shut
+  const [mounted, setMounted] = useState(false)
   const bodyRef = useRef<HTMLDivElement>(null)
   const bodyId = useId()
   useLayoutEffect(() => {
     const body = bodyRef.current
     if (!body || reducedMotion()) return
     gsap.killTweensOf(body)
-    // Overflow is hidden only while the height moves, so focus rings show after.
+
     if (open) {
       gsap.fromTo(body, { height: 0, opacity: 0, overflow: 'hidden' },
         { height: 'auto', opacity: 1, duration: 0.32, ease: 'power2.out', clearProps: 'height,opacity,overflow' })
@@ -40,7 +40,7 @@ export function NearbyControl({ value, radius, picking, canPick, onLocate, onRad
     }
   }, [open])
   const toggle = (next: boolean) => {
-    if (next || reducedMotion()) setMounted(next) // otherwise the tween unmounts it
+    if (next || reducedMotion()) setMounted(next)
     if (!next) onPicking(false)
     setOpen(next)
   }
@@ -61,7 +61,7 @@ export function NearbyControl({ value, radius, picking, canPick, onLocate, onRad
       <ChevronDown aria-hidden="true" className="nearby-toggle-chevron" />
     </button>
     {mounted && <div ref={bodyRef} id={bodyId} className="nearby-body">
-    {/* Spacing lives inside, so a zero-height body leaves no gap behind. */}
+
     <div className="nearby-body-inner">
     <div className="nearby-actions">
       <button type="button" onClick={locate} disabled={locating} aria-busy={locating}>

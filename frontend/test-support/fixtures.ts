@@ -15,7 +15,7 @@ export function historicalEvidence(overrides: Partial<HistoricalEvidence> = {}):
     license: 'Otvorena dozvola (OD)', ...overrides }
 }
 
-// These deliberately synthetic fixtures must never be presented as real facilities.
+
 export function facility(id: string, located = true): LocationFeature {
   return {
     type: 'Feature',

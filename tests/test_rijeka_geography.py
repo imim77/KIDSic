@@ -21,7 +21,7 @@ from KIDSic.services.concrete.kindergarten_normalizer import normalize_records
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(
     0, str(SCRIPTS)
-)  # Scripts import their shared reviewed_snapshot helper.
+)
 spec = importlib.util.spec_from_file_location(
     "rijeka_geography", SCRIPTS / "import_rijeka_geography.py"
 )

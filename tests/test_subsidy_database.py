@@ -21,7 +21,7 @@ class SubsidyDatabaseTests(DatabaseTestCase):
             Path(__file__).resolve().parents[1] / "src/KIDSic/db/seeds/"
             "2026-11-04_municipal_subsidies.sql"
         ).read_text()
-        # Keep the production seed inside the fixture's rollback transaction.
+
         self.seed = sql.replace("\nBEGIN;\n", "\n").replace("\nCOMMIT;\n", "\n")
 
     async def test_seed_replays_without_changing_facilities_or_policy_identities(self):

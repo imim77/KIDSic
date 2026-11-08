@@ -6,8 +6,8 @@ from KIDSic.exceptions import SourceImportError
 
 
 class SourceStateWriter:
-    # SourceStateWriter keeps replacement, dependency deletion and activation in
-    # one caller-owned transaction; every import uses the same advisory lock.
+
+
     def __init__(self, connection, source_id, fetched_at):
         self._connection = connection
         self._source_id = source_id
@@ -47,7 +47,7 @@ class SourceStateWriter:
             observed_on, owner, location, status, method, note)
 
     async def clear_derived(self, record_ids):
-        # Reimports keep the source record, so its children need explicit cleanup.
+
         await self._connection.execute("""DELETE FROM neprihvacanja_upisa
             WHERE id_izvornog_zapisa=ANY($1::uuid[])""", list(record_ids))
         for table in ('odlomci_znanja', 'upisni_krugovi'):
@@ -100,9 +100,9 @@ class SourceStateWriter:
                             'seat_settlement_key', 'seat_municipality_id'}:
                         seat_values[key.removeprefix('seat_')] = None
                     if key in ('name', 'provider_kind', 'location_name', 'settlement'):
-                        continue  # Inactive orphan identities may retain their display label.
+                        continue
                     if table == 'objekti' and key == 'kind':
-                        values[key] = 'unknown'  # Required classification loses its evidence.
+                        values[key] = 'unknown'
                     elif key in row and key not in ('id', 'kindergarten_id'):
                         values[key] = None
                     elif key in attributes:

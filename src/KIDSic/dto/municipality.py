@@ -35,7 +35,7 @@ def resolve_municipality(settlement: str, county: str | None) -> str | None:
     county_key = normalize(county or '')
     if county_key == 'grad zagreb':
         return 'zagreb'
-    # Brodarica is a settlement in Grad Šibenik, not a separate municipality.
+
     if normalize(settlement) == 'brodarica' and county_key == normalize(MUNICIPALITIES['sibenik'].county):
         return 'sibenik'
     candidate = MUNICIPALITIES.get(normalize(settlement))

@@ -19,7 +19,7 @@ def downgrade():
                " ON CONFLICT(kindergarten_id) DO NOTHING")
     op.execute('ALTER TABLE knowledge_chunk ADD COLUMN content_sha256 text')
     op.execute("UPDATE knowledge_chunk SET content_sha256=encode(sha256(convert_to(content,'UTF8')),'hex')")
-    # The deferred document-scope trigger must run before the table can be altered again.
+
     op.execute('SET CONSTRAINTS ALL IMMEDIATE')
     op.execute("ALTER TABLE knowledge_chunk ALTER COLUMN content_sha256 SET NOT NULL,\n"
                " ADD CHECK(content_sha256 ~ '^[0-9a-f]{64}$')")

@@ -44,8 +44,8 @@ class Settings:
 
     @classmethod
     def from_env(cls, *, require_database: bool = True):
-        # Only DATABASE_URL comes from the environment; CKAN sources and limits
-        # are fixed defaults that only tests override.
+
+
         return cls(
             database_url=(os.environ['DATABASE_URL'] if require_database else
                           os.getenv('DATABASE_URL', 'postgresql://localhost/kidsic')),

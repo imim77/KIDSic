@@ -13,7 +13,7 @@ def upgrade():
 
 
 def downgrade():
-    # A later import replaces the marker and must not be undone by this revision.
+
     op.execute("""
         UPDATE kindergarten SET
             provider_kind=provenance->'provider_kind'->>'previous_kind',

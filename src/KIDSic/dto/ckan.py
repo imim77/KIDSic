@@ -3,7 +3,7 @@ from pydantic import AnyHttpUrl, BaseModel, Field, StrictStr
 
 
 class CkanResource(BaseModel):
-    # data.gov.hr uses the slug 'djecji-vrtici' as the JSON resource ID.
+
     id: StrictStr = Field(min_length=1)
     url: AnyHttpUrl
     name: str | None = None

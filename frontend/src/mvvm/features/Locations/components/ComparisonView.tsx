@@ -24,21 +24,21 @@ type Row = { label: string; icon: ComponentType<{ 'aria-hidden'?: boolean }>; to
 
 const unknown = (text = 'Nije potvrđeno') => <span className="comparison-unknown">{text}</span>
 
-// ComparisonView sets up to three options side by side, each one coloured card
-// holding every criterion. Subgrid rows keep the same criterion level across
-// cards; phones swipe between cards. Unknown values say so explicitly; they
-// are things to check, not a "no".
+
+
+
+
 export function ComparisonView({ features, onRemove, onClose, openLink }: ComparisonViewProps) {
   const rootRef = useRef<HTMLElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   useEffect(() => { closeRef.current?.focus({ preventScroll: true }) }, [])
-  // Cards rise in one after another, then their criteria settle in; clearing
-  // props afterwards leaves hover styles and scrolling untouched.
+
+
   useGSAP(() => {
     if (reducedMotion()) return
     gsap.timeline({ defaults: { ease: 'power3.out', clearProps: 'opacity,transform' } })
       .from('.comparison-card', { opacity: 0, y: 36, rotate: (index) => [-2, 1.5, -1][index] ?? 0, duration: 0.5, stagger: 0.09 })
-      // Stagger by criterion, not DOM order, so all cards fill in together.
+
       .from('.comparison-field', { opacity: 0, x: -10, duration: 0.3,
         stagger: (_, target: Element) => [...target.parentElement!.children].indexOf(target) * 0.035 }, '-=0.35')
   }, { scope: rootRef })

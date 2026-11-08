@@ -17,7 +17,7 @@ async def import_venues(connection, data):
     sources = {}
 
     async def source(role, title, publisher, url, license):
-        # One data source per published URL, shared by every venue it lists.
+
         key = f'varazdin-other-{role}-' + hashlib.sha256(url.encode()).hexdigest()[:16]
         if key not in sources:
             sources[key] = await batch.source(key, title, publisher, url, license, {

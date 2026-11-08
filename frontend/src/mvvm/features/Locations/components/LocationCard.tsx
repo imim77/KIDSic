@@ -13,7 +13,7 @@ interface LocationCardProps {
   compare?: CompareChoice
 }
 
-// LocationCard selects a map result from its compact name and address summary.
+
 export function LocationCard({ feature, selected, onSelect, compare, summary }: LocationCardProps) {
   const location = feature.properties
   const rawAddress = location.address ?? 'Adresa nije poznata'
@@ -34,7 +34,7 @@ export function LocationCard({ feature, selected, onSelect, compare, summary }: 
       </CardHeader>
       {summary && <p className="truncate text-[11px] font-semibold">{summary}</p>}
       {(distance || location.district) && <CardContent className="min-w-0 p-0">
-        {/* One meta line keeps the card short; distance leads when searching nearby. */}
+
         <p className="truncate text-[11px] text-muted-foreground" title={location.district ?? undefined}>
           {distance && <span className="font-semibold text-foreground">{distance}</span>}
           {distance && location.district && ' · '}
@@ -42,7 +42,7 @@ export function LocationCard({ feature, selected, onSelect, compare, summary }: 
         </p>
       </CardContent>}
     </div>
-    {/* Sits above the card-wide select button, so it toggles without opening details. */}
+
     {compare && <div className="location-card-compare"><CompareToggle {...compare} name={location.location_name} compact /></div>}
   </Card>
 }

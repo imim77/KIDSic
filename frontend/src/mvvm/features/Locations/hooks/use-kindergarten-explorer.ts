@@ -5,17 +5,17 @@ import { comparisonLimit } from '../utils/comparison'
 import { describeCriteria } from '../utils/criteria'
 import type { LocationCollection, LocationFeature, Nearby, SearchCriteria } from '../types'
 
-// NearbySearch is a screen's point-and-radius search; screens without one omit it.
+
 export interface NearbySearch {
   value: Nearby | null
   onChange: (value: Nearby | null) => void
 }
 
-// DistrictFilter is a screen's city-district picker; screens without one omit it.
+
 export interface DistrictFilter {
   options: string[]
   value: string
-  unknown: number // Results without a recorded district, which never match.
+  unknown: number
   onChange: (value: string) => void
 }
 
@@ -28,25 +28,25 @@ export interface ExplorerInput {
   district?: DistrictFilter
   criteria?: SearchCriteria
   emptyNotice?: string
-  // A ranked route compares journeys, not kindergartens, so it hides comparison.
+
   comparable?: boolean
 }
 
 const defaultRadius = 1000
 
-// useKindergartenExplorer owns the explorer's own interaction state: the
-// nearby point being picked, the comparison and which map pick the card deck
-// should scroll to. Results and selection stay with the screen.
+
+
+
 export function useKindergartenExplorer({ data, selectedId, onSelect, retry, nearby, district, criteria, emptyNotice, comparable = true }: ExplorerInput) {
   const [picking, setPicking] = useState(false)
   const [chosenRadius, setChosenRadius] = useState(defaultRadius)
-  // An active search, also one the host's model made, owns the shown radius.
+
   const radius = nearby?.value?.radius_m ?? chosenRadius
-  // Each map pick is a new revision, so picking the same pin scrolls again.
+
   const [reveal, setReveal] = useState<{ id: string; revision: number } | null>(null)
 
-  // Compared options are kept as snapshots so they survive a new search; a
-  // result that is still listed replaces its snapshot, e.g. to show distance.
+
+
   const [compared, setCompared] = useState<LocationFeature[]>([])
   const [comparing, setComparing] = useState(false)
   const comparedNow = compared.map((feature) => data?.features.find((current) => current.id === feature.id) ?? feature)
@@ -98,7 +98,7 @@ export function useKindergartenExplorer({ data, selectedId, onSelect, retry, nea
     comparison: {
       count: compared.length,
       features: comparedNow,
-      // The comparison covers the explorer once it holds two options to set side by side.
+
       open: comparing && comparedNow.length > 1,
       choice: compareChoice,
       show: () => setComparing(true),

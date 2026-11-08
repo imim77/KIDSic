@@ -18,7 +18,7 @@ COMMUTE_URI = UI_URI
 COMMUTE_META = {'ui': {'resourceUri': COMMUTE_URI}, 'openai/outputTemplate': COMMUTE_URI,
     'openai/toolInvocation/invoking': 'Uspoređujem putove kroz vrtiće…',
     'openai/toolInvocation/invoked': 'Najbolje opcije puta su spremne.'}
-# Full geometries and resolved addresses belong to the UI, not the model's context.
+
 UI_ONLY_KEYS = {'home', 'work', 'baseline', 'results', 'resolved_addresses', 'locations'}
 UI_ONLY_ROW_KEYS = {'journeys', 'point'}
 
@@ -86,7 +86,7 @@ class CommuteTools:
         RoutingUnavailable <- ConnectError, so operators see which dependency
         failed while messages that may hold addresses stay out of the log."""
         names = []
-        while error is not None and len(names) < 5:  # bound a cyclic chain
+        while error is not None and len(names) < 5:
             names.append(type(error).__name__)
             error = error.__cause__ or error.__context__
         return ' <- '.join(names)
@@ -117,7 +117,7 @@ class CommuteTools:
             async with asyncio.timeout(90):
                 result = await self._service(query.city).recommend(query)
         except Exception as error:
-            # Address text and home coordinates must not leak through diagnostics.
+
             logger.error('Commute recommendation failed: %s', self._failure_cause(error))
             return self._error('commute_unavailable', 'Izračun ili lokalni podaci trenutačno nisu dostupni. '
                 'Pokušaj ponovno kasnije; nemoj zamijeniti rezultat procjenom ili oglednim vremenima.')

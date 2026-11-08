@@ -6,7 +6,7 @@ from KIDSic.exceptions import SourceImportError
 from KIDSic.services.interfaces.source_parser import SourceRowParser
 from .fields import text, coordinate
 
-# Zagreb resources append a settlement inside the city to some addresses: "Sopnička ulica 69, Sesvete".
+
 _ZAGREB_SETTLEMENT = re.compile(r'^(.*\d\w*)\s*,\s*([^\d,]+)$')
 
 
@@ -33,8 +33,8 @@ class ZagrebLocationParser(SourceRowParser):
         latitude = coordinate(record.get('Y'), 90)
         if (longitude is None) != (latitude is None):
             raise SourceImportError('Coordinates must be supplied together.')
-        # X/Y are published as longitude/latitude. Refuse projected/swapped
-        # coordinates instead of silently placing Zagreb objects elsewhere.
+
+
         if longitude is not None and not (15 < longitude < 17 and 45 < latitude < 47):
             raise SourceImportError('Coordinates do not describe the Zagreb area.')
         settlement = 'Zagreb'

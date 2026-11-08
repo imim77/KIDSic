@@ -94,7 +94,7 @@ class NormalizationTests(unittest.TestCase):
             [{**NATIONAL, "Mjesto": "Sesvete", "Zupanija": "Grad Zagreb"}], "national"
         )[0]
         self.assertEqual(sesvete.municipality, "zagreb")
-        # A curated name in another county is not assumed to be the same municipality.
+
         self.assertEqual(
             normalize_records([{**NATIONAL, "Zupanija": "Druga županija"}], "national"),
             (),
@@ -113,7 +113,7 @@ class NormalizationTests(unittest.TestCase):
         self.assertEqual(
             normalize_records([{**NATIONAL, "Naziv": names[0]}], "national"), ()
         )
-        # The exclusion is scoped to the requested institutions in Varaždin.
+
         self.assertEqual(
             len(
                 normalize_records(

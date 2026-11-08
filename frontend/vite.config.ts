@@ -4,12 +4,12 @@ import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 import { fileURLToPath } from 'node:url'
 
-// https://vite.dev/config/
+
 export default defineConfig({
   root: 'src/pages',
   resolve: { alias: {
     '@': fileURLToPath(new URL('./src', import.meta.url)),
-    // Pages sit beside, not above, the screens they load.
+
     '/mvvm': fileURLToPath(new URL('./src/mvvm', import.meta.url)),
   } },
   envDir: fileURLToPath(new URL('.', import.meta.url)),

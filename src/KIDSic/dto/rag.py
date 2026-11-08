@@ -6,14 +6,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from KIDSic.dto.municipality import supported_city_key
 
 Topic = Literal['programs', 'vacancies', 'subsidies', 'contacts', 'document']
-TOPICS: tuple[Topic, ...] = get_args(Topic)  # Also the order of returned evidence.
+TOPICS: tuple[Topic, ...] = get_args(Topic)
 
 
 class RagQuery(BaseModel):
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     city: str = Field(min_length=1, max_length=100)
     name: str = Field(min_length=1, max_length=200)
-    topics: list[Topic] | None = Field(default=None, min_length=1)  # None selects every topic.
+    topics: list[Topic] | None = Field(default=None, min_length=1)
     feature_id: str | None = Field(default=None, max_length=50)
 
     @field_validator('city')

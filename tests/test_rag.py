@@ -163,7 +163,7 @@ class RagServiceTests(unittest.IsolatedAsyncioTestCase):
         call = self.search.retrieve_context.await_args.kwargs
         self.assertNotIn(
             "text", call
-        )  # Documents are filtered by scope, never by question terms.
+        )
 
     async def test_chunks_stay_within_selected_owner_and_exact_facility(self):
         first = row()
@@ -233,7 +233,7 @@ class RagServiceTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(
             len(result.evidence), 1
-        )  # Duplicates do not consume the response budget.
+        )
         self.assertFalse(result.truncated)
         rows = [dict(item, location_id=uuid4()) for _ in range(21)]
         result = await self.service(rows).retrieve(
@@ -256,7 +256,7 @@ class RagServiceTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(
             len(result.evidence), 20
-        )  # Many short excerpts fit; only characters are bounded.
+        )
         self.assertFalse(result.truncated)
         item["historical_data"] = [
             dict(template, programs=[f"Montessori {i} " + "x" * 2000])
@@ -376,7 +376,7 @@ class RagServiceTests(unittest.IsolatedAsyncioTestCase):
                 order = [everything.index(e.topic) for e in result.evidence]
                 self.assertEqual(
                     order, sorted(order)
-                )  # Stable topic order regardless of request order.
+                )
                 for e in result.evidence:
                     self.assertEqual(e.kindergarten_id, str(item["kindergarten_id"]))
                     self.assertEqual(e.applies_to, [str(item["location_id"])])

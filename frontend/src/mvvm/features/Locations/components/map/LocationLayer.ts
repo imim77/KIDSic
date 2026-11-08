@@ -5,7 +5,7 @@ import type { Point } from 'geojson'
 import type { LocationCollection, LocationFeature } from '../../types'
 import { providerColors } from '../../types'
 
-// LocationLayer keeps clustered markers and list selection in sync.
+
 export class LocationLayer {
   private map: L.Map
   private points: L.MarkerClusterGroup
@@ -62,7 +62,7 @@ export class LocationLayer {
     const feature = this.features.find((item) => item.id === id)
     if (!feature) return
     const [lng, lat] = feature.geometry.coordinates
-    // A separate marker keeps selection visible even inside a cluster.
+
     L.marker([lat, lng], {
       icon: this.icon(feature, true), interactive: false, keyboard: false,
       zIndexOffset: 1000,
@@ -73,7 +73,7 @@ export class LocationLayer {
   }
 
   resize() {
-    // Recenter an active selection above the card deck after rotation.
+
     if (this.selectedId) this.select(this.selectedId)
   }
 
@@ -99,7 +99,7 @@ export class LocationLayer {
     if (!frame) return { paddingTopLeft: [50, 50], paddingBottomRight: [50, 50] }
     const height = frame.clientHeight
     const deck = frame.querySelector('.location-carousel')?.getBoundingClientRect().height ?? 0
-    // Center selected pins in the map area above the cards, also in landscape.
+
     return {
       paddingTopLeft: [45, Math.min(90, height * .2)],
       paddingBottomRight: [45, Math.min(deck + 45, height * .6)],

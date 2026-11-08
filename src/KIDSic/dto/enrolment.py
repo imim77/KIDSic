@@ -5,18 +5,18 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 
 class EnrolmentExcerpt(BaseModel):
-    # EnrolmentExcerpt is one self-contained passage; conditions and dates are
-    # never split across excerpts. Named institutions narrow its scope.
+
+
     model_config = ConfigDict(extra='forbid', frozen=True)
     content: str = Field(min_length=1, max_length=4000)
     institutions: tuple[str, ...] = ()
 
 
 class EnrolmentCall(BaseModel):
-    # EnrolmentCall is the structured channel and deadline of one round, as
-    # published. Missing dates stay unknown; `not_accepting` lists institutions
-    # the source says take no enrolments in this academic year. Steps and
-    # documents stay in the excerpts so one text is the only source of truth.
+
+
+
+
     model_config = ConfigDict(extra='forbid', frozen=True)
     round: Literal['main', 'rolling']
     academic_year: str = Field(pattern=r'^\d{4}\./\d{4}\.$')
@@ -37,9 +37,9 @@ class EnrolmentCall(BaseModel):
 
 
 class EnrolmentDocument(BaseModel):
-    # EnrolmentDocument describes one official source with a confirmed reuse
-    # licence. Without `institutions` it covers every active provider of the
-    # given kinds in the municipality; with them, only those institutions.
+
+
+
     model_config = ConfigDict(extra='forbid', frozen=True)
     dataset_key: str = Field(pattern=r'^[a-z0-9-]+$')
     title: str = Field(min_length=1)
@@ -52,7 +52,7 @@ class EnrolmentDocument(BaseModel):
     institutions: tuple[str, ...] = ()
     reference_date: date
     date_kind: Literal['published', 'observed']
-    valid_until: date | None = None  # Inclusive end of the period the document governs.
+    valid_until: date | None = None
     sha256: str | None = Field(default=None, pattern=r'^[0-9a-f]{64}$')
     excerpts: tuple[EnrolmentExcerpt, ...] = Field(min_length=1)
     calls: tuple[EnrolmentCall, ...] = ()

@@ -6,8 +6,8 @@ from KIDSic.dto.enrolment import EnrolmentSnapshot
 
 
 class EnrolmentDocumentService:
-    # The snapshot is reviewed by hand: PDF layouts and licences differ per
-    # publisher, so excerpts are transcribed whole instead of cut automatically.
+
+
     def __init__(self, snapshot: EnrolmentSnapshot, uow_factory: SourceUnitOfWorkFactory | None = None):
         self._snapshot, self._uow_factory = snapshot, uow_factory
 

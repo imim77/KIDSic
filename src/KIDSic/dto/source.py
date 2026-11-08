@@ -61,7 +61,7 @@ class KindergartenRow:
     location_name: str
     settlement: str
     address: str
-    # 'institution' rows describe a legal entity and its seat; 'location' rows describe one object.
+
     scope: str = 'location'
     municipality: str | None = None
     oib: str | None = None

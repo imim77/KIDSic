@@ -8,10 +8,10 @@ import unicodedata
 from KIDSic.integrations.interfaces.address import AddressLookup
 
 
-# City names and postcodes say nothing within one city's index.
+
 CITY_WORDS = {'Rijeka': {'rijeka', '51000'}, 'Zagreb': {'zagreb', '10000'}, 'Šibenik': {'sibenik', '22000'}}
 STREET_WORDS = {'ulica', 'ul'}
-DUPLICATE_DEGREES = .0003  # about 30 m: the same address mapped twice
+DUPLICATE_DEGREES = .0003
 
 
 def normalized_address(text, city='Rijeka'):

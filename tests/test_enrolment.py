@@ -26,7 +26,7 @@ class EnrolmentSnapshotTests(unittest.TestCase):
                 self.assertLessEqual(document.reference_date, snapshot.verified_on)
                 self.assertGreaterEqual(document.valid_until, snapshot.verified_on)
                 for excerpt in document.excerpts:
-                    # A passage that does not end a sentence was cut through a condition.
+
                     self.assertTrue(
                         excerpt.content.rstrip().endswith("."), excerpt.content[-60:]
                     )
@@ -58,7 +58,7 @@ class EnrolmentSnapshotTests(unittest.TestCase):
         )
         self.assertIsNone(
             calls["rolling"].opens_at
-        )  # The page does not say when the year opened.
+        )
 
     def test_calls_need_offsets_ordered_periods_and_scoped_refusals(self):
         for invalid in (

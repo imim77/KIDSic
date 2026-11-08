@@ -19,7 +19,7 @@ beforeEach(() => {
     maps.push(map)
     return map
   })
-  // jsdom supports SVG elements but does not expose createSVGRect for detection.
+
   Object.defineProperty(L.Browser, 'svg', { configurable: true, value: true })
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(900)
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(700)
@@ -81,7 +81,7 @@ describe('Leaflet/OpenStreetMap lifecycle and data', () => {
     const points = routes.show(route)
     const path = () => map.getPane('overlayPane')!.querySelector('path[stroke-dasharray]')!
     expect(path()).toHaveAttribute('pathLength', '1')
-    // ResizeObserver calls show again with the same route; it must not restart.
+
     const before = path()
     expect(routes.show(route)).toBe(points)
     expect(path()).toBe(before)

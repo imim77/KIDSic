@@ -51,7 +51,7 @@ class RagEvidenceBuilder(EvidenceBuilder):
             sources=[RagSource(title=chunk['source_title'], url=chunk['source_url'], license=chunk.get('license'))],
             reference_date=reference, date_kind='observed' if chunk['observed_on'] else (
                 'published' if reference else 'unknown'),
-            # Current only while the governed period lasts; deadlines inside it stay dated.
+
             temporal_status='current' if chunk.get('in_effect') else (
                 'historical' if reference else 'undated'))
 

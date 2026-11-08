@@ -2,8 +2,8 @@ import type { HistoricalEvidence } from '../types'
 import { formatDay } from '@/mvvm/utils/format'
 import { hostLink, websiteHref, type OpenLink } from '@/mvvm/utils/links'
 
-// HistoricalDetails preserves the date and institution/object scope of open
-// program snapshots. Vacancy counts have their own section (VacancyDetails).
+
+
 export function HistoricalDetails({ records: all, openLink }: { records: HistoricalEvidence[]; openLink?: OpenLink }) {
   const records = all.filter((record) => record.programs.length)
   if (!records.length) return null

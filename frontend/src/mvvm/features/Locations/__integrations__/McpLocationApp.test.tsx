@@ -117,7 +117,7 @@ it('rejects malformed results, and a chosen card opens host fullscreen details',
   expect(screen.getByRole('button', { name: 'Vrati prikaz' })).toBeVisible()
   expect(screen.getByRole('list', { name: 'Svi vrtići' })).toBeVisible()
   expect(screen.getByRole('region', { name: 'Detalji: Synthetic facility first' })).toBeVisible()
-  // Sandboxed hosts block navigation, so outbound links go through the bridge.
+
   await userEvent.click(screen.getByRole('link', { name: 'Web stranica vrtića' }))
   expect(host.link).toHaveBeenCalledWith({ url: 'https://example.invalid/kindergarten' })
   expect(screen.queryByText('Izvori podataka')).toBeNull()

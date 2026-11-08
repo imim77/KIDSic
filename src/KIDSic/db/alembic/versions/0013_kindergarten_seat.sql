@@ -1,4 +1,3 @@
--- Refuse county disagreements before removing the denormalized copies.
 DO $$
 DECLARE differences text;
 BEGIN

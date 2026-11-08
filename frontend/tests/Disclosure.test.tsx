@@ -18,7 +18,7 @@ it('slides the body open, keeps it visible until closing ends and leaves no inli
   finishAnimations()
   expect(body.getAttribute('style') ?? '').toBe('')
   await userEvent.click(screen.getByText('Tarife'))
-  expect(details.open).toBe(true)  // still animating closed
+  expect(details.open).toBe(true)
   finishAnimations()
   expect(details.open).toBe(false)
   expect(body.getAttribute('style') ?? '').toBe('')

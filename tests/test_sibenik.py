@@ -30,7 +30,7 @@ from KIDSic.services.concrete.kindergarten_normalizer import normalize_records
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(
     0, str(ROOT / "scripts")
-)  # Scripts import their shared reviewed_snapshot helper.
+)
 spec = importlib.util.spec_from_file_location(
     "sibenik_import", ROOT / "scripts/import_sibenik.py"
 )

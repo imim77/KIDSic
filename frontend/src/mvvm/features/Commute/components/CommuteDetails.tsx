@@ -12,9 +12,9 @@ const tabs: { id: CommuteTab; label: string; Icon: typeof Route }[] = [
   { id: 'kindergarten', label: 'Vrtić', Icon: Building2 },
 ]
 
-// CommuteDetails splits the details column into the route to the selected
-// kindergarten and the same kindergarten details a city search shows. The tab
-// is owned by the caller so it survives choosing another kindergarten.
+
+
+
 export function CommuteDetails({ result, option, rank, feature, tab, onTab, onClose, openLink }: {
   result: CommuteResult; option: CommuteOption; rank: number; feature: LocationFeature
   tab: CommuteTab; onTab: (tab: CommuteTab) => void; onClose: () => void
@@ -23,16 +23,16 @@ export function CommuteDetails({ result, option, rank, feature, tab, onTab, onCl
   const id = useId()
   const panel = useRef<HTMLElement>(null)
   useEffect(() => {
-    // A card that expanded the frame may have unmounted with keyboard focus.
+
     if (!document.activeElement || document.activeElement === document.body) panel.current?.focus({ preventScroll: true })
   }, [])
   const close = () => {
-    // Return focus to the result that opened the details before they unmount.
+
     const rows = panel.current?.closest('.explorer-layout')?.querySelectorAll<HTMLElement>('[data-location-row], [data-location-card]')
     Array.from(rows ?? []).find(row => (row.dataset.locationRow ?? row.dataset.locationCard) === option.facility_id)?.focus({ preventScroll: true })
     onClose()
   }
-  // Arrow keys move between tabs, as the ARIA tabs pattern expects.
+
   const keys = (event: KeyboardEvent<HTMLDivElement>) => {
     const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key]
     if (!step) return

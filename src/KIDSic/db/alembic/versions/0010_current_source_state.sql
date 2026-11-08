@@ -1,10 +1,7 @@
--- Reviewed venue identifiers were only unique inside their institution.
 UPDATE source_record r SET source_key=r.kindergarten_id::text || ':' || r.source_key
 FROM data_source s WHERE s.id=r.source_id AND s.dataset_key LIKE 'varazdin-other-%'
  AND r.source_key NOT LIKE r.kindergarten_id::text || ':%';
 -- statement
--- An unknown category carries no inherited classification. Re-anchor its proof
--- only to the same accepted owner and source identity in the current state.
 UPDATE kindergarten k SET provenance=jsonb_set(k.provenance,'{provider_kind}',
     (k.provenance->'provider_kind') || jsonb_build_object('source_record_id',current.id::text))
 FROM source_record old JOIN data_source s ON s.id=old.source_id
@@ -14,8 +11,6 @@ JOIN source_record current ON current.source_id=s.id AND current.batch_id=s.acti
 WHERE old.id::text=k.provenance->'provider_kind'->>'source_record_id'
  AND old.batch_id IS DISTINCT FROM s.active_batch_id AND k.provider_kind='unknown';
 -- statement
--- Refuse to invent evidence for inherited values. A reviewed source must resolve
--- these references before uniqueness can safely replace snapshot history.
 DO $$
 DECLARE unresolved text;
 BEGIN

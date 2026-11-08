@@ -45,7 +45,7 @@ class OtpJourneyPlanner(JourneyPlanner):
             if payload.get('errors'):
                 raise ValueError('OTP GraphQL error')
             journeys = [self._journey(item) for item in payload['data']['plan']['itineraries']]
-            # OTP may return itineraries that leave before the requested time.
+
             valid = [j for j in journeys if j.legs and departure <= j.departure <= j.arrival]
         except (httpx.HTTPError, ValueError, KeyError, TypeError, OverflowError) as error:
             raise RoutingUnavailable('Local OTP routing is unavailable.') from error

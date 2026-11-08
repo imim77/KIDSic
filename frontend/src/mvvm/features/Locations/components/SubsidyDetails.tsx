@@ -6,7 +6,7 @@ import { Disclosure } from '@/mvvm/components/Disclosure'
 
 const money = new Intl.NumberFormat('hr-HR', { style: 'currency', currency: 'EUR' })
 
-// SubsidyDetails keeps city funding separate from the family's monthly payment.
+
 export function SubsidyDetails({ policies, openLink }: { policies: SubsidyPolicy[]; openLink?: OpenLink }) {
   const open = hostLink(openLink)
   return <section className="subsidy-details" aria-label="Gradsko sufinanciranje">

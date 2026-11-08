@@ -25,7 +25,7 @@ def database_url():
 
 
 def migrate_connection(connection):
-    # The versioned SQL files are authoritative; migrations are authored explicitly.
+
     context.configure(connection=connection, target_metadata=None)
     with context.begin_transaction():
         context.run_migrations()

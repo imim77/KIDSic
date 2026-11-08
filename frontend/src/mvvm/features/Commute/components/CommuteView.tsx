@@ -7,9 +7,9 @@ import { RouteSummary } from './RouteSummary'
 import type { CommuteResult } from '../types'
 import './commute.css'
 
-// CommuteView adds ranked journeys to the same explorer used by city searches:
-// the details column tabs between the route and the kindergarten, and the
-// map card keeps a short route summary for the inline view.
+
+
+
 export function CommuteView({ result, onSelect, hostFullscreen, openLink }: {
   result: CommuteResult; onSelect?: (id: string | null) => void; hostFullscreen?: HostFullscreen
   openLink?: OpenLink

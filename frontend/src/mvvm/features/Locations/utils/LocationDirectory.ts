@@ -1,7 +1,7 @@
 import type { LocationCollection, LocationFilters } from '../types'
 
-// LocationDirectory reads the complete city, or the chosen radius, so list
-// counts never depend on map view.
+
+
 export class LocationDirectory {
   async find(filters: LocationFilters, signal: AbortSignal): Promise<LocationCollection> {
     const query = new URLSearchParams({ city: filters.city })
@@ -10,7 +10,7 @@ export class LocationDirectory {
     if (filters.area) query.set('area', filters.area)
     if (filters.has_vacancies) query.set('has_vacancies', 'true')
     if (filters.nearby) {
-      // Five decimals is about a metre; extra device precision adds nothing.
+
       query.set('near', filters.nearby.near.map((value) => Number(value.toFixed(5))).join(','))
       query.set('radius_m', String(filters.nearby.radius_m))
     }

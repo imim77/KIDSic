@@ -15,5 +15,5 @@ def upgrade():
 
 
 def downgrade():
-    # Deleted snapshots are recovered from a dump, never reconstructed as facts.
+
     op.execute('ALTER TABLE source_record DROP CONSTRAINT source_record_source_key_unique')

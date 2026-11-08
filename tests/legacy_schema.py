@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 def current_table_names(sql):
-    # Adapt historical fixtures to current storage identifiers, preserving SQL values.
+
     migration = (
         Path(__file__).resolve().parents[1]
         / "src/KIDSic/db/alembic/versions/0019_croatian_tables.sql"

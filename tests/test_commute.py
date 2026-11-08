@@ -88,7 +88,7 @@ class RecommendationTests(unittest.IsolatedAsyncioTestCase):
         ]
 
         async def list_locations(location_query):
-            # The city map's name search: here a plain substring match.
+
             found = [
                 f
                 for f in facilities
@@ -126,7 +126,7 @@ class RecommendationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(await routes.find("Object")), 4)
         self.assertEqual(
             [str(f.id) for f in await routes.find("id0")], ["id0"]
-        )  # a clarified candidate
+        )
 
     async def test_waiting_and_dropoff_are_included_in_elapsed_time(self):
         query = DayJourneyRequest(
@@ -247,7 +247,7 @@ class RecommendationTests(unittest.IsolatedAsyncioTestCase):
             [("Potok", 2, ["p1", "p2"]), ("Nema", 0, [])],
         )
         routes.recommend.assert_not_awaited()
-        named["Potok"] = [named["Potok"][1]]  # the user chose a candidate
+        named["Potok"] = [named["Potok"][1]]
         result = await service.recommend(
             CommuteQuery(
                 **criteria(home=point, work=point, kindergartens=["Mala Vila", "Potok"])
@@ -368,6 +368,6 @@ class CommuteToolTests(unittest.IsolatedAsyncioTestCase):
         log = " ".join(logs.output)
         self.assertIn(
             "RuntimeError <- ConnectionError", log
-        )  # names the failing dependency
+        )
         self.assertNotIn("Private address", log)
         self.assertNotIn("Zametska", log)

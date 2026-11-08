@@ -15,7 +15,7 @@ class DatabaseTestCase(unittest.IsolatedAsyncioTestCase):
         if not urlparse(dsn).path.removeprefix("/").startswith("kidsic_test_"):
             raise ValueError("Use a disposable kidsic_test_* database.")
 
-        # Register cleanup as resources open, including when subclass setup fails.
+
         self.pool = await self.enterAsyncContext(database_pool(dsn))
         self.connection = await self.enterAsyncContext(self.pool.acquire())
         transaction = self.connection.transaction()
@@ -23,5 +23,5 @@ class DatabaseTestCase(unittest.IsolatedAsyncioTestCase):
         self.addAsyncCleanup(self._rollback, transaction)
 
     async def _rollback(self, transaction):
-        # asyncpg decorates rollback with a synchronous coroutine factory.
+
         await transaction.rollback()

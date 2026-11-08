@@ -9,7 +9,7 @@ export interface HostFullscreen {
   request: (mode: 'inline' | 'fullscreen') => Promise<void>
 }
 
-// FullscreenFrame expands the existing explorer without replacing its map.
+
 export function FullscreenFrame({ children, className = '', hostFullscreen }: { children: ReactNode; className?: string; hostFullscreen?: HostFullscreen }) {
   const frameRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -40,7 +40,7 @@ export function FullscreenFrame({ children, className = '', hostFullscreen }: { 
     try {
       await document.exitFullscreen()
     } catch {
-      // Keep the actual native state when the browser refuses an exit.
+
     } finally {
       finishRequest()
     }
@@ -67,7 +67,7 @@ export function FullscreenFrame({ children, className = '', hostFullscreen }: { 
       mounted.current = false
       document.removeEventListener('fullscreenchange', synchronize)
       if (document.fullscreenElement === frame) void document.exitFullscreen().catch(() => {})
-      // Fallback cleanup restores focus after it removes inert from the page.
+
       if (modeRef.current !== 'fallback') restoreFocus()
     }
   }, [])
@@ -78,7 +78,7 @@ export function FullscreenFrame({ children, className = '', hostFullscreen }: { 
     const previousOverflow = document.body.style.getPropertyValue('overflow')
     const previousOverflowPriority = document.body.style.getPropertyPriority('overflow')
     const outside: Array<{ element: HTMLElement; inert: boolean }> = []
-    // Only siblings become inert: an inert ancestor would disable the map too.
+
     for (let branch: HTMLElement = frame; branch.parentElement; branch = branch.parentElement) {
       for (const sibling of branch.parentElement.children) {
         if (sibling !== branch && sibling instanceof HTMLElement) {
@@ -136,7 +136,7 @@ export function FullscreenFrame({ children, className = '', hostFullscreen }: { 
       try {
         await hostFullscreen.request(hostFullscreen.expanded ? 'inline' : 'fullscreen')
       } catch {
-        // Host state remains authoritative when it refuses a display change.
+
       } finally {
         finishRequest()
       }
@@ -158,7 +158,7 @@ export function FullscreenFrame({ children, className = '', hostFullscreen }: { 
     pendingRef.current = true
     setPending(true)
     try {
-      // This must run in the click, while browser user activation is available.
+
       await frame.requestFullscreen()
       if (!mounted.current) {
         if (document.fullscreenElement === frame) await document.exitFullscreen()

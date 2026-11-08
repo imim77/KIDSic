@@ -11,7 +11,7 @@ import { CompareToggle, type CompareChoice } from './CompareToggle'
 
 interface LocationDetailsProps {
   feature: LocationFeature
-  // onClose adds the close button; hosts that wrap the details close them.
+
   onClose?: () => void
   openLink?: OpenLink
   compare?: CompareChoice
@@ -20,19 +20,19 @@ interface LocationDetailsProps {
 
 function phoneHref(value: string) {
   const digits = value.replace(/\D/g, '')
-  // Multiple published numbers remain readable; do not dial a concatenation.
+
   return /^\+?[\d\s()./-]+$/.test(value) && digits.length >= 3 && digits.length <= 15
     ? `tel:${value.startsWith('+') ? '+' : ''}${digits}` : undefined
 }
 
-// LocationDetails presents published contacts and leaves missing facts unfilled.
+
 export function LocationDetails({ feature, onClose, openLink, compare }: LocationDetailsProps) {
   const location = feature.properties
   const sectionRef = useRef<HTMLElement>(null)
-  // Remounted per feature (keyed by id), so each selection replays the entrance.
+
   useEntrance(sectionRef, [], { selector: '.location-details-hero, .location-details-body > *', limit: 16, container: true })
   useEffect(() => {
-    // A card that expanded the frame may have unmounted with keyboard focus.
+
     if (!document.activeElement || document.activeElement === document.body) sectionRef.current?.focus({ preventScroll: true })
   }, [])
   const website = websiteHref(location.website_url)

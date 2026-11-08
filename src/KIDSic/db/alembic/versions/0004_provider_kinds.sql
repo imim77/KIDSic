@@ -1,4 +1,3 @@
--- Reviewed ownership fills gaps only; existing authoritative types remain intact.
 WITH reviewed(city,name_key,provider_kind,source_url) AS (VALUES
     ('varazdin','dv varazdin','municipal','https://varazdin.hr/djecji-vrtici/'),
     ('varazdin','dv bajka','private','https://varazdin.hr/djecji-vrtici/'),

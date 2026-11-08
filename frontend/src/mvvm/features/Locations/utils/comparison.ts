@@ -10,13 +10,13 @@ export type NextStep = { label: string; href?: string }
 
 export interface ComparisonNotes {
   strengths: string[]
-  checks: string[] // Unknowns to verify, never read as "does not meet".
+  checks: string[]
   next: NextStep
 }
 
-// compareOptions explains each option against the others using only fields the
-// table shows. Rules stay mechanical so the comparison never invents a fact or
-// a recommendation, and a missing value is something to check, not a minus.
+
+
+
 export function compareOptions(features: LocationFeature[]): Map<string, ComparisonNotes> {
   const distances = features.flatMap((feature) => feature.properties.distance_m ?? [])
   const nearest = distances.length > 1 ? Math.min(...distances) : null
@@ -49,8 +49,8 @@ export function compareOptions(features: LocationFeature[]): Map<string, Compari
   }))
 }
 
-// nextStep names one concrete action: apply while a round is open, otherwise
-// ask the kindergarten through the first confirmed channel.
+
+
 function nextStep(feature: LocationFeature): NextStep {
   const location = feature.properties
   const round = currentRound(location.enrolment ?? [])

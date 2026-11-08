@@ -12,8 +12,8 @@ from KIDSic.exceptions import SourceImportError
 
 
 def _same_area(first: tuple, second: tuple) -> bool:
-    # Areas are (settlement_key, municipality_key). Compare confirmed municipalities when both
-    # are known, so "Sesvete" matches Zagreb; otherwise require the same settlement.
+
+
     if first[1] and second[1]:
         return first[1] == second[1]
     return first[0] == second[0]
@@ -57,8 +57,8 @@ class AsyncpgSourceRepository(SourceRepository):
         async with self._connection.transaction():
             await self._connection.execute('SELECT pg_advisory_xact_lock(194733, 1)')
             if not allow_removals:
-                # A valid file can still be partial; compare identities rather
-                # than counts, before touching metadata or canonical fields.
+
+
                 missing = await self._connection.fetch("""
                     SELECT r.kljuc_izvornog_zapisa  AS source_key FROM izvorni_zapisi r
                     JOIN izvori_podataka s ON s.id=r.id_izvora
@@ -106,13 +106,13 @@ class AsyncpgSourceRepository(SourceRepository):
             item['area'] = (item['settlement_key'], item['municipality'])
             item['address_key'] = name_key(item['address'] or '')
             owners[item['kindergarten_id']]['areas'].add(item['area'])
-        claimed = set()  # owners whose seat this snapshot already supplied
+        claimed = set()
         counts = {'records': len(snapshot.rows), 'accepted': 0, 'needs_review': 0,
                   'kindergartens_added': 0, 'locations_added': 0}
         for row in snapshot.rows:
-            # Resolve by prior source identity, then OIB, then exact normalized name within the
-            # same municipality/settlement (plus address for objects). Multiple owners remain
-            # review candidates; an institution row never creates an object.
+
+
+
             institution = row.scope == 'institution'
             settlement_key = normalize(row.settlement)
             area = (settlement_key, row.municipality)
@@ -168,8 +168,8 @@ class AsyncpgSourceRepository(SourceRepository):
                         **evidence, 'source_url': row.provider_kind_source_url}
             existing = await self._connection.fetchrow('SELECT id,naziv AS name,vrsta_pruzatelja AS provider_kind,e_posta AS email,telefon AS phone,mrezna_stranica AS website_url,podrijetlo AS provenance,oib FROM vrtici WHERE id=$1', owner)
             proof = existing['provenance'].get('provider_kind', {})
-            # A stable ID cannot preserve a classification after its source
-            # stops attesting it; only another active source can do that.
+
+
             if (row.provider_kind == 'unknown' and existing['provider_kind'] != 'unknown'
                     and not await self._active_proof(proof, owner, source_id)):
                 raise SourceImportError(f'Review provider_kind before replacing evidence: {existing["name"]}.')
@@ -211,8 +211,8 @@ class AsyncpgSourceRepository(SourceRepository):
                     """, owner, row.location_name, row.settlement, settlement_key, row.address)
                     counts['locations_added'] += 1
                     locations.append({'id': location, 'kindergarten_id': owner})
-                # Reviewed address geography cannot follow a moved facility.
-                # Demotion also removes its area/RAG evidence from active reads.
+
+
                 await self._connection.execute("""
                     UPDATE izvorni_zapisi SET status_povezivanja='candidate',
                         napomena_povezivanja='Address changed; geography requires another review.'
@@ -226,7 +226,7 @@ class AsyncpgSourceRepository(SourceRepository):
                                        municipality_id=municipality_id, kind=row.kind)
                 await self._write_fields('objekti', location, location_values,
                     {**location_provenance, 'name': evidence}, source.definition.key)
-                # Keep the in-memory index current for subsequent rows in this import.
+
                 for item in locations:
                     if item['id'] == location:
                         item.update(area=area, address_key=row_address)
@@ -237,7 +237,7 @@ class AsyncpgSourceRepository(SourceRepository):
         if not counts['accepted']:
             raise SourceImportError('No accepted records; refusing to activate the snapshot.')
         await self._state.finish()
-        # Fetch time and resource modification are not the observed date of the data.
+
         return {'source': source.definition.key, 'registration': registered, **counts}
 
     async def _municipality_id(self, key):

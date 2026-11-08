@@ -37,7 +37,7 @@ export interface HistoricalEvidence {
 
 export type EnrolmentStatus = 'open' | 'upcoming' | 'closed' | 'not_accepting' | 'dates_unknown'
 
-// One published enrolment round; steps and documents are read from the source.
+
 export interface LocationEnrolment {
   round: 'main' | 'rolling'
   academic_year: string
@@ -54,7 +54,7 @@ export interface LocationEnrolment {
   date_kind: 'published' | 'observed' | 'unknown'
 }
 
-// Shared marker colours mirror the provider tokens in theme.css.
+
 export const providerColors: Record<ProviderKind, string> = {
   municipal: '#82eda6',
   private: '#c88cfd',
@@ -125,7 +125,7 @@ export interface LocationCollection extends FeatureCollection<Point | null, Loca
   }
 }
 
-// Nearby limits results to a straight-line radius around a WGS84 point.
+
 export interface Nearby {
   near: [longitude: number, latitude: number]
   radius_m: number

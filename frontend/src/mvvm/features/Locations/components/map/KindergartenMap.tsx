@@ -14,10 +14,10 @@ interface KindergartenMapProps {
   onSelect?: (id: string) => void
   selectedId?: string | null
   nearby?: Nearby | null
-  // While picking, the next map click becomes the nearby point, not a selection.
+
   picking?: boolean
   onPick?: (near: [number, number]) => void
-  // overlay renders map-level controls; mapReady tells whether clicks can work.
+
   overlay?: (mapReady: boolean) => ReactNode
 }
 
@@ -44,7 +44,7 @@ export function KindergartenMap({ route = null, collection = null, onSelect, sel
     let nearbyLayer: NearbyLayer | undefined
     let observer: ResizeObserver | undefined
     let disposed = false
-    // Loading the map separately keeps the directory usable during setup.
+
     void Promise.all([
       import('leaflet'), import('./LocationLayer'), import('./NearbyLayer'), import('./RouteLayer'),
     ]).then(([{ default: L }, { LocationLayer }, { NearbyLayer }, { RouteLayer }]) => {

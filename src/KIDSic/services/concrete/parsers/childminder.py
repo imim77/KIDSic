@@ -22,7 +22,7 @@ class ChildminderDirectoryParser(SourceRowParser):
         tax_ids = (text(record, 'OIB') or '').split()
         if any(not re.fullmatch(r'\d{11}', value) for value in tax_ids):
             raise SourceImportError('Invalid OIB in childminder resource.')
-        # Joint trades can publish multiple proprietors' OIBs; never pick one arbitrarily.
+
         oib = tax_ids[0] if len(set(tax_ids)) == 1 else None
         address = re.sub(r',\s*' + re.escape(settlement) + r'\s*$', '', address, flags=re.IGNORECASE)
         return KindergartenRow(

@@ -11,7 +11,7 @@ const point = (v: unknown, city: unknown) => isRecord(v) && typeof v.lat === 'nu
       ? v.lat >= 43.60 && v.lat <= 43.85 && v.lon >= 15.70 && v.lon <= 16.05
       : city === 'Rijeka' && v.lat >= 45.20 && v.lat <= 45.45 && v.lon >= 14.20 && v.lon <= 14.65)
 
-// parseCommuteResult prevents malformed host data from becoming a ranked map.
+
 export function parseCommuteResult(value: unknown): CommuteResult {
   if (!isRecord(value) || !['ok', 'no_route'].includes(String(value.status)) || !['Rijeka', 'Zagreb', 'Šibenik'].includes(String(value.city))
     || !point(value.home, value.city) || !point(value.work, value.city) || !instant(value.departure)
@@ -55,8 +55,8 @@ export function parseCommuteResult(value: unknown): CommuteResult {
   return value as CommuteResult
 }
 
-// readCommuteResult turns the commute tool's `_meta.commute` into either a
-// ranked result or the notice the screen shows instead of a map.
+
+
 export function readCommuteResult(data: unknown): { result: CommuteResult | null; notice: string } {
   if (isRecord(data) && data.status === 'clarification_required') {
     return { result: null, notice: 'Adresa nije jednoznačna. U razgovoru potvrdi točnu ponuđenu lokaciju ili navedi koordinate.' }

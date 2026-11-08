@@ -36,7 +36,7 @@ if __name__ == '__main__':
     parser.add_argument('source', type=Path)
     parser.add_argument('target', type=Path)
     args = parser.parse_args()
-    # Back references retain nodes beyond the box when a road crosses its edge.
+
     with osmium.BackReferenceWriter(args.target, args.source, overwrite=True,
                                      remove_tags=False) as writer:
         extract = CityExtract(writer, ROUTING_CITIES[args.city])

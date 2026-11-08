@@ -1,11 +1,9 @@
--- Coordinate cleanup with ordinary imports; all deletions share one transaction.
 SELECT pg_advisory_xact_lock(194733, 1);
 -- statement
 CREATE TEMP TABLE removed_city_location ON COMMIT DROP AS
 SELECT l.id FROM location l LEFT JOIN municipality m ON m.id=l.municipality_id
 WHERE COALESCE(m.key,l.settlement_key,'') NOT IN ('zagreb','varazdin','rijeka');
 -- statement
--- An institution outside the cities can still operate a supported facility.
 CREATE TEMP TABLE removed_city_kindergarten ON COMMIT DROP AS
 SELECT k.id FROM kindergarten k LEFT JOIN municipality m ON m.id=k.seat_municipality_id
 WHERE COALESCE(m.key,k.seat_settlement_key,'') NOT IN ('zagreb','varazdin','rijeka')
@@ -54,7 +52,6 @@ DELETE FROM location WHERE id IN (SELECT id FROM removed_city_location);
 -- statement
 DELETE FROM kindergarten WHERE id IN (SELECT id FROM removed_city_kindergarten);
 -- statement
--- A retained provider's legal seat can reference an outside municipality.
 DELETE FROM municipality m WHERE m.key NOT IN ('zagreb','varazdin','rijeka')
   AND NOT EXISTS (SELECT 1 FROM kindergarten k WHERE k.seat_municipality_id=m.id)
   AND NOT EXISTS (SELECT 1 FROM location l WHERE l.municipality_id=m.id);

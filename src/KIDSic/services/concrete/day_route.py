@@ -12,7 +12,7 @@ from KIDSic.services.interfaces.location import LocationServiceInterface
 
 
 class DayRouteService(DayRouteServiceInterface):
-    _concurrent_routes = 4  # bounds routing work even when ranking every city facility
+    _concurrent_routes = 4
 
     def __init__(self, locations: LocationServiceInterface, planner: JourneyPlanner):
         self._locations = locations
@@ -52,7 +52,7 @@ class DayRouteService(DayRouteServiceInterface):
         result.update(results=selected, top_k=request.top_k,
                       locations=locations.model_dump(mode='json'), searched=len(facilities),
                       reachable=len(reachable), without_route=len(facilities) - len(reachable),
-                      # Named kindergartens were resolved among routable ones.
+
                       excluded=collection.metadata.total - len(eligible) if facility_ids is None else 0,
                       scope='all' if facility_ids is None else 'selected',
                       ranking='earliest_arrival_at_work', city=request.city,

@@ -7,7 +7,7 @@ interface CompareTrayProps {
   onClear: () => void
 }
 
-// CompareTray keeps the chosen options visible while parents keep browsing.
+
 export function CompareTray({ count, onOpen, onClear }: CompareTrayProps) {
   return <section className="compare-tray" aria-label="Usporedba">
     <Scale aria-hidden="true" />

@@ -11,7 +11,7 @@ it('fades details in and leaves no inline styles that would block hover or focus
   render(<LocationDetails feature={facility('motion')} onClose={() => {}} />)
   const panel = screen.getByRole('region', { name: /Detalji/ })
   expect(panel.style.opacity).toBe('0')
-  expect(panel).toHaveFocus()  // opacity, not visibility, keeps the panel focusable
+  expect(panel).toHaveFocus()
   finishAnimations()
   expect(panel.getAttribute('style') ?? '').toBe('')
   expect(screen.getByRole('heading', { level: 2 }).getAttribute('style') ?? '').toBe('')

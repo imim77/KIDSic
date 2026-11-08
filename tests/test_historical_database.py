@@ -91,7 +91,7 @@ class HistoricalDatabaseTests(DatabaseTestCase):
         self.assertEqual(len(main["historical_data"]), 2)
         self.assertEqual(
             len(branch["historical_data"]), 1
-        )  # slash is not evidence of a program
+        )
         self.assertEqual(
             main["historical_data"][1]["programs"], ["Montessori", "engleski jezik"]
         )
@@ -228,7 +228,7 @@ class HistoricalDatabaseTests(DatabaseTestCase):
         self.assertEqual((result["accepted"], result["needs_review"]), (1, 1))
         await self.connection.execute("""INSERT INTO objekti(id_vrtica,naziv,adresa,naselje,kljuc_naselja,id_jedinice_lokalne_samouprave)
             SELECT id_vrtica AS kindergarten_id,naziv AS name,adresa AS address,naselje AS settlement,kljuc_naselja AS settlement_key,id_jedinice_lokalne_samouprave  AS municipality_id FROM objekti WHERE adresa='Primjer 1' """)
-        # An unattested duplicate cannot anchor a match; active duplicates are ambiguous.
+
         await self.connection.execute("""INSERT INTO izvorni_zapisi(id_izvora,izvorni_podaci,id_vrtica,id_objekta,status_povezivanja,metoda_povezivanja)
             SELECT s.id,'{}',l.id_vrtica AS kindergarten_id,l.id,'accepted','manual' FROM objekti l CROSS JOIN izvori_podataka s
             WHERE s.kljuc_skupa_podataka='directory' AND NOT EXISTS(SELECT 1 FROM izvorni_zapisi r WHERE r.id_objekta=l.id)""")

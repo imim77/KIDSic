@@ -6,7 +6,6 @@ CREATE TABLE municipality (
  aliases text[] NOT NULL DEFAULT '{}'
 );
 -- statement
--- Preserve the curated aliases that 0001 stored on every location row.
 INSERT INTO municipality(key,name,aliases)
 SELECT DISTINCT ON (city_key) city_key,city,city_aliases FROM location
 WHERE cardinality(city_aliases)>0 ORDER BY city_key,city;
@@ -43,7 +42,6 @@ CREATE INDEX ix_kindergarten_seat_municipality ON kindergarten(seat_municipality
 ALTER TABLE source_record ADD COLUMN match_method text
  CHECK (match_method IN ('source_identity','oib','name_address','name','new','manual','unrecorded'));
 -- statement
--- 0001 did not record how links were decided; do not pretend otherwise.
 UPDATE source_record SET match_method='unrecorded' WHERE match_status<>'candidate';
 -- statement
 ALTER TABLE source_record ADD CONSTRAINT source_record_decided_method_check
@@ -56,7 +54,6 @@ ALTER TABLE availability
  ADD FOREIGN KEY(program_id,kindergarten_id) REFERENCES program(id,kindergarten_id),
  ADD CHECK (max_age_months_exclusive IS NULL OR min_age_months IS NULL OR max_age_months_exclusive>min_age_months);
 -- statement
--- Published places are meaningless without the date they describe; fails if such rows exist.
 ALTER TABLE availability ALTER COLUMN observed_on SET NOT NULL;
 -- statement
 CREATE INDEX ix_availability_program ON availability(program_id);
@@ -67,7 +64,6 @@ ALTER TABLE enrolment
  ALTER COLUMN kindergarten_id DROP NOT NULL,
  ADD CONSTRAINT enrolment_scope_check CHECK (num_nonnulls(kindergarten_id,municipality_id)=1);
 -- statement
--- No call has been imported yet; fails instead of guessing a channel for existing rows.
 ALTER TABLE enrolment ALTER COLUMN channel SET NOT NULL;
 -- statement
 CREATE INDEX ix_enrolment_municipality ON enrolment(municipality_id);

@@ -60,7 +60,7 @@ class LayerDependencyTests(unittest.TestCase):
         )
 
     def test_services_and_presentation_depend_on_service_interfaces(self):
-        # Factories choose implementations; normalize_records is a script entry point.
+
         paths = [
             path
             for path in (

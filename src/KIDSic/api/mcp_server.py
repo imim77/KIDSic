@@ -87,7 +87,7 @@ class McpServer:
     @asynccontextmanager
     async def _commute_lifetime(self):
         async with httpx.AsyncClient(timeout=20, trust_env=False) as http:
-            # A caller-supplied service answers for every city.
+
             self._commute = ({city: self._provided_commute for city in ROUTING_CITIES}
                              if self._provided_commute is not None
                              else CommuteServiceFactory().create(self._locations, http))

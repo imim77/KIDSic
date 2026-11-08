@@ -7,7 +7,7 @@ from KIDSic.dto.historical import HistoricalRow, HistoricalSourceDefinition
 
 class HistoricalTableLayout(ABC):
     """HistoricalTableLayout reads one published table layout into rows."""
-    dated = False  # True when the table states its own observation date
+    dated = False
 
     @abstractmethod
     def parse(self, table: list[list[str]]) -> list[HistoricalRow]:

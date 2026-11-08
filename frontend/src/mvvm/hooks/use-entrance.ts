@@ -6,17 +6,17 @@ import { reducedMotion } from '../utils/motion'
 gsap.registerPlugin(useGSAP)
 
 interface EntranceOptions {
-  // Children to reveal in document order; only the first `limit` animate.
+
   selector: string
   limit?: number
-  // Also moves the scope itself in before its children.
+
   container?: boolean
 }
 
-// useEntrance fades a container's children in, staggered, whenever `deps`
-// change. It animates opacity and translation only and clears them when done:
-// hidden-by-visibility elements could not take focus, and leftover inline
-// transforms would override the CSS hover and press states.
+
+
+
+
 export function useEntrance(scope: RefObject<HTMLElement | null>, deps: unknown[],
                             { selector, limit = 12, container = false }: EntranceOptions) {
   useGSAP(() => {

@@ -87,7 +87,7 @@ class SubsidyPolicyPresenter(SubsidyPresenter):
         return f'{label}: umanjenje {fee} cijene za {relief[key]} %.'
 
     def _notes(self, rules) -> list[str]:
-        # Research-only caveats do not describe an action a parent can take.
+
         notes = [note for note in rules.get('notes', []) if not note.startswith((
             'Objavljena cijena bez zahtjeva nije ovdje', 'Granice izražene udjelom plaće'))]
         if rules.get('fee_without_approved_application_cents'):

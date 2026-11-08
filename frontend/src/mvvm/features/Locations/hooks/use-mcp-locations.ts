@@ -13,7 +13,7 @@ type Commute = { revision: number; result: CommuteResult | null; notice: string 
 const askForCity: Snapshot = { city: null, data: null, status: 'loading', notice: 'U kojem gradu želiš prikaz vrtića?' }
 const commuteArguments = ['home', 'work', 'departure', 'mode', 'top_k']
 
-// toolArguments sends every retained criterion, since each call is a full search.
+
 function toolArguments({ city, name, provider_kind, area, nearby }: SearchCriteria) {
   return { city, ...(name ? { name } : {}), ...(provider_kind ? { provider_kind } : {}), ...(area ? { area } : {}),
     ...(nearby ? { near: nearby.near, radius_m: nearby.radius_m } : {}) }
@@ -29,10 +29,10 @@ function readySnapshot(parsed: Awaited<ReturnType<typeof LocationToolResult.from
     nearby: parsed.nearby ?? null, data: parsed.locations, status: 'ready' }
 }
 
-// useMcpLocations drives the MCP view from host tool calls: a city search, a
-// ranked commute, or a notice while neither is shown. Every new tool input,
-// result or user search bumps a revision, so a slower earlier answer never
-// replaces a newer one. Selection changes are mirrored to the model.
+
+
+
+
 export function useMcpLocations() {
   const revision = useRef(0)
   const sharedSelection = useRef<string | null>(null)
@@ -83,7 +83,7 @@ export function useMcpLocations() {
     },
     onConnectFailed: () => setSnapshot({ city: null, data: null, status: 'loading', notice: 'Otvori ovaj prikaz kroz MCP alat u AI klijentu i navedi grad.' }),
   })
-  // Answers that arrive after unmount belong to no revision.
+
   useEffect(() => () => { revision.current++ }, [])
 
   function shareSelection(feature: LocationFeature | null, onRoute = false) {
@@ -92,8 +92,8 @@ export function useMcpLocations() {
     host.updateModelContext(selectionContext(feature, onRoute))
   }
 
-  // search repeats the current criteria through the server tool; nearby
-  // replaces only the point and radius chosen in the map.
+
+
   const search = async (nearby: Nearby | null | undefined = snapshot.nearby) => {
     const city = snapshot.city
     if (!city) { setSnapshot(askForCity); return }

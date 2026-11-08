@@ -1,7 +1,7 @@
 @layer theme, base, components, utilities;
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/utilities.css' layer(utilities) source('../');
-/* Bundled rather than fetched: the MCP build is one sandboxed HTML file. */
+
 @import '@fontsource/titan-one/400.css';
 
 @theme inline {
@@ -26,7 +26,7 @@
   --font-display: var(--display);
 }
 
-/* Palette and shape tokens follow DESIGN.md. */
+
 :root {
   font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   color: var(--ink);
@@ -36,7 +36,7 @@
   -webkit-font-smoothing: antialiased;
   --display: 'Titan One', 'Helvetica Neue', sans-serif;
   --ink: #03594d;
-  --ink-soft: #89a9a1; /* decorative only; fails text contrast */
+  --ink-soft: #89a9a1;
   --ink-wash: #02594d33;
   --cream: #f9f8f4;
   --mint: #82eda6;
@@ -44,11 +44,11 @@
   --sky: #aefbff;
   --blush: #fccddc;
   --lilac: #f6bbfd;
-  --violet: #c88cfd; /* never behind text: ink on violet is ~3.4:1 */
+  --violet: #c88cfd;
   --apricot: #fdc068;
   --orange: #ff9124;
   --rose: #fc5681;
-  --muted: var(--ink); /* secondary text differs by size, not colour */
+  --muted: var(--ink);
   --accent: var(--violet);
   --border: var(--ink);
   --surface: var(--cream);
@@ -58,14 +58,14 @@
   --shadow-sm: -3px 3px 0 0 var(--ink);
   --shadow-md: -4px 4px 0 0 var(--ink);
   --shadow-lg: -5px 6px 0 0 var(--ink);
-  --press: translate(-3px, 3px); /* moves a pill onto its shadow */
+  --press: translate(-3px, 3px);
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
 @layer base {
   * { border-color: var(--border); }
   button, input, select { font: inherit; }
-  /* shadcn buttons supply their own borders and backgrounds without Preflight. */
+
   button { border: 0; background: transparent; }
 }
 button, a, input, select { touch-action: manipulation; }
@@ -87,12 +87,12 @@ a { color: var(--ink); }
 .subsidy-rates strong { display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .subsidy-links { display: flex; flex-direction: column; gap: 8px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .subsidy-links a { text-underline-offset: 3px; }
-/* flow-root keeps child margins inside, so the measured height matches the end state. */
+
 .disclosure-body { display: flow-root; }
-/* Enrolment status reads as a sticker, matching the app's pill buttons. */
+
 .enrolment-heading { flex-direction: column; align-items: flex-start; }
 .enrolment-status { display: inline-block; margin: 0 0 3px 3px; padding: 4px 10px; color: var(--ink); background: var(--surface); border: 2px solid var(--ink); border-radius: 999px; box-shadow: var(--shadow-sm); font-family: var(--display); font-size: 11px; letter-spacing: .5px; text-transform: uppercase; }
-.enrolment-status[data-status="open"] { background: var(--lemon); } /* round cards are mint */
+.enrolment-status[data-status="open"] { background: var(--lemon); }
 .enrolment-status[data-status="upcoming"] { background: var(--sky); }
 .enrolment-action { align-self: flex-start; padding: 8px 14px; font-weight: 700; text-decoration: none; background: var(--surface); border: 2px solid var(--ink); border-radius: 999px; box-shadow: var(--shadow-lg); }
 .enrolment-action:active { transform: var(--press); box-shadow: none; }

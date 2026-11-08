@@ -21,8 +21,8 @@ def upgrade():
 
 
 def downgrade():
-    # Seats, OIBs, match methods and municipality-wide calls have no 0001 equivalent and are lost;
-    # restoring NOT NULL on enrolment fails while municipality-wide calls exist.
+
+
     for statement in (
         "DROP INDEX ix_enrolment_municipality",
         "ALTER TABLE enrolment DROP CONSTRAINT enrolment_scope_check, DROP COLUMN channel,"

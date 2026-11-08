@@ -126,7 +126,7 @@ it('shows published contacts, removes directions and sources, and closes on Esca
 
 it('omits absent contacts and unsafe websites without inventing a link', () => {
   const location = facility('unknown', false)
-  // Private: no official vacancy overview link, so every link would be a contact.
+
   Object.assign(location.properties, { provider_kind: 'private', address: null, website_url: 'javascript:alert(1)', email: ' ', phone: null })
   render(<LocationDetails feature={location} onClose={() => {}} />)
   expect(screen.getByText(/Adresa nije poznata/)).toBeVisible()

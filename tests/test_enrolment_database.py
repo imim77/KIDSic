@@ -171,7 +171,7 @@ class EnrolmentDatabaseTests(DatabaseTestCase):
         for item in context.evidence:
             self.assertEqual(
                 len(item.applies_to), 2
-            )  # institution-wide, not one object's
+            )
             self.assertEqual(
                 (item.reference_date, item.date_kind, item.temporal_status),
                 (date(2026, 5, 11), "published", "current"),
@@ -317,7 +317,7 @@ class EnrolmentDatabaseTests(DatabaseTestCase):
             },
         )
         before = (await self.rag.retrieve(self.query)).model_dump()
-        # Legacy JSON must neither change scope/dates nor override the source URL.
+
         await self.connection.execute(
             "UPDATE izvorni_zapisi SET izvorni_podaci=$2 WHERE id=$1",
             record,
@@ -497,7 +497,7 @@ class EnrolmentDatabaseTests(DatabaseTestCase):
         )
 
     async def test_enrolment_records_never_keep_a_dropped_kindergarten_active(self):
-        # A Zagreb seat makes the owner eligible through any accepted active record.
+
         await self.connection.execute(
             "INSERT INTO sjedista_vrtica(id_vrtica,id_jedinice_lokalne_samouprave) SELECT id,(SELECT id FROM jedinice_lokalne_samouprave WHERE kljuc='zagreb') FROM vrtici ON CONFLICT(id_vrtica) DO UPDATE SET id_jedinice_lokalne_samouprave=EXCLUDED.id_jedinice_lokalne_samouprave"
         )

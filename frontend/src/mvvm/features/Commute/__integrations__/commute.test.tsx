@@ -44,16 +44,16 @@ it('uses the city explorer and ranked cards, with only the requested options and
   fireEvent.click(screen.getByRole('button',{name:'Oznaka id2'}))
   expect(screen.getByLabelText('Odabrana geometrija')).toHaveTextContent('shape2')
   expect(select).toHaveBeenCalledWith('id2')
-  // Choosing the shown option again hands the map a new route, so it redraws.
+
   const routes=drawn.size
   fireEvent.click(screen.getByRole('button',{name:'Oznaka id2'}))
   expect(drawn.size).toBe(routes+1)
   fireEvent.click(screen.getByRole('button',{name:'Vrtić 2 Test 2'}))
-  // Details open on the route tab; the other tab shows the city-search details.
+
   expect(screen.getByRole('tab',{name:'Put'})).toHaveAttribute('aria-selected','true')
   expect(screen.getByRole('tabpanel')).toHaveTextContent('Predaja u vrtiću')
   expect(screen.getByRole('tabpanel')).not.toHaveTextContent('Uspoređeno')
-  // Arrows step through the ranked options and wrap around, keeping focus.
+
   const next=screen.getByRole('button',{name:'Sljedeća opcija'})
   next.focus()
   fireEvent.click(next)
@@ -71,12 +71,12 @@ it('uses the city explorer and ranked cards, with only the requested options and
   expect(screen.getByRole('tab',{name:'Vrtić'})).toHaveAttribute('aria-selected','true')
   expect(screen.getByRole('tab',{name:'Vrtić'})).toHaveFocus()
   expect(screen.getByRole('region',{name:'Detalji: Vrtić 2'})).toBeVisible()
-  // The chosen tab stays when another kindergarten is selected.
+
   fireEvent.click(screen.getByRole('button',{name:'Oznaka id1'}))
   expect(screen.getByRole('region',{name:'Detalji: Vrtić 1'})).toBeVisible()
   fireEvent.click(screen.getByRole('button',{name:'Oznaka id2'}))
   const route=screen.getByRole('region',{name:'Ruta: Vrtić 2'})
-  // The map card only labels the drawn option; the route lives in the details.
+
   expect(route.querySelector('details')).toBeNull()
   expect(route).toHaveTextContent('Alternativa 2Vrtić 23 / 4')
   fireEvent.click(screen.getByRole('button',{name:'Zatvori detalje'}))

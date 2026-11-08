@@ -15,7 +15,7 @@ def is_total_row(values) -> bool:
 
 def vacancy_count(value):
     if not value.strip():
-        return None  # A missing value is not zero.
+        return None
     if not re.fullmatch(r'\d+', value.strip()):
         raise SourceImportError('Vacancy counts must be nonnegative integers.')
     return int(value)
@@ -60,7 +60,7 @@ class MunicipalVacancyLayout(HistoricalTableLayout):
             raise SourceImportError('Unexpected municipal vacancy header.')
         if any(len(row) != 23 for row in table[:3]):
             raise SourceImportError('Unexpected municipal vacancy header width.')
-        # Three merged header rows: totals are not additional age/program groups.
+
         columns, age = [], ''
         for index in range(3, len(table[0])):
             age = table[1][index].strip() or age

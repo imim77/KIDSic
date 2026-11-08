@@ -4,7 +4,6 @@ ALTER TABLE kindergarten
  ADD COLUMN seat_attributes jsonb NOT NULL DEFAULT '{}' CHECK (jsonb_typeof(seat_attributes)='object'),
  ADD CHECK ((seat_longitude IS NULL)=(seat_latitude IS NULL));
 -- statement
--- Geography is usable only while its evidence and the geocoded seat address still agree.
 CREATE VIEW kindergarten_seat_geography AS
  SELECT k.id AS kindergarten_id,k.seat_longitude AS longitude,k.seat_latitude AS latitude,
         k.seat_attributes->>'quarter' AS quarter,k.seat_attributes->>'suburb' AS suburb,

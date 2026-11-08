@@ -24,7 +24,7 @@ async def import_facilities(connection, data):
     for item in data['objects']:
         location = uuid.uuid5(INSTITUTION_ID, item['object'])
         matched = item['review_status'] == 'matched' and item.get('selected') is not None
-        geo = item['selected'] if matched else {}  # Candidates stay in raw evidence, not on the map.
+        geo = item['selected'] if matched else {}
         attributes, manual = area_attributes(
             geo, await connection.fetchval('SELECT obiljezja  AS attributes FROM objekti WHERE id=$1', location))
         attributes['geocoding_review_status'] = item['review_status']

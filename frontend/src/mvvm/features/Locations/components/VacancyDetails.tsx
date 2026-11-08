@@ -3,9 +3,9 @@ import { hostLink, websiteHref, type OpenLink } from '@/mvvm/utils/links'
 import { formatDay } from '@/mvvm/utils/format'
 import { officialVacancyOverview, publishedVacancies, vacancyLabel } from '../utils/vacancies'
 
-// VacancyDetails shows the newest published free-place count with its date and
-// scope. It keeps a published zero, a blank count and an unpublished count
-// apart and never presents a count as a place the family will get.
+
+
+
 export function VacancyDetails({ location, openLink }: { location: LocationProperties; openLink?: OpenLink }) {
   const open = hostLink(openLink)
   const vacancies = publishedVacancies(location)

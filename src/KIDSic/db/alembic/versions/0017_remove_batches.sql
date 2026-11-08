@@ -1,6 +1,5 @@
 SELECT pg_advisory_xact_lock(194733, 1);
 -- statement
--- A non-current source record may still own JSON provenance: require review.
 DO $$ BEGIN
  IF EXISTS(SELECT 1 FROM source_record r JOIN data_source s ON s.id=r.source_id
    WHERE r.batch_id IS DISTINCT FROM s.active_batch_id) THEN
@@ -8,7 +7,6 @@ DO $$ BEGIN
  END IF;
 END $$;
 -- statement
--- Historical evidence retains its reference date, but only its current import.
 DELETE FROM historical_record h USING data_source s
  WHERE h.source_id=s.id AND h.batch_id IS DISTINCT FROM s.active_batch_id;
 -- statement
@@ -64,11 +62,9 @@ CREATE VIEW document_applicability AS
      WHERE l.kindergarten_id=k.id AND l.municipality_id=d.municipality_id));
 
 -- statement
--- ValidKnowledgeChunk keeps evidence checks independent of request selection.
 CREATE VIEW valid_knowledge_chunk AS
  SELECT c.id,a.kindergarten_id,c.location_id,c.content,c.source_url,c.source_record_id,
         r.observed_on,r.fetched_at,s.title AS source_title,s.license,
-        -- Reviewed documents carry their own scope and governed period.
         CASE WHEN r.raw_data->>'kind'='enrolment_document'
           THEN r.raw_data->>'scope' END AS document_scope,
         CASE WHEN r.raw_data->>'kind'='enrolment_document'

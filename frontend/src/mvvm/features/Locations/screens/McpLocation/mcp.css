@@ -1,8 +1,7 @@
-/* An iframe's initial viewport is not its preferred content height. The SDK
-   reports this intrinsic inline height to the host through autoResize. */
+
 .mcp-location-app { height: 520px; }
 .mcp-location-app[data-display-mode="fullscreen"] { height: 100dvh; }
-/* The host already frames the iframe, so the map fills it edge to edge. */
+
 .mcp-location-app .kindergarten-explorer { --card-height: 84px; display: flex; flex-direction: column; border: 0; border-radius: 0; box-shadow: none; }
 .mcp-location-app .explorer-layout { flex: 1; height: auto; }
 .mcp-location-app .kindergarten-explorer.explorer-frame--expanded { height: 100dvh; }

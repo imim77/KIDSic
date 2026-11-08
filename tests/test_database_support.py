@@ -28,7 +28,7 @@ class DatabaseCleanupTests(unittest.TestCase):
         async def rollback():
             events.append("rollback")
 
-        # Match asyncpg's decorated method: a sync call returns a coroutine.
+
         transaction = SimpleNamespace(
             start=AsyncMock(), rollback=Mock(side_effect=rollback)
         )
