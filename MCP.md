@@ -59,7 +59,7 @@ Nakon povezivanja odabrati KIDSic aplikaciju u chatu i pokušati:
 
 Opcionalni `near` (`[dužina, širina]` u WGS84) i `radius_m` (cijeli metri,
 1–50000) šalju se zajedno i ograničavaju rezultate na zračni radijus, kao
-`GET /api/locations` ([LOCATION_API.md](LOCATION_API.md)). Objekti bez potvrđenih
+`GET /api/locations`. Objekti bez potvrđenih
 koordinata nisu uključeni, a svaki rezultat nosi `distance_m`. Rezultati su
 poredani od najbližeg (nakon potvrđene prikladnosti), a app iznad kartica
 navodi broj rezultata, aktivne kriterije i redoslijed. Udaljenost nije
@@ -116,7 +116,7 @@ Odjeljak „Upis” prikazuje `enrolment`: pedagošku godinu, status roka prema
 trenutnom vremenu, kanal, izvor i licencu. Gumb „Otvori službeni upis” postoji
 samo za otvoren ili budući krug, ide kroz host (`openLink`) i označava da vodi
 na vanjsku uslugu; KIDSic ne predaje zahtjev. Bez potvrđenog kanala prikazuje
-se uputa da se upis provjeri kod vrtića. Format: [LOCATION_API.md](LOCATION_API.md#upis-u-detaljima).
+se uputa da se upis provjeri kod vrtića. Podaci o upisu nalaze se u detaljima vrtića.
 
 Svaki poziv sadrži sve odabrane kriterije. Na nastavak „A sada samo u Centru”
 klijent zadržava prethodno izričito utvrđen grad, naziv i vrstu ako ih korisnik
@@ -153,7 +153,7 @@ i ne potvrđuje činjenice o vrtiću; izvorni nazivi i adrese ostaju podaci.
 izvorima, datumima i opsegom bez metapodataka karte. Model klijenta na temelju
 njih sastavlja odgovor i citira izvore. Višeznačan naziv traži odabir; odsutnost
 dokaza nije dokaz da usluga ne postoji. Povijesna snimka nikada ne potvrđuje
-današnje programe ili slobodna mjesta. Detaljan ugovor i ograničenja: [RAG.md](RAG.md).
+današnje programe ili slobodna mjesta. Odgovori se temelje na dostupnim dokazima i njihovim datumima.
 
 Server ne rangira dokaze niti tumači pitanje. Vraća sve prihvaćene dokaze
 odabranih tema za odabranu ustanovu/objekt jer oni stanu u ograničenje odgovora;

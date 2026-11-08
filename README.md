@@ -1,6 +1,6 @@
 # KIDSic
 
-MCP app za pronalazak dječjih vrtića povezivanjem više otvorenih skupova. Implementirani su PostgreSQL model, CKAN registracija i uvoz imenika, objekata, kontakata te povijesnih zagrebačkih programa i mjesta. MCP alat `prikazi_vrtice` povezuje obavezan grad s OpenStreetMap kartom i karticama. `dohvati_kontekst_vrtica` dohvaća podatke za razgovorne odgovore s izvorima, datumima i opsegom. [RAG](RAG.md) vraća sve prihvaćene dokaze odabranih tema za odabrani vrtić, bez rangiranja i embedding pružatelja. Odgovor sastavlja model MCP klijenta.
+MCP app za pronalazak dječjih vrtića povezivanjem više otvorenih skupova. Implementirani su PostgreSQL model, CKAN registracija i uvoz imenika, objekata, kontakata te povijesnih zagrebačkih programa i mjesta. MCP alat `prikazi_vrtice` povezuje obavezan grad s OpenStreetMap kartom i karticama. `dohvati_kontekst_vrtica` dohvaća podatke za razgovorne odgovore s izvorima, datumima i opsegom. RAG vraća sve prihvaćene dokaze odabranih tema za odabrani vrtić, bez rangiranja i embedding pružatelja. Odgovor sastavlja model MCP klijenta.
 
 Aplikacija podržava samo **Zagreb, Varaždin, Rijeku i Šibenik**. Uvoz preskače zapise
 iz drugih gradova prije upisa u bazu; pripadnost gradu određuje se prema
@@ -314,7 +314,7 @@ API se pokreće nad prethodno migriranom i popunjenom bazom iz koraka iznad:
 uv run uvicorn KIDSic.api.locations:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
-`DATABASE_URL` mora biti postavljen u istom terminalu. API drži jedan pool kroz životni vijek aplikacije; svaki zahtjev čita konzistentnu snimku kroz read-only Unit of Work. Pokretanje ne izvršava migracije ni uvoz. [Ugovor lokacija](LOCATION_API.md) opisuje `GET /api/locations`, filtre, GeoJSON, izvore, datume i pogreške. MCP karta podržava grad, naziv, vrstu pružatelja, područje i radijus; alat za [RAG kontekst](RAG.md) koristi zaseban servis nad istim poolom.
+`DATABASE_URL` mora biti postavljen u istom terminalu. API drži jedan pool kroz životni vijek aplikacije; svaki zahtjev čita konzistentnu snimku kroz read-only Unit of Work. Pokretanje ne izvršava migracije ni uvoz. HTTP API opisuje `GET /api/locations`, filtre, GeoJSON, izvore, datume i pogreške. MCP karta podržava grad, naziv, vrstu pružatelja, područje i radijus; alat za RAG kontekst koristi zaseban servis nad istim poolom.
 
 Frontend pokrenuti u drugom terminalu:
 
@@ -340,7 +340,7 @@ uv run python -m unittest discover -s tests -v
 
 Frontend provjere iz mape `frontend/`: `npm test`, `npm run build` i `npm run lint`. Testovi komponenti provjeravaju lifecycle karte, potpune odgovore i otkazivanje zastarjelih zahtjeva s Leaflet kartom; stvarni dohvat OpenStreetMap podloge treba provjeriti u pregledniku.
 
-Integracijske provjere trebaju zasebnu, migriranu bazu `kidsic_test_*` i `KIDSIC_TEST_DATABASE_URL`. Bez te varijable integracijski testovi se preskaču. Detalji: [baza i RAG](database/README.md), [ERA model](database/ERA.md), [funkcionalnosti](TO-DO.md).
+Integracijske provjere trebaju zasebnu, migriranu bazu `kidsic_test_*` i `KIDSIC_TEST_DATABASE_URL`. Bez te varijable integracijski testovi se preskaču. Lokalna dokumentacija baze i ERA model dostupni su u mapi `database/` kada je pripremljena.
 
 Testovi CKAN klijenta i normalizacije rade offline. Testovi uvoza nad PostgreSQL-om provjeravaju stabilne identitete, zamjenu stanja, povijesne objave, obuhvat dokumenata, povezivanje izvora i rollback. [Lokalna Postman simulacija](postman/README.md) dodatno provjerava stvarni HTTP promet, timeout i pogreške bez vanjskih servisa; uključuje se varijablom `KIDSIC_CKAN_SIMULATION_URL`.
 
