@@ -180,3 +180,15 @@ tags
 
 # make setup marker
 .setup-done
+
+# Local agent configuration and working documents
+/.agents/skills/
+/.claude/
+/diagram_examples/
+/output/
+/MCP.md
+/DESIGN.md
+/PLAN.md
+/RAG.md
+/TO-DO.md
+/skills-lock.json
