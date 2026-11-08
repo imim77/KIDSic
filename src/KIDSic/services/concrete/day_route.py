@@ -3,14 +3,17 @@ import asyncio
 from collections.abc import Collection
 from datetime import timedelta
 
-from KIDSic.dto.day_route import DayPoint, DayJourneyRequest
+from KIDSic.dto.day_route import DayPoint, DayJourneyRequest, Journey
 from KIDSic.config.routing import ROUTING_CITIES
 from KIDSic.dto.location import LocationQuery, LocationCollection
 from KIDSic.integrations.interfaces.journey import JourneyPlanner
+from KIDSic.services.interfaces.commute import DayRouteServiceInterface
 from KIDSic.services.interfaces.location import LocationServiceInterface
 
 
-class DayRouteService:
+class DayRouteService(DayRouteServiceInterface):
+    _concurrent_routes = 4  # bounds routing work even when ranking every city facility
+
     def __init__(self, locations: LocationServiceInterface, planner: JourneyPlanner):
         self._locations = locations
         self._planner = planner
@@ -60,31 +63,11 @@ class DayRouteService:
     async def _compare(self, request: DayJourneyRequest, facilities):
         baseline = await self._planner.plan(request.home, request.work,
                                             request.departure, request.mode)
-        semaphore = asyncio.Semaphore(4)
+        semaphore = asyncio.Semaphore(self._concurrent_routes)
 
         async def through(facility):
-            # Bound concurrent routing work even when ranking every city facility.
             async with semaphore:
-                lon, lat = facility.geometry.coordinates
-                point = DayPoint(lat=lat, lon=lon)
-                first = await self._planner.plan(request.home, point, request.departure, request.mode)
-                second = None if first is None else await self._planner.plan(
-                    point, request.work, first.arrival + timedelta(minutes=request.dropoff_minutes),
-                    request.mode)
-                result = {'facility_id': str(facility.id), 'name': facility.properties.location_name,
-                          'address': facility.properties.address, 'opening_hours': None,
-                          'point': point.model_dump(), 'status': 'ok' if second else 'no_route'}
-                if second:
-                    elapsed = int((second.arrival - request.departure).total_seconds())
-                    direct = None if baseline is None else int(
-                        (baseline.arrival - request.departure).total_seconds())
-                    journeys = [first, second]
-                    transfers = sum(max(0, sum(leg.mode != 'WALK' for leg in j.legs) - 1)
-                                    for j in journeys)
-                    result.update(arrival=second.arrival.isoformat(), elapsed_seconds=elapsed,
-                        extra_seconds=None if direct is None else elapsed - direct,
-                        transfers=transfers, journeys=[j.model_dump(mode='json') for j in journeys])
-                return result
+                return await self._route_through(request, facility, baseline)
 
         tasks = [asyncio.create_task(through(f)) for f in facilities]
         try:
@@ -95,12 +78,45 @@ class DayRouteService:
                     task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
         results.sort(key=lambda item: (item.get('elapsed_seconds', float('inf')), item['facility_id']))
-        city = ROUTING_CITIES[request.city]
         return {'results': results, 'baseline': baseline.model_dump(mode='json') if baseline else None,
                 'departure': request.departure.isoformat(), 'dropoff_minutes': request.dropoff_minutes,
-                'sources': {'router': 'OpenTripPlanner 2.8.1', 'gtfs_sha256': city.gtfs_sha256,
-                            'gtfs_url': city.gtfs_url, 'publisher': city.publisher, 'license': city.license,
-                            'license_url': city.license_url, 'retrieved_on': str(city.retrieved_on),
-                            'service_start': str(city.service_start), 'service_end': str(city.service_end),
-                            'timetable': 'scheduled', 'timezone': 'Europe/Zagreb',
-                            'opening_hours': 'unverified'}}
+                'sources': self._sources(request.city)}
+
+    async def _route_through(self, request: DayJourneyRequest, facility, baseline: Journey | None):
+        """_route_through plans home → facility, then facility → work once the
+        child is dropped off, and compares the arrival with the direct trip."""
+        lon, lat = facility.geometry.coordinates
+        point = DayPoint(lat=lat, lon=lon)
+        first = await self._planner.plan(request.home, point, request.departure, request.mode)
+        second = None if first is None else await self._planner.plan(
+            point, request.work, first.arrival + timedelta(minutes=request.dropoff_minutes), request.mode)
+        result = {'facility_id': str(facility.id), 'name': facility.properties.location_name,
+                  'address': facility.properties.address, 'opening_hours': None,
+                  'point': point.model_dump(), 'status': 'ok' if second else 'no_route'}
+        if second:
+            elapsed = self._seconds_since(request, second)
+            direct = None if baseline is None else self._seconds_since(request, baseline)
+            journeys = [first, second]
+            result.update(arrival=second.arrival.isoformat(), elapsed_seconds=elapsed,
+                          extra_seconds=None if direct is None else elapsed - direct,
+                          transfers=sum(self._transfers(j) for j in journeys),
+                          journeys=[j.model_dump(mode='json') for j in journeys])
+        return result
+
+    @staticmethod
+    def _seconds_since(request: DayJourneyRequest, journey: Journey) -> int:
+        return int((journey.arrival - request.departure).total_seconds())
+
+    @staticmethod
+    def _transfers(journey: Journey) -> int:
+        """_transfers counts vehicle changes: walking legs never add one."""
+        return max(0, sum(leg.mode != 'WALK' for leg in journey.legs) - 1)
+
+    @staticmethod
+    def _sources(city_name: str) -> dict:
+        city = ROUTING_CITIES[city_name]
+        return {'router': 'OpenTripPlanner 2.8.1', 'gtfs_sha256': city.gtfs_sha256,
+                'gtfs_url': city.gtfs_url, 'publisher': city.publisher, 'license': city.license,
+                'license_url': city.license_url, 'retrieved_on': str(city.retrieved_on),
+                'service_start': str(city.service_start), 'service_end': str(city.service_end),
+                'timetable': 'scheduled', 'timezone': 'Europe/Zagreb', 'opening_hours': 'unverified'}

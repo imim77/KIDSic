@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"],
+      "@test-support/*": ["./test-support/*"]
+    }
+  },
+  "include": ["src", "tests", "test-support", "vitest.config.ts"],
+  "exclude": []
+}

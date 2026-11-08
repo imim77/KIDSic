@@ -73,10 +73,14 @@ RESOURCE_META = {
 class MapResource:
     def __init__(self, path: Path, *, uri=UI_URI, meta=RESOURCE_META,
                  name='kidsic-map', title='Karta vrtića', lazy=False):
-        self.uri, self._meta = uri, meta
+        self._uri, self._meta = uri, meta
         self._name, self._title, self._lazy = name, title, lazy
         self._path = path
         self._html = None
+
+    @property
+    def uri(self) -> str:
+        return self._uri
 
     def load(self):
         try:
@@ -95,11 +99,11 @@ class MapResource:
         server.read_resource()(self.read_resource)
 
     async def list_resources(self):
-        return [types.Resource(uri=self.uri, name=self._name, title=self._title,
+        return [types.Resource(uri=self._uri, name=self._name, title=self._title,
                                mimeType=UI_MIME, _meta=self._meta)]
 
     async def read_resource(self, uri):
-        if str(uri) != self.uri:
+        if str(uri) != self._uri:
             raise ValueError('Nepoznat UI resurs.')
         if self._html is None and self._lazy:
             self.load()

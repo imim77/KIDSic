@@ -1,6 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { compareOptions } from '@/mvvm/features/Locations/utils/comparison'
 import { enrolmentRound, facility, historicalEvidence } from '@test-support/fixtures'
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-11-07T12:00:00Z'))
+})
+afterEach(() => vi.useRealTimers())
 
 describe('compareOptions', () => {
   it('credits only the nearest option', () => {

@@ -970,3 +970,147 @@ tablica ostaju identični na kopiji i na radnoj bazi. Radna baza i dalje ima
 Sigurnosna kopija prije preimenovanja:
 `/private/tmp/kidsic_before_0019_20261106.dump`. Prikaz u PyCharmu treba
 osvježiti nad shemom public kako bi se učitali novi nazivi.
+
+## 12. Prijedlog: lokalno isprobavanje jednom naredbom
+
+Status: plan od 8. 11. 2026.; implementacija još nije provedena.
+Ovaj odjeljak nadopunjuje prethodni plan i ne mijenja njegove odluke o bazi.
+
+### Cilj i razlog promjene
+
+Korisnik nakon kloniranja ili raspakiravanja GitHub repozitorija treba
+pokrenuti `make start` i dobiti funkcionalan pregled karte i lokalni MCP
+endpoint, bez ručne instalacije Python i Node ovisnosti ili izvoza varijabli.
+Makefile je potreban kao kratko, pamtljivo sučelje za pripremu i upravljanje
+svim servisima.
+
+### Istraživanje
+
+- `Makefile:12–18` već sadrži start i setup, ali `git ls-files Makefile`
+  trenutno ne vraća ništa: datoteka još nije uključena u Git.
+- `Makefile:13` provjerava samo `.setup-done`. Poslije `make stop` ili
+  ponovnog pokretanja računala marker ostaje, a start ne podiže bazu.
+  Marker također ne otkriva obrisani volumen ili promijenjene ovisnosti.
+- `Makefile:17` navodi pripremne zadatke kao neovisne preduvjete.
+  `make -j setup` može pokrenuti uvoz prije migracija ili build prije npm
+  instalacije. Redoslijed treba biti eksplicitan.
+- `Makefile:20` zaustavlja samo bazu; API, MCP i Vite su lokalni procesi.
+  `Makefile:30–34` ne koristi zaključane instalacije (`--locked`, `npm ci`).
+- `docker-compose.yaml:1–23` trenutno pokreće samo PostgreSQL, s provjerom
+  spremnosti i trajnim volumenom. Slika baze već instalira PostGIS i pgvector.
+- `pyproject.toml:4` traži Python >=3.14. Trenutni pristup dodatno zahtijeva
+  Node/npm, uv, Docker i make na korisničkom računalu.
+- `src/KIDSic/api/locations.py` preko DependencyServicea otvara bazu;
+  pokretanje ne migrira niti uvozi podatke. Naredbe u `commands/` već
+  implementiraju registraciju i uvoz, pa njih treba ponovno koristiti.
+- `src/KIDSic/api/mcp_server.py:40,65–69` učitava
+  `frontend/dist/mcp.html` prije posluživanja. Build mora biti u slici.
+- `frontend/vite.config.ts:17` prosljeđuje `/api` lokalnom backendu samo
+  u razvoju. Statički frontend treba vlastiti reverse proxy.
+- `.gitignore` isključuje `scripts/*.json`. `scripts/README.md` potvrđuje
+  da pregledane geografske dopune uglavnom nisu u repozitoriju. Svježi clone
+  zato ne može automatski reproducirati svu geografiju radnog računala.
+  Zagrebački parser već čita koordinate iz redovitog CKAN izvora.
+- `MCP.md`, odjeljak Spajanje AI klijenta, razlikuje lokalni endpoint od
+  povezivanja klijenta. Sam web pregled ne daje razgovor s AI modelom.
+- Provjereni su `make -n start` i `docker compose config --quiet`.
+  To potvrđuje postojeće naredbe i valjanost konfiguracije, ne uspješan
+  prvi start na čistom računalu.
+
+### Razmotreni pristupi
+
+1. **Dovršiti postojeći Makefile s procesima na računalu.** Najmanje novih
+   datoteka i praktično za razvoj. Treba provjeravati verzije Pythona,
+   Nodea i uva, riješiti PATH nakon instalacije te upravljati procesima i
+   njihovim zaustavljanjem. Korisnik ima više preduvjeta.
+2. **Makefile preko Docker Composea — preporuka za isprobavanje.** Python,
+   Node build i procesi dolaze iz slika; korisnik treba make i pokrenut
+   Docker s Composeom. Prvi build zahtijeva mrežu i traje dulje, ali
+   ponovna pokretanja koriste slike i postojeće podatke. Razvojne naredbe
+   mogu ostati dostupne zasebno.
+
+### Predloženo ponašanje i datoteke
+
+Javno sučelje neka bude `make start`, `make stop`, `make logs` i `make help`.
+`make start` treba provjeriti Docker/Compose, izgraditi potrebne slike,
+pripremiti bazu i podatke te ispisati URL tek nakon provjere spremnosti.
+`make stop` zaustavlja cijeli stack i čuva podatke; `make logs` prikazuje
+logove svih servisa. Osvježavanje podataka je eksplicitni `make refresh-data`.
+
+U `docker-compose.yaml` dodati jednokratni servis migracija/pripreme,
+HTTP API, MCP i frontend. Backend Dockerfile koristi Python 3.14 i
+`uv sync --locked`; višefazni build koristi `npm ci` i prvo web build,
+zatim MCP build, jer web build čisti dist. Isti backend image koristi se
+za pripremu, API i MCP. Frontend poslužuje izgrađene datoteke uz proxy
+`/api` prema API servisu. Dodati `.dockerignore` da se lokalna baza,
+.env, .venv, node_modules i istraživački artefakti ne šalju u build.
+
+Unutar mreže baze URL koristi `database:5432`; lokalni portovi ostaju
+vezani na 127.0.0.1. Predloženi URL-ovi: web 5173, API 8000 i MCP
+8001/mcp. Za uvicorn unutar kontejnera koristiti 0.0.0.0, a za frontend
+proxy naziv API servisa umjesto localhosta. Nisu potrebni API ključevi.
+
+Redoslijed: zdrava baza → uspješne migracije → potrebni podaci → API/MCP
+→ spreman frontend. Compose podržava `service_healthy` i
+`service_completed_successfully`; izvor:
+https://docs.docker.com/compose/how-tos/startup-order/.
+Ne oslanjati se samo na pokrenut proces ili proizvoljno čekanje.
+
+Početni sadržaj mora odgovarati našoj bazi u trenutku objave snimke
+(zahtjev korisnika od 8. 11. 2026.). Distribuirati puni logički PostgreSQL
+dump, sa shemom, podacima i alembic_version, izrađen pomoću `pg_dump -Fc`.
+Time se prenose i ručne geografske dopune, dokazi, datumi, identiteti i veze.
+Ne izvoziti Docker volumen ili PostgreSQL korisničke lozinke.
+
+Predloženo mjesto je `demo/kidsic.dump` uz manifest s datumom, Alembic
+revizijom, SHA-256 sažetkom i brojem redaka aplikacijskih tablica. Ako je
+datoteka prevelika za praktično praćenje Gitom, koristiti verzionirani GitHub
+Release asset s fiksnim URL-om i provjerom sažetka, bez poveznice na latest.
+Prije distribucije pregledati sadržaj za objavu i zabilježiti licence izvora;
+postojeći .gitignore izričito navodi kontakte i porezne identifikatore u
+lokalnim snimkama. Veličina i prikladnost cijelog izvoza još nisu izmjerene.
+
+Prvi start vraća dump u praznu bazu pomoću `pg_restore` s opcijama
+`--no-owner --no-acl --exit-on-error --single-transaction`. Obnova ide prije
+eventualnih novih migracija: puni dump već sadrži svoju shemu i Alembic
+reviziju. Nakon obnove provjeriti manifest, a zatim primijeniti migracije
+do head. PostgreSQL 17, PostGIS i pgvector dolaze iz projektne slike baze.
+Dump objavljivati uz odgovarajuću verziju aplikacije kako nove migracije
+ne bi nenamjerno promijenile početni skup podataka.
+
+Uspješna inicijalizacija vezana je uz bazu, ne uz `.setup-done` na hostu.
+Ponovni start čuva postojeću bazu bez ponovnog restorea ili mrežnog uvoza.
+Neprepoznatu nepraznu bazu ne prepisivati. Neuspjela obnova prekida start
+i dopušta ponovni pokušaj bez djelomično uvezenih podataka. Automatski start
+ne osvježava sadržaj s CKAN-a; eksplicitni refresh zadržava postojeću
+zaštitu od uklanjanja podataka.
+
+Na vrh README-a dodati preduvjete, `make start`, adresu pregleda i
+`make stop`. Navesti da prvo preuzimanje slika/ovisnosti
+zahtijevaju internet. Uskladiti MCP.md s novim naredbama. Makefile i sve
+nove build datoteke moraju biti u Gitu, a postupak raditi i iz ZIP arhive.
+
+### Otvorena pitanja i granice prijedloga
+
+- Početna snimka zamjenjuje prethodni prijedlog uvoza s CKAN-a pri prvom
+  startu. Treba izmjeriti veličinu dumpa i provjeriti obnovu na zasebnoj bazi.
+- Dump prenosi geografiju svih gradova koja je u bazi u trenutku izvoza;
+  lokalne JSON datoteke za njezinu ponovnu izgradnju nisu potrebne za demo.
+- OTP i adresni indeksi iz routing/ ostaju dodatna priprema za rute.
+  Osnovni start omogućuje kartu, podatke i MCP endpoint; ne obećava
+  funkcionalne rute bez tih ovisnosti. To jasno navesti u README-u.
+- Primarni sustavi su macOS i Linux; na Windowsu dokumentirati WSL2 i make.
+  Docker ne instalirati automatski s administratorskim ovlastima.
+
+### Provjera pri implementaciji
+
+U izoliranom direktoriju koristiti samo datoteke predviđene za Git,
+bez lokalnih .env datoteka, node_modules, .venv ili geografskih snimki,
+i zaseban Compose projekt/volumen koji ne dira radnu bazu.
+Provjeriti prvi start, stvarne rezultate `/api/locations?city=Zagreb`, web
+proxy i kartu u pregledniku te MCP initialize, popis alata i HTML resurs.
+Zatim stop/start: podaci moraju ostati, a baza se ponovno podići bez
+mrežnog uvoza. Usporediti retke i identitete s izvornom snimkom. Provjeriti oporavak
+nakon neuspjeha obnove, novu praznu bazu,
+zauzeti port i nedostupan Docker. `make -j start` ne smije promijeniti
+redoslijed pripreme. Pokrenuti postojeće Python i frontend provjere.

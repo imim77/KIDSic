@@ -15,6 +15,13 @@ from KIDSic.dto.ckan import CkanPackage, CkanResource
 from KIDSic.exceptions import CkanApiError, CkanHttpError, CkanResponseError, CkanTransportError
 from KIDSic.integrations.interfaces.ckan import CkanClientInterface
 
+CSV_FORMATS = {'csv', 'text/csv'}
+XLSX_FORMATS = {'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}
+
+
+def resource_format(resource: CkanResource) -> str:
+    return (resource.format or '').strip().casefold()
+
 
 class CkanClient(CkanClientInterface):
     def __init__(self, client: httpx.AsyncClient, base_url: str = 'https://data.gov.hr/ckan',
@@ -68,25 +75,47 @@ class CkanClient(CkanClientInterface):
         except ValidationError as error:
             raise CkanResponseError('CKAN returned invalid dataset metadata or resources.') from error
 
+    def _csv_rows(self, content: bytes):
+        return csv.reader(io.StringIO(content.decode(self._csv_encoding), newline=''), delimiter=';', strict=True)
+
+    def _csv_records(self, content: bytes) -> list[dict]:
+        """_csv_records maps each nonblank row onto its uniquely named header."""
+        try:
+            reader = self._csv_rows(content)
+            headers = [field.strip() for field in next(reader, [])]
+            if not headers or not all(headers) or len(set(headers)) != len(headers):
+                raise CkanResponseError('CSV requires unique, nonblank column names.')
+            records = []
+            for values in reader:
+                if not values or not any(value.strip() for value in values):
+                    continue
+                if len(values) != len(headers):
+                    raise CkanResponseError('CSV row width does not match its header.')
+                records.append(dict(zip(headers, values)))
+            return records
+        except (UnicodeError, csv.Error) as error:
+            raise CkanResponseError(f'CKAN did not return valid {self._csv_encoding} semicolon CSV.') from error
+
+    def _xlsx_rows(self, content: bytes) -> list[list[str]]:
+        """_xlsx_rows reads the first sheet, refusing archives and sheets large
+        enough to exhaust memory before their size is known."""
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            if sum(item.file_size for item in archive.infolist()) > self._max_bytes * 20:
+                raise CkanResponseError('Expanded XLSX exceeds the configured size limit.')
+        workbook = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+        try:
+            rows = []
+            for values in workbook.worksheets[0].iter_rows(values_only=True):
+                if len(rows) >= 100_000 or len(values) > 256:
+                    raise CkanResponseError('XLSX table exceeds the configured cell limits.')
+                rows.append(['' if value is None else str(value) for value in values])
+            return rows
+        finally:
+            workbook.close()
+
     async def download_records(self, resource: CkanResource) -> list[dict]:
-        if (resource.format or '').strip().casefold() in {'csv', 'text/csv'}:
-            content = await self._read_bytes(str(resource.url))
-            try:
-                reader = csv.reader(io.StringIO(content.decode(self._csv_encoding), newline=''),
-                                    delimiter=';', strict=True)
-                headers = [field.strip() for field in next(reader, [])]
-                if not headers or not all(headers) or len(set(headers)) != len(headers):
-                    raise CkanResponseError('CSV requires unique, nonblank column names.')
-                records = []
-                for values in reader:
-                    if not values or not any(value.strip() for value in values):
-                        continue
-                    if len(values) != len(headers):
-                        raise CkanResponseError('CSV row width does not match its header.')
-                    records.append(dict(zip(headers, values)))
-                return records
-            except (UnicodeError, csv.Error) as error:
-                raise CkanResponseError(f'CKAN did not return valid {self._csv_encoding} semicolon CSV.') from error
+        if resource_format(resource) in CSV_FORMATS:
+            return self._csv_records(await self._read_bytes(str(resource.url)))
         payload = await self._read_json(str(resource.url))
         if not isinstance(payload, list) or any(not isinstance(row, dict) for row in payload):
             raise CkanResponseError('The JSON resource must contain an array of objects.')
@@ -94,26 +123,13 @@ class CkanClient(CkanClientInterface):
 
     async def download_table(self, resource: CkanResource) -> list[list[str]]:
         content = await self._read_bytes(str(resource.url))
-        resource_format = (resource.format or '').strip().casefold()
+        kind = resource_format(resource)
         try:
-            if resource_format in {'csv', 'text/csv'}:
-                return list(csv.reader(io.StringIO(content.decode(self._csv_encoding), newline=''),
-                                       delimiter=';', strict=True))
-            if resource_format not in {'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}:
+            if kind in CSV_FORMATS:
+                return list(self._csv_rows(content))
+            if kind not in XLSX_FORMATS:
                 raise CkanResponseError('Expected a CSV or XLSX table.')
-            with zipfile.ZipFile(io.BytesIO(content)) as archive:
-                if sum(item.file_size for item in archive.infolist()) > self._max_bytes * 20:
-                    raise CkanResponseError('Expanded XLSX exceeds the configured size limit.')
-            workbook = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
-            try:
-                rows = []
-                for values in workbook.worksheets[0].iter_rows(values_only=True):
-                    if len(rows) >= 100_000 or len(values) > 256:
-                        raise CkanResponseError('XLSX table exceeds the configured cell limits.')
-                    rows.append(['' if value is None else str(value) for value in values])
-                return rows
-            finally:
-                workbook.close()
+            return self._xlsx_rows(content)
         except (UnicodeError, csv.Error, zipfile.BadZipFile, ValueError, KeyError,
                 IndexError, ParseError, InvalidFileException) as error:
             raise CkanResponseError('CKAN did not return a readable CSV/XLSX table.') from error

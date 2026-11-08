@@ -720,20 +720,20 @@ WITH policies AS (
 $subsidy_snapshot$::jsonb)
 )
 INSERT INTO pravila_sufinanciranja (
- policy_key,municipality_id,provider_kinds,title,summary,verification_status,
- verified_on,valid_from,valid_until,rules,sources
+ kljuc_pravila,id_jedinice_lokalne_samouprave,vrste_pruzatelja,naslov,sazetak,status_provjere,
+ datum_provjere,vrijedi_od,vrijedi_do,pravila,izvori
 )
 SELECT p->>'policy_key',
- (SELECT id FROM jedinice_lokalne_samouprave WHERE key=p->>'municipality_key'),
+ (SELECT id FROM jedinice_lokalne_samouprave WHERE kljuc=p->>'municipality_key'),
  ARRAY(SELECT jsonb_array_elements_text(p->'provider_kinds')),
  p->>'title',p->>'summary',p->>'verification_status',
  (p->>'verified_on')::date,(p->>'valid_from')::date,(p->>'valid_until')::date,
  p->'rules',p->'sources'
 FROM policies
-ON CONFLICT (policy_key) DO UPDATE SET
- municipality_id=EXCLUDED.municipality_id,provider_kinds=EXCLUDED.provider_kinds,
- title=EXCLUDED.title,summary=EXCLUDED.summary,
- verification_status=EXCLUDED.verification_status,verified_on=EXCLUDED.verified_on,
- valid_from=EXCLUDED.valid_from,valid_until=EXCLUDED.valid_until,
- rules=EXCLUDED.rules,sources=EXCLUDED.sources;
+ON CONFLICT (kljuc_pravila) DO UPDATE SET
+ id_jedinice_lokalne_samouprave=EXCLUDED.id_jedinice_lokalne_samouprave,vrste_pruzatelja=EXCLUDED.vrste_pruzatelja,
+ naslov=EXCLUDED.naslov,sazetak=EXCLUDED.sazetak,
+ status_provjere=EXCLUDED.status_provjere,datum_provjere=EXCLUDED.datum_provjere,
+ vrijedi_od=EXCLUDED.vrijedi_od,vrijedi_do=EXCLUDED.vrijedi_do,
+ pravila=EXCLUDED.pravila,izvori=EXCLUDED.izvori;
 COMMIT;

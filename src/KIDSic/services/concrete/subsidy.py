@@ -1,8 +1,9 @@
 """SubsidyPolicyPresenter translates curated rules into readable rate evidence."""
 from KIDSic.dto.subsidy import SubsidyPolicy, SubsidyRate
+from KIDSic.services.interfaces.presenters import SubsidyPresenter
 
 
-class SubsidyPolicyPresenter:
+class SubsidyPolicyPresenter(SubsidyPresenter):
     _conditions = {
         'first_child': 'Prvo dijete',
         'second_child_when_two_enrolled': 'Drugo dijete, kada je dvoje istodobno upisano',
@@ -27,48 +28,65 @@ class SubsidyPolicyPresenter:
         'developmental_observation_up_to_three_hours_daily': 'Razvojna opservacija uz boravak do tri sata',
     }
 
+    _programs = {'full_day_nursery': 'Cjelodnevne jaslice', 'full_day_kindergarten': 'Cjelodnevni vrtić'}
+    _reductions = ('parent_fee_reduction_percent', 'daily_fee_reduction_percent', 'fee_reduction_percent')
+    _rule_notes = ('sibling_order', 'sibling_relief', 'social_relief', 'age_exception', 'quota_rule')
+
     @staticmethod
     def _euros(cents):
         return f'{cents / 100:.2f}'.replace('.', ',') + ' €'
 
     def present(self, policy):
         rules = policy['rules']
-        rates = []
-        for rate in rules.get('rates', []):
-            label = self._conditions.get(rate.get('condition'), '')
-            if 'income_per_member' in rate:
-                bracket = rate['income_per_member']
-                lower, upper = bracket['min_inclusive_cents'], bracket['max_inclusive_cents']
-                label = (f'Od {self._euros(lower)}' if upper is None else
-                         f'Do {self._euros(upper)}' if lower is None else
-                         f'{self._euros(lower)} – {self._euros(upper)}') + ' po članu kućanstva'
-            elif 'income_condition' in rate:
-                label = 'Dohodak ' + rate['income_condition']
-            elif 'program' in rate:
-                label = {'full_day_nursery': 'Cjelodnevne jaslice',
-                         'full_day_kindergarten': 'Cjelodnevni vrtić'}.get(rate['program'], 'Redoviti program')
-            if 'parent_fee_full_day_cents' in rate:
-                rates.append(SubsidyRate(label=f'Cjelodnevni · {label}', parent_fee_cents=rate['parent_fee_full_day_cents']))
-                half = rate.get('parent_fee_half_day_cents', rate.get('parent_fee_separate_half_day_group_cents'))
-                if half is not None:
-                    rates.append(SubsidyRate(label=f'Poludnevni · {label}', parent_fee_cents=half))
-            else:
-                rates.append(SubsidyRate(label=label or 'Mjesečno po djetetu',
-                    city_subsidy_cents=rate.get('city_subsidy_cents'), parent_fee_cents=rate.get('parent_fee_cents')))
-        reliefs = []
-        for relief in rules.get('reliefs', []):
-            label = self._conditions.get(relief['condition'])
-            if label is None:
-                continue
-            if 'parent_fee_percent' in relief:
-                suffix = f"plaća se {relief['parent_fee_percent']} % roditeljske cijene"
-            else:
-                key = next((k for k in ('parent_fee_reduction_percent', 'daily_fee_reduction_percent',
-                                       'fee_reduction_percent') if k in relief), None)
-                if key is None:
-                    continue
-                suffix = f"umanjenje {'dnevne' if key == 'daily_fee_reduction_percent' else 'roditeljske'} cijene za {relief[key]} %"
-            reliefs.append(f'{label}: {suffix}.')
+        return SubsidyPolicy(**{key: policy[key] for key in (
+            'policy_key', 'title', 'summary', 'verification_status', 'verified_on',
+            'valid_from', 'valid_until', 'sources')},
+            amount_kind='parent_fee' if 'parent_fee' in rules['funding_model'] else 'city_subsidy',
+            rates=[item for rate in rules.get('rates', []) for item in self._rates(rate)],
+            conditions=self._eligibility(rules),
+            reliefs=[text for relief in rules.get('reliefs', []) if (text := self._relief(relief))],
+            notes=self._notes(rules))
+
+    def _rates(self, rate) -> list[SubsidyRate]:
+        """_rates splits a tariff row into its full-day and half-day fees."""
+        label = self._rate_label(rate)
+        if 'parent_fee_full_day_cents' not in rate:
+            return [SubsidyRate(label=label or 'Mjesečno po djetetu',
+                city_subsidy_cents=rate.get('city_subsidy_cents'), parent_fee_cents=rate.get('parent_fee_cents'))]
+        rates = [SubsidyRate(label=f'Cjelodnevni · {label}', parent_fee_cents=rate['parent_fee_full_day_cents'])]
+        half = rate.get('parent_fee_half_day_cents', rate.get('parent_fee_separate_half_day_group_cents'))
+        if half is not None:
+            rates.append(SubsidyRate(label=f'Poludnevni · {label}', parent_fee_cents=half))
+        return rates
+
+    def _rate_label(self, rate) -> str:
+        if 'income_per_member' in rate:
+            bracket = rate['income_per_member']
+            lower, upper = bracket['min_inclusive_cents'], bracket['max_inclusive_cents']
+            return (f'Od {self._euros(lower)}' if upper is None else
+                    f'Do {self._euros(upper)}' if lower is None else
+                    f'{self._euros(lower)} – {self._euros(upper)}') + ' po članu kućanstva'
+        if 'income_condition' in rate:
+            return 'Dohodak ' + rate['income_condition']
+        if 'program' in rate:
+            return self._programs.get(rate['program'], 'Redoviti program')
+        return self._conditions.get(rate.get('condition'), '')
+
+    def _relief(self, relief) -> str | None:
+        """_relief describes one relief, or returns None for a condition or
+        reduction this presenter cannot phrase for parents."""
+        label = self._conditions.get(relief['condition'])
+        if label is None:
+            return None
+        if 'parent_fee_percent' in relief:
+            return f"{label}: plaća se {relief['parent_fee_percent']} % roditeljske cijene."
+        key = next((k for k in self._reductions if k in relief), None)
+        if key is None:
+            return None
+        fee = 'dnevne' if key == 'daily_fee_reduction_percent' else 'roditeljske'
+        return f'{label}: umanjenje {fee} cijene za {relief[key]} %.'
+
+    def _notes(self, rules) -> list[str]:
         # Research-only caveats do not describe an action a parent can take.
         notes = [note for note in rules.get('notes', []) if not note.startswith((
             'Objavljena cijena bez zahtjeva nije ovdje', 'Granice izražene udjelom plaće'))]
@@ -76,26 +94,25 @@ class SubsidyPolicyPresenter:
             fee = rules['fee_without_approved_application_cents']
             notes.append(f"Bez odobrenog zahtjeva: {self._euros(fee['full_day'])} za cjelodnevni "
                          f"ili {self._euros(fee['half_day'])} za poludnevni program.")
-        for key in ('sibling_order', 'sibling_relief', 'social_relief', 'age_exception', 'quota_rule'):
-            if rules.get(key):
-                notes.append(rules[key])
+        notes.extend(rules[key] for key in self._rule_notes if rules.get(key))
         if rules.get('relief_combination') == 'only_most_favourable':
             notes.append('Primjenjuje se samo jedna, najpovoljnija olakšica.')
-        if rules.get('income_basis', {}).get('threshold_reference'):
-            notes.append(rules['income_basis']['threshold_reference'])
+        income = rules.get('income_basis', {})
+        if income.get('threshold_reference'):
+            notes.append(income['threshold_reference'])
             notes.append('Poludnevna tarifa vrijedi za zasebnu poludnevnu skupinu; u cjelodnevnoj skupini naplaćuje se cjelodnevna tarifa.')
-        if rules.get('income_basis', {}).get('housing_deductions'):
-            notes.append('Dohodak se utvrđuje za prethodnu kalendarsku godinu. ' + rules['income_basis']['housing_deductions'])
+        if income.get('housing_deductions'):
+            notes.append('Dohodak se utvrđuje za prethodnu kalendarsku godinu. ' + income['housing_deductions'])
         if rules.get('pending_change'):
             notes.append('Najavljena promjena nije uključena u prikazane važeće iznose.')
+        return notes
+
+    @staticmethod
+    def _eligibility(rules) -> list[str]:
         conditions = list(rules.get('eligibility', []))
         if rules.get('program_hours_per_day'):
             conditions.append(f"Program {rules['program_hours_per_day']} sati dnevno, {rules['program_days_per_week']} dana tjedno.")
         if rules.get('min_age_months') is not None:
             conditions.append(f"Dob od navršenih {rules['min_age_months']} mjeseci do "
                               f"navršenih {rules['max_age_months_exclusive']} mjeseci, uz navedenu iznimku.")
-        return SubsidyPolicy(**{key: policy[key] for key in (
-            'policy_key', 'title', 'summary', 'verification_status', 'verified_on',
-            'valid_from', 'valid_until', 'sources')},
-            amount_kind='parent_fee' if 'parent_fee' in rules['funding_model'] else 'city_subsidy',
-            rates=rates, conditions=conditions, reliefs=reliefs, notes=notes)
+        return conditions

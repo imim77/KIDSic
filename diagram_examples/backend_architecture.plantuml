@@ -1,0 +1,71 @@
+' ==============================================================================
+' kidsic-backend-architecture.puml
+'
+' Svrha:    Prikazuje slojeve backend koda u src/KIDSic, sastavljanje
+'           servisa te pristup podacima i integracijama.
+' Praćenje: Nazive i veze uskladiti s implementacijom pri promjeni arhitekture.
+'
+' Diagram level: Backend Logical Architecture
+' Diagram type: UML Component Diagram
+' ==============================================================================
+
+@startuml
+top to bottom direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam ArrowColor #212529
+skinparam nodesep 45
+skinparam ranksep 60
+skinparam component {
+    BackgroundColor #E7F1FF
+    BorderColor #0D6EFD
+}
+
+rectangle "Backend KIDSic — Python (src/KIDSic)" {
+    package "Prezentacijski sloj" {
+        component "MCP poslužitelj i alati\nMcpServer, LocationTools, RagTools, CommuteTools" as MCP
+        component "HTTP API\nLocationHttpEndpoint" as HTTP
+        component "Naredbe za uvoz\ncommands" as Commands
+        component "Sastavljanje i resursi\nDependencyService\nLocationServiceFactory, RagServiceFactory\nCommuteServiceFactory, SourceServiceFactory..." as Assembly
+    }
+    package "Poslovni sloj" {
+        component "Ugovori servisa\nLocationServiceInterface, RagServiceInterface\nCommuteServiceInterface, SourceServiceInterface" as ServiceInterfaces
+        component "Poslovne usluge\nLocationService, RagService, SourceService\nCommuteService, DayRouteService..." as Services
+        component "Obrada i pravila\nSourceRecordNormalizer, SourceRegistrationPlanner\nSubsidyPolicyPresenter, EnrolmentRoundPresenter" as Policies
+        component "Zajednički modeli\nDTO upita, rezultata i izvora" as DTO
+    }
+    package "Podatkovni sloj" {
+        component "Unit of Work\nUnitOfWork, SourceUnitOfWork\nAsyncpgUnitOfWork, AsyncpgSourceUnitOfWork" as Uow
+        component "Ugovori repozitorija\nLocationRepository, SourceRepository..." as RepositoryInterfaces
+        component "Repozitoriji\nAsyncpgLocationRepository\nAsyncpgSourceRepository..." as Repositories
+        component "Ugovori integracija\nCkanClientInterface, JourneyPlanner\nAddressLookup" as IntegrationInterfaces
+        component "Adapteri integracija\nCkanClient, OtpJourneyPlanner\nLocalAddressLookup" as Integrations
+        component "Baza\npool konekcija i migracije" as Database
+    }
+}
+
+' Glavni pozivi i ovisnosti.
+MCP --> Assembly : otvara servise
+HTTP --> Assembly : otvara servis lokacija
+Commands --> Assembly : otvara servise
+MCP --> ServiceInterfaces : poziva servise
+HTTP --> ServiceInterfaces : poziva servis lokacija
+Assembly --> Services : sastavlja implementacije
+Services ..> ServiceInterfaces : implementira ugovore
+Services --> Policies : obrađuje podatke
+Services ..> DTO : koristi modele
+Services --> Uow : koristi transakcije
+Services --> IntegrationInterfaces : koristi integracije
+Assembly --> Integrations : sastavlja adaptere
+Integrations ..> IntegrationInterfaces : implementira ugovore
+Uow --> RepositoryInterfaces : koristi ugovore
+Uow --> Repositories : sastavlja repozitorije
+Repositories ..> RepositoryInterfaces : implementira ugovore
+Uow --> Database : konekcija
+
+' Nevidljive veze zadržavaju slojeve u okomitom rasporedu.
+ServiceInterfaces -[hidden]down-> Uow
+Policies -[hidden]down-> Repositories
+@enduml

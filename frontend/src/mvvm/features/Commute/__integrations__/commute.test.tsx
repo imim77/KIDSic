@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { beforeEach, expect, it, vi } from 'vitest'
 import { CommuteView } from '@/mvvm/features/Commute/components/CommuteView'
 import { McpLocationApp } from '@/mvvm/features/Locations/screens/McpLocation/McpLocationApp'
 import { decodePolyline } from '@/mvvm/features/Locations/components/map/polyline'
@@ -22,6 +22,7 @@ vi.mock('@modelcontextprotocol/ext-apps', () => ({App: class {
   getHostContext=()=>({displayMode:'inline',availableDisplayModes:['inline','fullscreen']})
 }}))
 const drawn = vi.hoisted(() => new Set<unknown>())
+beforeEach(() => drawn.clear())
 vi.mock('@/mvvm/features/Locations/components/map/KindergartenMap', () => ({KindergartenMap:({route,collection,onSelect,overlay}: {
   route?:MapRoute;collection?:LocationCollection;onSelect?:(id:string)=>void;overlay?:(ready:boolean)=>ReactNode
 }) => { if (route) drawn.add(route); return <div aria-label="Zajednička karta">
@@ -31,8 +32,6 @@ vi.mock('@/mvvm/features/Locations/components/map/KindergartenMap', () => ({Kind
   {overlay?.(true)}
 </div> }}))
 
-beforeEach(()=> {Element.prototype.scrollTo=vi.fn()})
-afterEach(()=> {Reflect.deleteProperty(Element.prototype,'scrollTo')})
 
 it('uses the city explorer and ranked cards, with only the requested options and selected route', () => {
   const select=vi.fn()

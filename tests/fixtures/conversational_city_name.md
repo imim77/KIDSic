@@ -17,7 +17,8 @@ Svaki razgovor započeti zasebno:
 4. „Prikaži vrtiće u Varaždinu.” → grad Varaždin, bez naziva.
 5. „Prikaži Čarobnu kućicu.” → pitanje za grad, bez poziva alata.
 6. „Prikaži vrtiće.” → pitanje za grad, bez zadanog Zagreba.
-7. „Tražim Bajku u Splitu.” → objašnjenje ograničenja na tri podržana grada.
+7. „Tražim Bajku u Splitu.” → objasniti da su podržani Zagreb, Varaždin, Rijeka
+   i Šibenik.
 8. „Prikaži NepostojeciTestNaziv u Rijeci.” → prazan rezultat uz iste kriterije;
    bez zamjene grada, uklanjanja naziva ili izmišljanja vrtića.
 9. „Prikaži carobnu kucicu u Zagrebu.” → filtriranje bez potrebe za dijakriticima;

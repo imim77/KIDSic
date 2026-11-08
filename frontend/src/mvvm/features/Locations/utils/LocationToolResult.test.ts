@@ -1,10 +1,9 @@
 import { Blob } from 'node:buffer'
 import { gzipSync } from 'node:zlib'
-import { afterEach, expect, it, vi } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { LocationToolResult } from '@/mvvm/features/Locations/utils/LocationToolResult'
 import { collection, enrolmentRound, facility, historicalEvidence } from '@test-support/fixtures'
 
-afterEach(() => vi.unstubAllGlobals())
 
 it('accepts dated enrolment rounds and rejects inconsistent status, periods or channels', () => {
   const data = collection(facility('enrolment'))

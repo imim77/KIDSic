@@ -23,8 +23,7 @@ a HTML resurs u `api/apps/map_resource.py`.
 
 Streamable HTTP endpoint je `http://127.0.0.1:8001/mcp`. Server pri pokretanju
 učitava `frontend/dist/mcp.html` i otvara jedan pool baze. Ako build nedostaje,
-pokretanje završava jasnom porukom. `KIDSIC_UI_PATH` može zadati drugi put do
-izgrađenog HTML-a, npr. u deploymentu. Nakon promjene builda ponovno pokrenuti
+pokretanje završava jasnom porukom. Nakon promjene builda ponovno pokrenuti
 server. Pakiranje Python wheela samo ne uključuje frontend; deployment mora
 isporučiti taj HTML. Ne pokreću se migracije niti uvoz pri startu.
 
@@ -277,9 +276,8 @@ uv run --with osmium==4.3.2 python routing/index_addresses.py \
 npm --prefix frontend run build:mcp
 ```
 
-`KIDSIC_ADDRESS_INDEX` opcionalno određuje put do riječkog indeksa, a
-`KIDSIC_ADDRESS_INDEX_ZAGREB` do zagrebačkog (zadano
-`routing/data/zagreb/addresses.sqlite`). Postojeći
+Riječki indeks je fiksno `routing/data/addresses.sqlite`, a zagrebački
+`routing/data/zagreb/addresses.sqlite`. Postojeći
 snapshot daje 8.831 adresni ili imenovani POI zapis u obuhvatu Rijeke i okolice.
 Zapisi s izričitim `addr:city` izvan Rijeke isključeni su; zapisi bez grada
 ograničeni su geografskim okvirom. Zato model treba tražiti grad i točnu adresu,
@@ -343,8 +341,8 @@ Brodaricu kao naselje Grada Šibenika, uz provjeru županije pri uvozu.
 `preporuci_vrtice_usput` prihvaća `city="Šibenik"`, primjerice
 `home="Svilajska ulica 20"`, `work="Ulica Velimira Škorpika 10"`,
 `departure="2026-11-09T07:00"`, `mode="TRANSIT"`.
-Šibenski ruter koristi port 18082, indeks `routing/data/sibenik/addresses.sqlite`,
-`OTP_URL_SIBENIK` i `KIDSIC_ADDRESS_INDEX_SIBENIK`. Datum mora biti između
+Šibenski ruter koristi fiksni port 18082 i indeks
+`routing/data/sibenik/addresses.sqlite`. Datum mora biti između
 2026-09-07 i 2027-06-07, a obje točke u šibenskom okviru.
 Trenutačno se uspoređuju tri pregledana OSM objekta. Nepotpunu pokrivenost,
 neprovjereno radno vrijeme i nepoznata slobodna mjesta treba navesti korisniku;

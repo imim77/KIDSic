@@ -10,7 +10,7 @@ DATA_FILE = Path(__file__).with_name('varazdin-other-nominatim.json')
 
 async def import_venues(connection, data):
     """import_venues links each reviewed physical venue to its existing institution."""
-    municipality = await connection.fetchval("SELECT id FROM jedinice_lokalne_samouprave WHERE key='varazdin'")
+    municipality = await connection.fetchval("SELECT id FROM jedinice_lokalne_samouprave WHERE kljuc='varazdin'")
     if municipality is None:
         raise ValueError('Register Grad Varaždin before importing venues.')
     batch = await Batch.start(connection, data['fetched_at'])
@@ -26,13 +26,13 @@ async def import_venues(connection, data):
 
     for item in data['objects']:
         owner = uuid.UUID(item['kindergarten_id'])
-        name = await connection.fetchval('SELECT name FROM vrtici WHERE id=$1', owner)
+        name = await connection.fetchval('SELECT naziv  AS name FROM vrtici WHERE id=$1', owner)
         if name != item['name'] or item['review_status'] != 'matched':
             raise ValueError(f"Review the identity and geocoding of {item['name']} before import.")
         geo = item['selected']
         location = uuid.uuid5(owner, item['location_key'])
         attributes, manual = area_attributes(
-            geo, await connection.fetchval('SELECT attributes FROM objekti WHERE id=$1', location))
+            geo, await connection.fetchval('SELECT obiljezja  AS attributes FROM objekti WHERE id=$1', location))
         attributes.update(venue_role=item['venue_role'], geocoding_review_status='matched',
                           geocoding_match_basis=geo['match_basis'])
         await batch.location(location, owner, item['object'], item['official_address'],

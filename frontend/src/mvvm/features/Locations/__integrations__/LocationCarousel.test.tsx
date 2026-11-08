@@ -21,7 +21,7 @@ beforeEach(() => {
   vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })))
   Object.defineProperty(HTMLElement.prototype, 'scrollTo', { configurable: true, value: scrollTo })
 })
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); Reflect.deleteProperty(HTMLElement.prototype, 'scrollTo') })
+afterEach(() => { Reflect.deleteProperty(HTMLElement.prototype, 'scrollTo') })
 function props() { return { features, selectedId: null, reveal: null, onSelect } }
 
 describe('location carousel', () => {

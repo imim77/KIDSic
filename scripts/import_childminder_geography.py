@@ -16,8 +16,7 @@ async def import_geography(connection, data):
     for item in data['objects']:
         owner = uuid.UUID(item['id'])
         stored = await connection.fetchrow(
-            'SELECT k.name,ks.address AS seat_address,k.provider_kind FROM vrtici k '
-            'LEFT JOIN sjedista_vrtica ks ON ks.kindergarten_id=k.id WHERE k.id=$1 FOR UPDATE OF k', owner)
+            'SELECT k.naziv AS name,ks.adresa AS seat_address,k.vrsta_pruzatelja  AS provider_kind FROM vrtici k LEFT JOIN sjedista_vrtica ks ON ks.id_vrtica=k.id WHERE k.id=$1 FOR UPDATE OF k', owner)
         if (stored is None or stored['name'] != item['name'] or
                 stored['seat_address'] != item['seat_address'] or stored['provider_kind'] != 'childminder'):
             raise ValueError(f"Review the changed childminder identity/address: {item['name']}")
@@ -31,10 +30,10 @@ async def import_geography(connection, data):
         attributes = {key: geo.get(key) for key in keys}
         attributes.update(address=item['seat_address'], geocoding_address=item['geocoding_address'],
                           match_basis=geo['match_basis'], review_note=item['review_note'])
-        await connection.execute('''
-            UPDATE sjedista_vrtica SET longitude=$2,latitude=$3,attributes=$4,
-                geography_source_record_id=$5 WHERE kindergarten_id=$1
-        ''', owner, geo['longitude'], geo['latitude'], attributes, record)
+        await connection.execute("""
+            UPDATE sjedista_vrtica SET geografska_duzina=$2,geografska_sirina=$3,obiljezja=$4,
+                id_zapisa_geografskog_izvora=$5 WHERE id_vrtica=$1
+        """, owner, geo['longitude'], geo['latitude'], attributes, record)
         areas = ', '.join(f'{key}: {geo[key]}' for key in keys if geo.get(key))
         await batch.chunk(owner, None, record,
                           f"{item['name']}. Sjedište: {item['seat_address']}, {item['seat_settlement']}. "

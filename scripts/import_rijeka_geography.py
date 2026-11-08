@@ -33,16 +33,16 @@ class RijekaGeographyImporter:
                                     {'attribution': data['attribution'], 'cache_file': DATA_FILE.name})
         for item in accepted:
             location = uuid.UUID(item['location_id'])
-            stored = await self._connection.fetchrow('''
-                SELECT l.kindergarten_id,l.name,l.address,l.attributes
-                FROM objekti l JOIN jedinice_lokalne_samouprave m ON m.id=l.municipality_id
-                WHERE l.id=$1 AND m.key='rijeka' AND EXISTS (
-                    SELECT 1 FROM izvorni_zapisi r JOIN izvori_podataka s ON s.id=r.source_id
-                    WHERE r.location_id=l.id AND r.kindergarten_id=l.kindergarten_id
-                      AND s.dataset_key='rijeka-kindergartens' AND r.source_key=$2
-                      AND s.import_allowed
-                      AND r.match_status='accepted') FOR UPDATE OF l
-            ''', location, item['source_key'])
+            stored = await self._connection.fetchrow("""
+                SELECT l.id_vrtica AS kindergarten_id,l.naziv AS name,l.adresa AS address,l.obiljezja
+                 AS attributes FROM objekti l JOIN jedinice_lokalne_samouprave m ON m.id=l.id_jedinice_lokalne_samouprave
+                WHERE l.id=$1 AND m.kljuc='rijeka' AND EXISTS (
+                    SELECT 1 FROM izvorni_zapisi r JOIN izvori_podataka s ON s.id=r.id_izvora
+                    WHERE r.id_objekta=l.id AND r.id_vrtica=l.id_vrtica
+                      AND s.kljuc_skupa_podataka='rijeka-kindergartens' AND r.kljuc_izvornog_zapisa=$2
+                      AND s.uvoz_dopusten
+                      AND r.status_povezivanja='accepted') FOR UPDATE OF l
+            """, location, item['source_key'])
             if (stored is None or str(stored['kindergarten_id']) != item['kindergarten_id']
                     or stored['name'] != item['location_name'] or stored['address'] != item['address']):
                 raise ValueError(f"Review the changed Rijeka location: {item['location_name']}")
@@ -52,7 +52,7 @@ class RijekaGeographyImporter:
             attributes, manual = area_attributes(geo, stored['attributes'])
             attributes.update(geocoding_review_status='matched', geocoding_match_basis=geo['match_basis'])
             await self._connection.execute(
-                'UPDATE objekti SET longitude=$2,latitude=$3,attributes=attributes || $4 WHERE id=$1',
+                'UPDATE objekti SET geografska_duzina=$2,geografska_sirina=$3,obiljezja=obiljezja || $4 WHERE id=$1',
                 location, geo['longitude'], geo['latitude'], attributes)
             await batch.evidence(location, record, [field for field in ('longitude', 'latitude', *AREAS)
                                                     if geo.get(field) is not None], manual)

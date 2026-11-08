@@ -177,3 +177,6 @@ tags
 /routing/data/
 
 /routing/cache/
+
+# make setup marker
+.setup-done

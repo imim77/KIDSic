@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, expect, it, vi } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { McpLocationApp } from '@/mvvm/features/Locations/screens/McpLocation/McpLocationApp'
 import { collection, facility } from '@test-support/fixtures'
 import { commuteResult } from '@test-support/commute-fixtures'
@@ -9,12 +9,10 @@ import { commuteResult } from '@test-support/commute-fixtures'
 vi.mock('@/mvvm/features/Locations/components/map/KindergartenMap', () => ({
   KindergartenMap: ({ overlay }: { overlay?: (mapReady: boolean) => ReactNode }) => <div aria-label="Test map">{overlay?.(true)}</div>,
 }))
-afterEach(() => { vi.unstubAllGlobals(); Reflect.deleteProperty(Element.prototype, 'scrollTo') })
 
 it('negotiates the real SDK postMessage bridge, receives results, and requests host fullscreen', async () => {
   vi.spyOn(console, 'debug').mockImplementation(() => {})
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
-  Element.prototype.scrollTo = vi.fn()
   const methods: string[] = []
   const contexts: unknown[] = []
   const notify = (method: string, params: unknown) => window.dispatchEvent(new MessageEvent('message', {

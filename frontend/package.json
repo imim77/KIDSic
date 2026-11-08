@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run --config vitest.config.ts",
+    "test:typecheck": "tsc -p tsconfig.test.json",
     "build:mcp": "tsc -b && vite build --config vite.mcp.config.ts"
   },
   "dependencies": {

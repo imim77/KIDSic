@@ -5,8 +5,8 @@ from collections.abc import Mapping, Sequence
 from KIDSic.integrations.interfaces.ckan import CkanClientInterface
 from KIDSic.db.uow.source import SourceUnitOfWorkFactory
 from KIDSic.dto.historical import HistoricalSnapshot, HistoricalSourceDefinition
-from KIDSic.services.concrete.historical_parser import HistoricalTableParser
-from KIDSic.services.concrete.source_planner import SourceRegistrationPlanner
+from KIDSic.services.interfaces.historical import HistoricalRowParser
+from KIDSic.services.interfaces.source_import import SourcePlanner
 from KIDSic.exceptions import SourceImportError
 
 
@@ -14,12 +14,11 @@ class HistoricalService:
     def __init__(self, clients: Mapping[str, CkanClientInterface],
                  definitions: Sequence[HistoricalSourceDefinition],
                  uow_factory: SourceUnitOfWorkFactory | None = None, *,
-                 parser: HistoricalTableParser | None = None,
-                 planner: SourceRegistrationPlanner | None = None):
+                 parser: HistoricalRowParser, planner: SourcePlanner):
         self._clients, self._definitions = dict(clients), tuple(definitions)
         self._uow_factory = uow_factory
-        self._parser = parser or HistoricalTableParser()
-        self._planner = planner or SourceRegistrationPlanner()
+        self._parser = parser
+        self._planner = planner
 
     async def _snapshots(self):
         sources = []

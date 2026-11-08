@@ -1,6 +1,9 @@
 from KIDSic.config.historical import zagreb_historical_sources
 from KIDSic.integrations.concrete.ckan import CkanClient
 from KIDSic.services.concrete.historical import HistoricalService
+from KIDSic.services.concrete.historical_layouts import default_historical_layouts
+from KIDSic.services.concrete.historical_parser import HistoricalTableParser
+from KIDSic.services.concrete.source_planner import SourceRegistrationPlanner
 
 
 class HistoricalServiceFactory:
@@ -16,4 +19,6 @@ class HistoricalServiceFactory:
             definitions = tuple(d for d in definitions if d.source.key in source_keys)
         clients = {d.source.key: CkanClient(http, d.source.base_url, settings.ckan_timeout,
             settings.ckan_max_bytes, csv_encoding=d.source.csv_encoding) for d in definitions}
-        return HistoricalService(clients, definitions, uow_factory)
+        return HistoricalService(clients, definitions, uow_factory,
+                                 parser=HistoricalTableParser(default_historical_layouts()),
+                                 planner=SourceRegistrationPlanner())

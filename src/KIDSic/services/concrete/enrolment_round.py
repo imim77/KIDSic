@@ -3,9 +3,10 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 
 from KIDSic.dto.location import LocationEnrolment
+from KIDSic.services.interfaces.presenters import EnrolmentPresenter
 
 
-class EnrolmentRoundPresenter:
+class EnrolmentRoundPresenter(EnrolmentPresenter):
     # Inject the clock in tests; the status depends on the moment of the read.
     def __init__(self, clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc)):
         self._clock = clock
@@ -15,11 +16,11 @@ class EnrolmentRoundPresenter:
         items = [LocationEnrolment.model_validate({**raw, 'status': 'dates_unknown'}) for raw in rounds]
         # A published refusal for a year outranks that year's general rounds.
         refused = {item.academic_year for item in items if not item.accepting}
-        return [item.model_copy(update={'status': self.status(item, now)}) for item in items
+        return [item.model_copy(update={'status': self._status(item, now)}) for item in items
                 if not item.accepting or item.academic_year not in refused]
 
     @staticmethod
-    def status(item: LocationEnrolment, now: datetime) -> str:
+    def _status(item: LocationEnrolment, now: datetime) -> str:
         if not item.accepting:
             return 'not_accepting'
         if item.opens_at and now < item.opens_at:

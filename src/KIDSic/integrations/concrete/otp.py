@@ -44,19 +44,22 @@ class OtpJourneyPlanner(JourneyPlanner):
             payload = response.json()
             if payload.get('errors'):
                 raise ValueError('OTP GraphQL error')
-            itineraries = payload['data']['plan']['itineraries']
-            journeys = []
-            for item in itineraries:
-                legs = [RouteLeg(mode=leg['mode'], departure=instant(leg['startTime']),
-                    arrival=instant(leg['endTime']), from_name=leg['from']['name'],
-                    to_name=leg['to']['name'],
-                    line=(leg.get('route') or {}).get('shortName') or
-                         (leg.get('route') or {}).get('longName'),
-                    geometry=(leg.get('legGeometry') or {}).get('points')) for leg in item['legs']]
-                journey = Journey(departure=instant(item['startTime']),
-                                  arrival=instant(item['endTime']), legs=legs)
-                if journey.departure >= departure and journey.arrival >= journey.departure and legs:
-                    journeys.append(journey)
-            return min(journeys, key=lambda j: j.arrival, default=None)
+            journeys = [self._journey(item) for item in payload['data']['plan']['itineraries']]
+            # OTP may return itineraries that leave before the requested time.
+            valid = [j for j in journeys if j.legs and departure <= j.departure <= j.arrival]
         except (httpx.HTTPError, ValueError, KeyError, TypeError, OverflowError) as error:
             raise RoutingUnavailable('Local OTP routing is unavailable.') from error
+        return min(valid, key=lambda j: j.arrival, default=None)
+
+    @staticmethod
+    def _journey(itinerary) -> Journey:
+        return Journey(departure=instant(itinerary['startTime']), arrival=instant(itinerary['endTime']),
+                       legs=[OtpJourneyPlanner._leg(leg) for leg in itinerary['legs']])
+
+    @staticmethod
+    def _leg(leg) -> RouteLeg:
+        route = leg.get('route') or {}
+        return RouteLeg(mode=leg['mode'], departure=instant(leg['startTime']), arrival=instant(leg['endTime']),
+                        from_name=leg['from']['name'], to_name=leg['to']['name'],
+                        line=route.get('shortName') or route.get('longName'),
+                        geometry=(leg.get('legGeometry') or {}).get('points'))

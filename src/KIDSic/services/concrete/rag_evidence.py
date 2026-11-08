@@ -1,11 +1,12 @@
 """RagEvidenceBuilder turns accepted structured facts into dated, scoped excerpts."""
 from hashlib import sha256
 from KIDSic.dto.rag import RagEvidence, RagSource
-from KIDSic.services.concrete.subsidy import SubsidyPolicyPresenter
+from KIDSic.services.interfaces.presenters import SubsidyPresenter
+from KIDSic.services.interfaces.rag import EvidenceBuilder
 
 
-class RagEvidenceBuilder:
-    def __init__(self, subsidies: SubsidyPolicyPresenter):
+class RagEvidenceBuilder(EvidenceBuilder):
+    def __init__(self, subsidies: SubsidyPresenter):
         self._subsidies = subsidies
 
     @staticmethod
@@ -27,27 +28,34 @@ class RagEvidenceBuilder:
                 evidence[item.citation_id] = item
 
         for row in rows:
-            for item in self.build(row):
+            for item in self._build(row):
                 add(item)
         for chunk in chunks:
             for row in rows:
-                if chunk['kindergarten_id'] != row['kindergarten_id'] or (
-                    chunk['location_id'] is not None and chunk['location_id'] != row['location_id']):
-                    continue
-                reference = chunk['observed_on'] or chunk.get('published_on')
-                item = self.evidence(row, topic='document', content=chunk['content'],
-                    scope='facility' if chunk['location_id'] else (
-                        'municipality' if chunk.get('document_scope') == 'municipality' else 'institution'),
-                    sources=[RagSource(title=chunk['source_title'], url=chunk['source_url'], license=chunk.get('license'))],
-                    reference_date=reference, date_kind='observed' if chunk['observed_on'] else (
-                        'published' if reference else 'unknown'),
-                    # Current only while the governed period lasts; deadlines inside it stay dated.
-                    temporal_status='current' if chunk.get('in_effect') else (
-                        'historical' if reference else 'undated'))
-                add(item)
+                if self._covers(chunk, row):
+                    add(self._document(row, chunk))
         return list(evidence.values())
 
-    def evidence(self, row, *, topic, content, sources, reference_date=None,
+    @staticmethod
+    def _covers(chunk, row) -> bool:
+        """_covers is true when a document chunk is about the row's
+        kindergarten and, if it names a facility, about that facility."""
+        return chunk['kindergarten_id'] == row['kindergarten_id'] and (
+            chunk['location_id'] is None or chunk['location_id'] == row['location_id'])
+
+    def _document(self, row, chunk):
+        reference = chunk['observed_on'] or chunk.get('published_on')
+        return self._evidence(row, topic='document', content=chunk['content'],
+            scope='facility' if chunk['location_id'] else (
+                'municipality' if chunk.get('document_scope') == 'municipality' else 'institution'),
+            sources=[RagSource(title=chunk['source_title'], url=chunk['source_url'], license=chunk.get('license'))],
+            reference_date=reference, date_kind='observed' if chunk['observed_on'] else (
+                'published' if reference else 'unknown'),
+            # Current only while the governed period lasts; deadlines inside it stay dated.
+            temporal_status='current' if chunk.get('in_effect') else (
+                'historical' if reference else 'undated'))
+
+    def _evidence(self, row, *, topic, content, sources, reference_date=None,
                  date_kind='unknown', temporal_status='undated', scope='facility'):
         location = str(row['location_id']) if scope == 'facility' and row['location_id'] else None
         identity = f"{row['kindergarten_id']}|{location}|{topic}|{reference_date}|{content}|{sources}"
@@ -56,12 +64,12 @@ class RagEvidenceBuilder:
             applies_to=[self.feature_id(row)], scope=scope, topic=topic, content=content,
             sources=sources, reference_date=reference_date, date_kind=date_kind, temporal_status=temporal_status)
 
-    def build(self, row):
+    def _build(self, row):
         result = []
         for key, label in (('website_url', 'Službena web-stranica'), ('email', 'E-mail'), ('phone', 'Telefon')):
             source = row.get('contact_sources', {}).get(key)
             if row.get(key) and source:
-                result.append(self.evidence(row, topic='contacts', content=f'{label}: {row[key]}',
+                result.append(self._evidence(row, topic='contacts', content=f'{label}: {row[key]}',
                     scope=source['scope'], sources=[RagSource(title=source['name'], url=source['url'],
                     license=source['license'])], reference_date=source['reference_date'],
                     date_kind='observed' if source['reference_date'] else 'unknown',
@@ -71,7 +79,7 @@ class RagEvidenceBuilder:
             common = dict(sources=source, reference_date=record['reference_date'], date_kind=record['date_kind'],
                           temporal_status='historical', scope=record['scope'])
             if record['programs']:
-                result.append(self.evidence(row, topic='programs',
+                result.append(self._evidence(row, topic='programs',
                     content='Povijesno objavljeni programi: ' + '; '.join(record['programs']) +
                     '. Provedba danas i dobni uvjeti nisu potvrđeni ovom snimkom.', **common))
             if record['vacancies']:
@@ -81,13 +89,13 @@ class RagEvidenceBuilder:
                 groups = [f"{v['age_label'] or 'dob nije navedena'} / {v['program'] or 'program nije naveden'}: "
                           f"{v['free_places'] if v['free_places'] is not None else 'nije objavljeno'}"
                           for v in record['vacancies']]
-                result.append(self.evidence(row, topic='vacancies',
+                result.append(self._evidence(row, topic='vacancies',
                     content='Povijesno objavljena slobodna mjesta:\n' + '\n'.join(groups) +
                     f'\n{scope_note} Ovo nije današnja raspoloživost ni jamstvo upisa.', **common))
         for raw in row.get('subsidy_policies', []):
             policy = self._subsidies.present(raw)
             rates = [rate.model_dump_json() for rate in policy.rates]
-            result.append(self.evidence(row, topic='subsidies', scope='municipality',
+            result.append(self._evidence(row, topic='subsidies', scope='municipality',
                 content=f'{policy.title}: {policy.summary}\nVrsta iznosa: {policy.amount_kind}. '
                     f'Status provjere: {policy.verification_status}. Iznosi u tarifama su eurocenti.\n' +
                     '\n'.join(rates + policy.conditions + policy.reliefs + policy.notes) +
